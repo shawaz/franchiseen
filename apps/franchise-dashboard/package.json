@@ -30,8 +30,7 @@
     "lucide-react": "^0.294.0",
     "@solana/web3.js": "^1.87.6",
     "qrcode": "^1.5.3",
-    "@types/qrcode": "^1.5.5",
-
+    "@types/qrcode": "^1.5.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",

@@ -35,8 +35,7 @@
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "qrcode": "^1.5.3",
     "@types/qrcode": "^1.5.5",
-    "framer-motion": "^10.16.16",
-
+    "framer-motion": "^10.16.16"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",
