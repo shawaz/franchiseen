@@ -1,4 +1,4 @@
-# Franchiseen - Multi-Tenant Fintech Franchise Management Platform
+# Franchiseen - Multi-Tenant Fintech Franchise Management and Crowdfunding Platform
 
 A comprehensive multi-tenant fintech platform that enables franchise management with integrated financial services, payment processing, and blockchain capabilities. Built for franchise networks to manage operations, finances, and payments across multiple locations.
 
