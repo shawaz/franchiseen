@@ -3,10 +3,7 @@
   "version": "1.0.0",
   "description": "Multi-tenant e-commerce platform",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:admin\" \"npm run dev:store\" \"npm run dev:storefront\"",
     "dev:api": "npm run dev --workspace=apps/api",
