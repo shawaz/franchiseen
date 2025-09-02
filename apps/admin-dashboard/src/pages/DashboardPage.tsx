@@ -174,7 +174,7 @@ const DashboardPage: React.FC = () => {
             <div className="text-xs text-gray-500">Financial and usage reports</div>
           </button>
           <button className="btn-outline text-left p-4 h-auto">
-            <TrendingUpIcon className="h-6 w-6 text-gray-400 mb-2" />
+            <ArrowTrendingUpIcon className="h-6 w-6 text-gray-400 mb-2" />
             <div className="text-sm font-medium text-gray-900">Analytics</div>
             <div className="text-xs text-gray-500">Platform performance metrics</div>
           </button>
