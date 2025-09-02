@@ -4,7 +4,7 @@ import {
   BuildingOfficeIcon,
   UsersIcon,
   CurrencyDollarIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline'
 import tenantService from '../services/tenant'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -46,7 +46,7 @@ const DashboardPage: React.FC = () => {
       value: `${tenantStats?.monthlyGrowth || 0}%`,
       change: '+5.2%',
       changeType: 'positive',
-      icon: TrendingUpIcon,
+      icon: ArrowTrendingUpIcon,
     },
   ]
 

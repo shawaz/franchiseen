@@ -4,12 +4,12 @@ import { Link } from 'react-router-dom'
 import {
   PlusIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
+
   EyeIcon,
 } from '@heroicons/react/24/outline'
 import tenantService from '../services/tenant'
 import LoadingSpinner from '../components/LoadingSpinner'
-import { clsx } from 'clsx'
+
 import { format } from 'date-fns'
 
 const TenantsPage: React.FC = () => {

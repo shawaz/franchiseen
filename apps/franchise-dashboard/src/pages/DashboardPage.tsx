@@ -4,7 +4,7 @@ import {
   UsersIcon,
   CreditCardIcon,
   CurrencyDollarIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   BanknotesIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -74,7 +74,7 @@ const DashboardPage: React.FC = () => {
       value: `$${(transactionStats?.totalCommissions || 0).toLocaleString()}`,
       change: '+15%',
       changeType: 'positive',
-      icon: TrendingUpIcon,
+      icon: ArrowTrendingUpIcon,
       color: 'warning',
     },
   ]
