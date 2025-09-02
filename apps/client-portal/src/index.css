@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background shadow-sm;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 hover:shadow-md h-11 py-2 px-6;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-200 h-11 py-2 px-6;
+  }
+  
+  .btn-outline {
+    @apply btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 h-11 py-2 px-6;
+  }
+  
+  .btn-success {
+    @apply btn bg-success-600 text-white hover:bg-success-700 hover:shadow-md h-11 py-2 px-6;
+  }
+  
+  .btn-warning {
+    @apply btn bg-warning-600 text-white hover:bg-warning-700 hover:shadow-md h-11 py-2 px-6;
+  }
+  
+  .btn-danger {
+    @apply btn bg-error-600 text-white hover:bg-error-700 hover:shadow-md h-11 py-2 px-6;
+  }
+  
+  .btn-crypto {
+    @apply btn bg-gradient-to-r from-crypto-600 to-purple-600 text-white hover:from-crypto-700 hover:to-purple-700 hover:shadow-lg h-11 py-2 px-6;
+  }
+  
+  .btn-ghost {
+    @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900 h-11 py-2 px-6;
+  }
+  
+  .btn-sm {
+    @apply h-9 px-4 text-xs;
+  }
+  
+  .btn-lg {
+    @apply h-12 px-8 text-base;
+  }
+  
+  .input {
+    @apply flex h-11 w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200;
+  }
+  
+  .input-error {
+    @apply input border-error-300 focus-visible:ring-error-500;
+  }
+  
+  .card {
+    @apply rounded-2xl border border-gray-200 bg-white shadow-sm backdrop-blur-sm;
+  }
+  
+  .card-body {
+    @apply p-6;
+  }
+  
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200;
+  }
+  
+  .card-footer {
+    @apply px-6 py-4 border-t border-gray-200;
+  }
+  
+  .badge {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium;
+  }
+  
+  .badge-success {
+    @apply badge bg-success-100 text-success-800;
+  }
+  
+  .badge-warning {
+    @apply badge bg-warning-100 text-warning-800;
+  }
+  
+  .badge-error {
+    @apply badge bg-error-100 text-error-800;
+  }
+  
+  .badge-gray {
+    @apply badge bg-gray-100 text-gray-800;
+  }
+  
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+  
+  .badge-crypto {
+    @apply badge bg-gradient-to-r from-crypto-100 to-purple-100 text-crypto-800;
+  }
+  
+  .balance-card {
+    @apply card bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg;
+  }
+  
+  .balance-value {
+    @apply text-3xl font-bold;
+  }
+  
+  .balance-label {
+    @apply text-primary-100 text-sm font-medium;
+  }
+  
+  .transaction-item {
+    @apply flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 hover:shadow-sm transition-shadow;
+  }
+  
+  .account-card {
+    @apply card hover:shadow-md transition-shadow cursor-pointer;
+  }
+  
+  .crypto-address {
+    @apply font-mono text-sm bg-gray-100 px-3 py-2 rounded-lg border;
+  }
+  
+  .qr-container {
+    @apply flex items-center justify-center p-6 bg-white border-2 border-gray-200 rounded-2xl;
+  }
+  
+  .nav-item {
+    @apply flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200;
+  }
+  
+  .nav-item.active {
+    @apply bg-primary-100 text-primary-700 shadow-sm;
+  }
+  
+  .nav-item:not(.active) {
+    @apply text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+  }
+  
+  .stat-card {
+    @apply card card-body text-center;
+  }
+  
+  .stat-value {
+    @apply text-2xl font-bold text-gray-900;
+  }
+  
+  .stat-label {
+    @apply text-sm font-medium text-gray-500 mt-1;
+  }
+  
+  .stat-change {
+    @apply text-sm font-medium mt-2;
+  }
+  
+  .stat-change.positive {
+    @apply text-success-600;
+  }
+  
+  .stat-change.negative {
+    @apply text-error-600;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-600 to-crypto-600 bg-clip-text text-transparent;
+  }
+  
+  .crypto-gradient {
+    @apply bg-gradient-to-r from-crypto-600 via-purple-600 to-blue-600;
+  }
+  
+  .loading-skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@franchiseen/database",
+  "version": "1.0.0",
+  "description": "Database schemas and utilities for Franchiseen platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:seed": "tsx src/seed.ts",
+    "db:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "db:pull": "prisma db pull"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "@franchiseen/shared": "workspace:*",
+    "bcryptjs": "^2.4.3",
+    "nanoid": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^5.7.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
+  },
+  "prisma": {
+    "schema": "src/schema.prisma"
+  }
+}

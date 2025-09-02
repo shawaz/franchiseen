@@ -1,0 +1,61 @@
+name: Deploy Franchiseen Platform
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        app: [admin-dashboard, franchise-dashboard, client-portal]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install root dependencies
+      run: npm ci
+      
+    - name: Install app dependencies
+      run: |
+        cd apps/${{ matrix.app }}
+        npm ci
+        
+    - name: Build application
+      run: |
+        cd apps/${{ matrix.app }}
+        npm run build
+        
+    - name: Run tests (if available)
+      run: |
+        cd apps/${{ matrix.app }}
+        if [ -f "package.json" ] && grep -q '"test"' package.json; then
+          npm test -- --watchAll=false
+        fi
+      continue-on-error: true
+        
+    - name: Deploy to Netlify
+      uses: nwtgck/actions-netlify@v2.0
+      with:
+        publish-dir: './apps/${{ matrix.app }}/dist'
+        production-branch: main
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy from GitHub Actions - ${{ matrix.app }}"
+        enable-pull-request-comment: true
+        enable-commit-comment: true
+        overwrites-pull-request-comment: true
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets[format('NETLIFY_SITE_ID_{0}', matrix.app)] }}
+      timeout-minutes: 10

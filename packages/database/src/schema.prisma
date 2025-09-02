@@ -1,0 +1,393 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Platform-level models (shared across all tenants)
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  subdomain   String   @unique
+  domain      String?  @unique
+  status      TenantStatus @default(ACTIVE)
+  plan        SubscriptionPlan @default(BASIC)
+  settings    Json     @default("{}")
+
+  // Franchise-specific fields
+  franchiseType String? // e.g., "financial_services", "payment_processing", "lending"
+  licenseNumber String?
+  regulatoryInfo Json @default("{}")
+  commissionRate Decimal @default(0) @db.Decimal(5, 4) // e.g., 0.0250 for 2.5%
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner       User     @relation("TenantOwner", fields: [ownerId], references: [id])
+  ownerId     String
+  users       User[]   @relation("TenantUsers")
+  services    Service[]
+  transactions Transaction[]
+  clients     Client[]
+  webhooks    Webhook[]
+  solanaWallets SolanaWallet[]
+  solanaPayRequests SolanaPayRequest[]
+  financialAccounts FinancialAccount[]
+
+  @@map("tenants")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  avatar        String?
+  emailVerified Boolean  @default(false)
+  status        UserStatus @default(ACTIVE)
+  role          UserRole @default(CUSTOMER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Multi-tenant relations
+  tenant        Tenant?  @relation("TenantUsers", fields: [tenantId], references: [id])
+  tenantId      String?
+  ownedTenants  Tenant[] @relation("TenantOwner")
+
+  // User sessions for JWT refresh tokens
+  sessions      UserSession[]
+  orders        Order[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// Tenant-specific models (isolated per tenant)
+
+model Service {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  serviceCode    String
+  status         ServiceStatus @default(ACTIVE)
+  category       String?
+  serviceType    String? // e.g., "payment_processing", "lending", "investment"
+  tags           String[] @default([])
+  metadata       Json     @default("{}")
+
+  // Pricing information
+  basePrice      Decimal? @db.Decimal(10, 2)
+  commissionRate Decimal? @db.Decimal(5, 4)
+  feeStructure   Json     @default("{}")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Multi-tenant isolation
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+
+  // Relations
+  transactions   Transaction[]
+
+  @@unique([tenantId, serviceCode])
+  @@map("services")
+}
+
+model Client {
+  id               String   @id @default(cuid())
+  email            String
+  firstName        String
+  lastName         String
+  phone            String?
+  businessName     String?
+  clientType       ClientType @default(INDIVIDUAL)
+  status           ClientStatus @default(ACTIVE)
+
+  // Financial information
+  totalVolume      Decimal  @default(0) @db.Decimal(15, 2)
+  transactionCount Int      @default(0)
+  creditLimit      Decimal? @db.Decimal(15, 2)
+  riskScore        Int?     // 1-100 risk assessment
+
+  // KYC/AML information
+  kycStatus        KYCStatus @default(PENDING)
+  kycDocuments     Json     @default("[]")
+  verificationDate DateTime?
+
+  // Contact and address information
+  addresses        Json     @default("[]")
+  tags             String[] @default([])
+  metadata         Json     @default("{}")
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Multi-tenant isolation
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId         String
+
+  // Relations
+  transactions     Transaction[]
+  financialAccounts FinancialAccount[]
+
+  @@unique([tenantId, email])
+  @@map("clients")
+}
+
+model FinancialAccount {
+  id              String   @id @default(cuid())
+  accountNumber   String
+  accountType     AccountType
+  accountName     String
+  currency        String   @default("USD")
+  balance         Decimal  @default(0) @db.Decimal(15, 2)
+  availableBalance Decimal @default(0) @db.Decimal(15, 2)
+  status          AccountStatus @default(ACTIVE)
+
+  // Account details
+  routingNumber   String?
+  swiftCode       String?
+  iban            String?
+  metadata        Json     @default("{}")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Multi-tenant isolation
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId        String
+
+  // Relations
+  client          Client?  @relation(fields: [clientId], references: [id])
+  clientId        String?
+  transactions    Transaction[]
+
+  @@unique([tenantId, accountNumber])
+  @@map("financial_accounts")
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  transactionId   String   @unique // External transaction ID
+  amount          Decimal  @db.Decimal(15, 2)
+  currency        String
+
+  // Transaction details
+  transactionType TransactionType
+  category        String? // e.g., "payment", "transfer", "fee", "commission"
+  description     String?
+  reference       String? // External reference number
+
+  // Processing information
+  gateway         String
+  gatewayTransactionId String?
+  status          TransactionStatus
+  processingFee   Decimal? @db.Decimal(10, 2)
+  commissionAmount Decimal? @db.Decimal(10, 2)
+
+  // Solana-specific fields
+  solanaSignature String?  // Solana transaction signature
+  solanaWallet    String?  // Client's Solana wallet address
+  solanaToken     String?  // Token mint address (for SPL tokens)
+  solanaAmount    Decimal? @db.Decimal(20, 9) // Amount in lamports/token units
+
+  // Metadata and notes
+  metadata        Json     @default("{}")
+  internalNotes   String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  processedAt     DateTime?
+
+  // Multi-tenant isolation
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId        String
+
+  // Relations
+  client          Client?  @relation(fields: [clientId], references: [id])
+  clientId        String?
+  service         Service? @relation(fields: [serviceId], references: [id])
+  serviceId       String?
+  fromAccount     FinancialAccount? @relation("FromAccount", fields: [fromAccountId], references: [id])
+  fromAccountId   String?
+  toAccount       FinancialAccount? @relation("ToAccount", fields: [toAccountId], references: [id])
+  toAccountId     String?
+  solanaPayRequests SolanaPayRequest[]
+
+  @@map("transactions")
+}
+
+model Webhook {
+  id          String   @id @default(cuid())
+  url         String
+  events      String[] @default([])
+  secret      String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Multi-tenant isolation
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId    String
+
+  @@map("webhooks")
+}
+
+// Solana-specific models
+model SolanaWallet {
+  id          String   @id @default(cuid())
+  address     String   @unique
+  name        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Multi-tenant isolation
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId    String
+
+  @@map("solana_wallets")
+}
+
+model SolanaPayRequest {
+  id              String   @id @default(cuid())
+  reference       String   @unique // Solana Pay reference
+  recipient       String   // Merchant wallet address
+  amount          Decimal? @db.Decimal(20, 9) // Amount in SOL/SPL tokens
+  splToken        String?  // SPL token mint address
+  label           String?  // Payment label
+  message         String?  // Payment message
+  memo            String?  // On-chain memo
+  status          SolanaPayStatus @default(PENDING)
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  transactionId   String?
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId        String
+
+  @@map("solana_pay_requests")
+}
+
+// Enums
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+  CANCELLED
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum UserRole {
+  PLATFORM_ADMIN
+  TENANT_OWNER
+  TENANT_ADMIN
+  TENANT_STAFF
+  CUSTOMER
+}
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ClientType {
+  INDIVIDUAL
+  BUSINESS
+  CORPORATE
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum KYCStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  BUSINESS
+  ESCROW
+  MERCHANT
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  PAYMENT
+  TRANSFER
+  DEPOSIT
+  WITHDRAWAL
+  FEE
+  COMMISSION
+  REFUND
+  CHARGEBACK
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILURE
+  ERROR
+}
+
+enum SolanaPayStatus {
+  PENDING
+  CONFIRMED
+  FINALIZED
+  EXPIRED
+  FAILED
+}
