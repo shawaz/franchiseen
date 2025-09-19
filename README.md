@@ -1,4 +1,4 @@
-# Franchiseen (Demo Project)
+# Franchiseen
 
 ## Overview
 This is the **demo release** of **Franchiseen**, a blockchain-powered franchise investment and management platform.  
