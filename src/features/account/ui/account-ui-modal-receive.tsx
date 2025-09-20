@@ -1,6 +1,6 @@
 import { Address } from 'gill'
-import { AppExplorerLink } from '@/components/app-explorer-link'
-import { AppModal } from '@/components/app-modal'
+import { AppExplorerLink } from '@/components/default/app-explorer-link'
+import { AppModal } from '@/components/default/app-modal'
 import { toast } from 'sonner'
 import { handleCopyText } from '@wallet-ui/react'
 import { CopyCheck } from 'lucide-react'

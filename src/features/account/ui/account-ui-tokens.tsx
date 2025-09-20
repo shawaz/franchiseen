@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { ellipsify } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { AppExplorerLink } from '@/components/app-explorer-link'
+import { AppExplorerLink } from '@/components/default/app-explorer-link'
 import { useGetTokenAccountsQuery } from '../data-access/use-get-token-accounts-query'
 
 export function AccountUiTokens({ address }: { address: Address }) {

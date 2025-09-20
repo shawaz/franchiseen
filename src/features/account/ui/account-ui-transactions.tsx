@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { ellipsify } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { AppExplorerLink } from '@/components/app-explorer-link'
+import { AppExplorerLink } from '@/components/default/app-explorer-link'
 import { useGetSignaturesQuery } from '../data-access/use-get-signatures-query'
 
 export function AccountUiTransactions({ address }: { address: Address }) {

@@ -1,12 +1,12 @@
 import { assertIsAddress } from 'gill'
 import { useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import { AppHero } from '@/components/app-hero'
+import { AppHero } from '@/components/default/app-hero'
 import { ellipsify } from '@/lib/utils'
 
 import { AccountUiTransactions } from './ui/account-ui-transactions'
 import { AccountUiBalance } from '@/features/account/ui/account-ui-balance'
-import { AppExplorerLink } from '@/components/app-explorer-link'
+import { AppExplorerLink } from '@/components/default/app-explorer-link'
 import { AccountUiButtons } from '@/features/account/ui/account-ui-buttons'
 import { AccountUiTokens } from '@/features/account/ui/account-ui-tokens'
 

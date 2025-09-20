@@ -1,6 +1,6 @@
 import { address, Address } from 'gill'
 import { useState } from 'react'
-import { AppModal } from '@/components/app-modal'
+import { AppModal } from '@/components/default/app-modal'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useTransferSolMutation } from '../data-access/use-transfer-sol-mutation'

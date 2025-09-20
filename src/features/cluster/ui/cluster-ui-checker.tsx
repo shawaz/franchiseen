@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { AppAlert } from '@/components/app-alert'
+import { AppAlert } from '@/components/default/app-alert'
 import { useSolana } from '@/components/solana/use-solana'
 import { useClusterVersion } from '../data-access/use-cluster-version'
 

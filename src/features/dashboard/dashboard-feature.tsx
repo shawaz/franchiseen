@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowRight, BookOpen, CookingPot, Droplets, LucideWallet, MessageCircleQuestion } from 'lucide-react'
 import React from 'react'
-import { AppHero } from '@/components/app-hero'
+import { AppHero } from '@/components/default/app-hero'
 
 const primary: {
   label: string

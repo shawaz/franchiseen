@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { useSolana } from '@/components/solana/use-solana'
-import { WalletDropdown } from '@/components/wallet-dropdown'
+import { WalletDropdown } from '@/components/default/wallet-dropdown'
 
 export default function AccountFeatureIndex({ redirect }: { redirect: (path: string) => ReactNode }) {
   const { account } = useSolana()

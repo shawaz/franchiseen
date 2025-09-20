@@ -2,7 +2,7 @@ import { Address, createTransaction, getBase58Decoder, signAndSendTransactionMes
 import { getTransferSolInstruction } from 'gill/programs'
 import { toast } from 'sonner'
 import { useMutation } from '@tanstack/react-query'
-import { toastTx } from '@/components/toast-tx'
+import { toastTx } from '@/components/default/toast-tx'
 import { useSolana } from '@/components/solana/use-solana'
 import { useWalletUiSigner } from '@/components/solana/use-wallet-ui-signer'
 import { useInvalidateGetBalanceQuery } from './use-invalidate-get-balance-query'
