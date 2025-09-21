@@ -1,7 +1,4 @@
-import Header from '@/components/app/Header';
 import React from 'react'
-import Footer from '@/components/app/Footer';
-import FooterMobile from '@/components/app/FooterMobile';
 
 function PlatformLayout({
   children,

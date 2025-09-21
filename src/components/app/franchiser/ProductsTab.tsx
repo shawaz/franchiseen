@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Pencil, Image as ImageIcon, X, Upload, Package, Store } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -137,7 +136,6 @@ const dummyProducts: Product[] = [
 ];
 
 export function ProductsTab() {
-  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'inactive'>('all');
   const [products, setProducts] = useState<Product[]>(dummyProducts);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -175,7 +173,8 @@ export function ProductsTab() {
     const { name, value } = e.target;
     
     setFormData(prev => {
-      let updatedData = { ...prev, [name]: value };
+      // Create an updated data object
+      const updatedData = { ...prev, [name]: value };
       
       // If cost or margin changes, update the price
       if ((name === 'cost' || name === 'margin') && !isNaN(Number(value))) {
@@ -307,25 +306,6 @@ export function ProductsTab() {
     }
   };
 
-  // Toggle product status
-  const toggleStatus = (productId: string) => {
-    setProducts(products.map(p => 
-      p.id === productId 
-        ? { 
-            ...p, 
-            isActive: !p.isActive, 
-            updatedAt: new Date().toISOString() 
-          }
-        : p
-    ));
-  };
-
-  // Filter products based on active tab
-  const filteredProducts = activeTab === 'all' 
-    ? products 
-    : products.filter(product => 
-        activeTab === 'active' ? product.isActive : !product.isActive
-      );
 
   return (
     <div className="space-y-6">

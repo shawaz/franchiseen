@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Store, MapPin, Phone, Mail, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, Store, MapPin, Phone, Mail } from 'lucide-react';
 import Image from 'next/image';
 
 export interface Franchise {

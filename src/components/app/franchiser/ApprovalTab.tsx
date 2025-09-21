@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, XCircle, MapPin, Phone, Mail, ExternalLink, Clock, AlertCircle, AlertCircleIcon, Percent, FileText } from 'lucide-react';
+import { CheckCircle2, XCircle, MapPin, Clock, AlertCircle, AlertCircleIcon } from 'lucide-react';
+import Image from 'next/image';
 
 export type FranchiseStatus = 
   | 'property_approval' 
@@ -262,7 +262,7 @@ const dummyApplications: FranchiseApplication[] = [
 ];
 
 export function ApprovalTab() {
-  const [applications, setApplications] = useState<FranchiseApplication[]>(dummyApplications);
+  const [applications] = useState<FranchiseApplication[]>(dummyApplications);
   const [selectedApp, setSelectedApp] = useState<FranchiseApplication | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -274,41 +274,6 @@ export function ApprovalTab() {
     if (statusFilter === 'all') return true;
     return app.status === statusFilter;
   });
-
-  const getStatusBadge = (status: FranchiseStatus) => {
-    switch (status) {
-      case 'property_approval':
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-          <Clock className="mr-1 h-3 w-3" /> Property Approval
-        </Badge>;
-      case 'brand_approval':
-        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-          <Clock className="mr-1 h-3 w-3" /> Brand Approval
-        </Badge>;
-      case 'funding':
-        return <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400">
-          <Clock className="mr-1 h-3 w-3" /> Funding
-        </Badge>;
-      case 'launching':
-        return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
-          <Clock className="mr-1 h-3 w-3" /> Launching
-        </Badge>;
-      case 'live':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-          <CheckCircle2 className="mr-1 h-3 w-3" /> Live
-        </Badge>;
-      case 'closed':
-        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-          <XCircle className="mr-1 h-3 w-3" /> Closed
-        </Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">
-          <XCircle className="mr-1 h-3 w-3" /> Rejected
-        </Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
 
   const handleApprove = (application: FranchiseApplication) => {
     setSelectedApp(application);
@@ -434,9 +399,11 @@ export function ApprovalTab() {
                   <TableCell>
                     <div className="flex items-center space-x-4">
                       <div className="relative h-12 w-12 overflow-hidden rounded-md bg-stone-100">
-                        <img
+                        <Image
                           src={app.image}
                           alt={app.name}
+                          width={100}
+                          height={100}
                           className="h-full w-full object-cover"
                         />
                       </div>

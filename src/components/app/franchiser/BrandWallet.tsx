@@ -2,11 +2,10 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { CreditCard, Wallet as WalletIcon, ArrowUpDown, PlusCircle, Copy } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WalletProps {
-  onAddMoney?: () => void;
   className?: string;
   business?: {
     name?: string;
@@ -20,7 +19,6 @@ const DEMO_WALLET = 'HjZ5j...8Xy9z';
 const DEMO_RATE = 150.50; // SOL to USD rate
 
 const Wallet: React.FC<WalletProps> = ({
-  onAddMoney,
   className = '',
   business = {
     name: 'Citymilana',
@@ -29,7 +27,6 @@ const Wallet: React.FC<WalletProps> = ({
 }) => {
   const [balance] = useState<number>(DEMO_BALANCE);
   const [loading] = useState<boolean>(false);
-  const [selectedCurrency] = useState<string>('aed');
   
   const formatSol = (value: number) => {
     return value.toFixed(2) + ' SOL';
@@ -42,14 +39,6 @@ const Wallet: React.FC<WalletProps> = ({
   const copyWalletAddress = () => {
     navigator.clipboard.writeText(DEMO_WALLET);
     toast.success('Wallet address copied to clipboard!');
-  };
-
-  const handleSendSOL = () => {
-    toast.info('This is a demo. Send SOL functionality is disabled.');
-  };
-
-  const handleRefresh = () => {
-    toast.success('Balance refreshed!');
   };
 
   return (

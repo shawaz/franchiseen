@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ArrowLeft, ArrowRight, Building, Search, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building, Search, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -173,10 +173,6 @@ const FranchiseCreate: React.FC = () => {
     return Math.floor(totalInvestment) || 1000; // Default to 1000 if calculation fails
   };
 
-  const calculateTotalInvestmentSOL = () => {
-    const totalInvestment = calculateTotalInvestment();
-    return (totalInvestment || 0) / usdtPerSol;
-  };
 
   const updateLocationDetails = (field: string, value: string | boolean) => {
     setFormData(prev => {
@@ -436,7 +432,7 @@ const FranchiseCreate: React.FC = () => {
                       <div className="grid grid-cols-2 gap-4">
                       <div >
                         <label className="block text-sm font-medium text-stone-700 mb-1">
-                          Landlord's Phone Number
+                          Landlord Phone Number
                         </label>
                         <Input
                           value={formData.locationDetails.landlordNumber}
@@ -447,7 +443,7 @@ const FranchiseCreate: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">
-                          Landlord's Email
+                          Landlord Email
                         </label>
                         <Input
                           type="email"

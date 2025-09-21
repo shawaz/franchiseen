@@ -2,31 +2,21 @@
 
 import React from 'react';
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Progress } from '@/components/ui/progress';
-import { Building2, MapPin, Search } from 'lucide-react';
+import { MapPin, Search } from 'lucide-react';
 import { 
   DollarSign, 
-  FileText, 
-  Link as LinkIcon, 
-  ExternalLink, 
-  CheckCircle, 
-  ArrowDownRight, 
-  CreditCard, 
-  Settings, 
   Box, 
   Users, 
   Star, 
   Store, 
   Heart, 
-  MapPin as MapPinIcon, 
   Share2, 
-  Utensils, 
   Phone, 
   Mail, 
   Globe, 
@@ -43,10 +33,6 @@ interface Product {
   price: number;
   image: string;
   category: string;
-}
-
-interface CartItem extends Product {
-  quantity: number;
 }
 
 interface Franchisee {
@@ -69,14 +55,6 @@ interface BudgetItem {
   status: 'on-track' | 'over-budget' | 'under-budget' | 'not-started';
 }
 
-interface ReserveFund {
-  total: number;
-  current: number;
-  isLocked: boolean;
-  projectStatus: 'funding' | 'launch' | 'operational' | 'closed';
-  lastUpdated: string;
-}
-
 interface MonthlyRevenue {
   month: string;
   estimated: number;
@@ -84,9 +62,11 @@ interface MonthlyRevenue {
   status: 'on-track' | 'below-target' | 'above-target';
 }
 
+type TabId = 'franchise' | 'franchisee' | 'finances' | 'products' | 'reviews';
+
 export default function FranchiseStore() {
-  const [activeTab, setActiveTab] = useState<'products' | 'franchisee' | 'finances' | 'stock' | 'income' | 'expense' | 'salaries' | 'tax' | 'earnings' | 'payouts' | 'transactions' | 'reviews' | 'franchise' | 'settings'>('franchise');
-  const [franchise, setFranchise] = useState({
+  const [activeTab, setActiveTab] = useState<TabId>('franchise');
+  const [franchise] = useState({
     name: "Hubcv - 01",
     brandLogo: "/logo/logo-4.svg", // Update with your logo path
     location: {
@@ -106,16 +86,8 @@ export default function FranchiseStore() {
   const platformFeePercentage = 5; // 5% platform fee
   const solToUsdRate = 150; // Current SOL to USD rate (example)
   
-  // Finance related state
-  const [reserveFund, setReserveFund] = useState<ReserveFund>({
-    total: 100000, // $100,000 total investment
-    current: 75000, // $75,000 currently in reserve
-    isLocked: false,
-    projectStatus: 'operational',
-    lastUpdated: new Date().toISOString(),
-  });
 
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([
+  const [budgetItems] = useState<BudgetItem[]>([
     {
       id: '1',
       category: 'Franchisee Fee',
@@ -166,7 +138,7 @@ export default function FranchiseStore() {
     },
   ]);
 
-  const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([
+  const [monthlyRevenue] = useState<MonthlyRevenue[]>([
     { month: 'Jan 2024', estimated: 50000, actual: 0, status: 'below-target' },
     { month: 'Feb 2024', estimated: 52000, actual: 0, status: 'below-target' },
     { month: 'Mar 2024', estimated: 54000, actual: 0, status: 'below-target' },
@@ -244,10 +216,10 @@ export default function FranchiseStore() {
 
  
 
-  const tabs = [
+  const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'franchise', label: 'Franchise', icon: Store },
     { id: 'franchisee', label: 'Franchisee', icon: Users },
-    { id: 'finances', label: 'Finances', icon: CreditCard },
+    { id: 'finances', label: 'Finances', icon: DollarSign },
     { id: 'products', label: 'Products', icon: Box },
     { id: 'reviews', label: 'Reviews', icon: Star },
   ];
@@ -524,134 +496,6 @@ export default function FranchiseStore() {
     pricePerShare: 1        // $1 per share
   };
 
-  // Function to handle buying shares
-  const handleBuyShares = (amount: number) => {
-    // In a real app, this would connect to a wallet and process the transaction
-    alert(`Buying ${amount} shares at $${fundingData.pricePerShare} per share`);
-    // Add your transaction logic here
-  };
-
-  // Reserve Fund Card Component
-  const ReserveFundCard = () => {
-    const progress = (reserveFund.current / reserveFund.total) * 100;
-    
-    const getStatusColor = () => {
-      if (reserveFund.projectStatus === 'funding') return 'bg-blue-500';
-      if (reserveFund.projectStatus === 'launch') return 'bg-purple-500';
-      if (reserveFund.projectStatus === 'operational') return 'bg-green-500';
-      return 'bg-red-500';
-    };
-
-    const getStatusText = () => {
-      return reserveFund.projectStatus.charAt(0).toUpperCase() + reserveFund.projectStatus.slice(1);
-    };
-
-    return (
-      <Card className="p-6 mb-6">
-        <div className="flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Reserve Fund</h2>
-            <div className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor()} text-white`}>
-              {getStatusText()}
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-stone-600">
-              <span>Current Balance</span>
-              <span className="font-medium">${reserveFund.current.toLocaleString()}</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-            <div className="flex justify-between text-xs text-stone-500">
-              <span>${reserveFund.current.toLocaleString()}</span>
-              <span>Target: ${reserveFund.total.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div>
-              <p className="text-sm text-stone-500">Funds Locked</p>
-              <p className="font-medium">{reserveFund.isLocked ? 'Yes' : 'No'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-stone-500">Last Updated</p>
-              <p className="font-medium">{new Date(reserveFund.lastUpdated).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
-  // Monthly Revenue Table Component
-  const MonthlyRevenueTable = () => {
-    return (
-      <Card className="p-6 mb-6">
-        <h2 className="text-xl font-bold mb-4">Monthly Recurring Revenue</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-sm text-stone-500 border-b">
-                <th className="pb-3 font-medium">Month</th>
-                <th className="pb-3 font-medium text-right">Estimated</th>
-                <th className="pb-3 font-medium text-right">Actual</th>
-                <th className="pb-3 font-medium text-right">Variance</th>
-                <th className="pb-3 font-medium text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {monthlyRevenue.map((revenue) => {
-                const variance = revenue.actual - revenue.estimated;
-                const variancePercent = revenue.estimated > 0 
-                  ? (Math.abs(variance) / revenue.estimated) * 100 
-                  : 0;
-                
-                return (
-                  <tr key={revenue.month} className="hover:bg-stone-50">
-                    <td className="py-3">
-                      <div className="font-medium">{revenue.month}</div>
-                    </td>
-                    <td className="text-right font-medium">
-                      ${revenue.estimated.toLocaleString()}
-                    </td>
-                    <td className="text-right font-medium">
-                      ${revenue.actual.toLocaleString()}
-                    </td>
-                    <td className={`text-right font-medium ${
-                      variance >= 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {variance >= 0 ? '+' : ''}{variance.toLocaleString()}
-                      {revenue.estimated > 0 && (
-                        <span className="text-xs ml-1">
-                          ({variance >= 0 ? '+' : ''}{variancePercent.toFixed(1)}%)
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        revenue.status === 'on-track'
-                          ? 'bg-green-100 text-green-800'
-                          : revenue.status === 'above-target'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-red-100 text-red-800'
-                      }`}>
-                        {revenue.status === 'on-track' 
-                          ? 'On Track' 
-                          : revenue.status === 'above-target'
-                            ? 'Above Target'
-                            : 'Below Target'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    );
-  };
-
   // Budget Table Component
   const BudgetTable = () => {
     return (
@@ -670,9 +514,6 @@ export default function FranchiseStore() {
             </thead>
             <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
               {budgetItems.map((item) => {
-                const variance = item.actual - item.planned;
-                const variancePercent = (Math.abs(variance) / item.planned) * 100;
-                
                 return (
                   <tr key={item.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                     <td className="whitespace-nowrap px-6 py-4">
@@ -688,9 +529,9 @@ export default function FranchiseStore() {
                       ${item.actual.toLocaleString()}
                     </td>
                     <td className={`whitespace-nowrap px-6 py-4 text-right font-medium ${
-                      variance >= 0 ? 'text-red-500' : 'text-green-500'
+                      (item.actual - item.planned) >= 0 ? 'text-red-500' : 'text-green-500'
                     }`}>
-                      {variance >= 0 ? '+' : ''}{variance.toLocaleString()}
+                      {(item.actual - item.planned) >= 0 ? '+' : ''}{(item.actual - item.planned).toLocaleString()}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -780,8 +621,7 @@ export default function FranchiseStore() {
                 return (
                   <button
                     key={tab.id}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-primary text-primary'
@@ -829,11 +669,6 @@ export default function FranchiseStore() {
                 </thead>
                 <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
                   {monthlyRevenue.map((revenue) => {
-                    const variance = revenue.actual - revenue.estimated;
-                    const variancePercent = revenue.estimated > 0 
-                      ? (Math.abs(variance) / revenue.estimated) * 100 
-                      : 0;
-                    
                     return (
                       <tr key={revenue.month} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                         <td className="whitespace-nowrap px-6 py-4">

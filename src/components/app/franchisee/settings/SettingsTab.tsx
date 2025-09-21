@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  User, 
   Mail, 
   Phone, 
   MapPin, 
@@ -15,10 +14,7 @@ import {
   CreditCard, 
   CheckCircle, 
   AlertCircle,
-  BadgeCheck,
-  FileCheck,
-  FileX,
-  Upload
+
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +23,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
 
 // Types for KYC documents
 type KYCStatus = 'verified' | 'pending' | 'rejected' | 'not-submitted';
@@ -97,15 +92,12 @@ export default function SettingsTab() {
     ]
   });
   
-  // Calculate KYC progress percentage
-  const kycProgress = Math.round((userData.kycDocuments.filter(doc => doc.status === 'verified').length / userData.kycDocuments.length) * 100);
-
   // State for form editing
   const [editingField, setEditingField] = useState<keyof UserData | null>(null);
   const [editValue, setEditValue] = useState('');
   
   // Additional user details
-  const [userDetails, setUserDetails] = useState({
+  const [userDetails] = useState({
     panNumber: '1234567890',
     citizenshipNumber: '1234567890123',
   });
@@ -156,86 +148,6 @@ export default function SettingsTab() {
       ...prev,
       twoFactorEnabled: !prev.twoFactorEnabled
     }));
-  };
-
-  // Handle input change for form fields
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setUserData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUserData(prev => ({
-          ...prev,
-          profileImage: reader.result as string
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSaveProfileImage = () => {
-    if (userData.profileImage) {
-      // In a real app, you would upload the file to your server here
-      setUserData(prev => ({
-        ...prev,
-        profileImage: userData.profileImage
-      }));
-    }
-  };
-
-  const handleDeleteAccount = () => {
-    if (userData.hasActiveShares) {
-      alert('Please sell or transfer all your shares before deleting your account.');
-      return;
-    }
-    
-    if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-      // In a real app, this would trigger the account deletion API call
-      console.log('Account deletion requested');
-    }
-  };
-
-  const renderDocumentStatus = (status: KYCStatus) => {
-    switch (status) {
-      case 'verified':
-        return (
-          <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 px-2 py-1 ">
-            <CheckCircle className="h-3 w-3" />
-            Verified
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="inline-flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 px-2 py-1 ">
-            <span className="h-2 w-2  bg-yellow-500 animate-pulse"></span>
-            Pending Review
-          </span>
-        );
-      case 'rejected':
-        return (
-          <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 px-2 py-1 ">
-            <FileX className="h-3 w-3" />
-            Rejected
-          </span>
-        );
-      case 'not-submitted':
-        return (
-          <span className="inline-flex items-center gap-1 text-xs bg-stone-100 text-stone-800 dark:bg-stone-800/50 dark:text-stone-300 px-2 py-1 ">
-            <span className="h-2 w-2  bg-stone-400"></span>
-            Not Submitted
-          </span>
-        );
-      default:
-        return null;
-    }
   };
 
   return (

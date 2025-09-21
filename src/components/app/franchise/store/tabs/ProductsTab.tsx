@@ -1,4 +1,4 @@
-import { Box, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 

@@ -5,25 +5,16 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import {
   TrendingUp,
-  DollarSign,
   FileText,
-  ArrowUpRight,
   Calendar,
   Receipt,
   Building2,
-  Link as LinkIcon,
-  ExternalLink,
-  CheckCircle,
-  AlertCircle,
-  ArrowDownRight,
-  Clock,
   CreditCard,
   Settings,
   Store,
   PieChart,
 } from 'lucide-react';
 import Wallet from './UserWallet';
-import Image from 'next/image';
 import SharesTab from './shares/SharesTab';
 import DailyPayoutsTab from './payouts/DailyPayoutsTab';
 import InvoicesTab from './invoices/InvoicesTab';

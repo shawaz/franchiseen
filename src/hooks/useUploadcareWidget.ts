@@ -1,9 +1,46 @@
 import { useEffect, useState } from 'react';
 
+interface UploadcareFile {
+  cdnUrl: string;
+  uuid: string;
+  name: string;
+  size: number;
+  isImage: boolean;
+  mimeType: string;
+  originalFileInfo: {
+    name: string;
+    size: number;
+    mimeType: string;
+  };
+}
+
+interface UploadcareWidget {
+  Widget: {
+    (element: HTMLElement | null, options?: Record<string, unknown>): {
+      openDialog: () => void;
+      reloadInfo: () => void;
+      // Add other widget methods as needed
+    };
+  };
+  start: () => void;
+  registerTab: (tabName: string, callback: () => void) => void;
+  tabs: () => string[];
+  openDialog: (tabName: string) => void;
+  closeDialog: () => void;
+  hideDialog: () => void;
+  showDialog: () => void;
+  isDialogOpen: () => boolean;
+  isDialogHidden: () => boolean;
+  onDialogOpen: (callback: () => void) => void;
+  onDialogClose: (callback: () => void) => void;
+  onUploadComplete: (callback: (files: UploadcareFile[]) => void) => void;
+  onFileSelect: (callback: (files: UploadcareFile[]) => void) => void;
+}
+
 declare global {
   interface Window {
     UPLOADCARE_PUBLIC_KEY: string;
-    uploadcare: any;
+    uploadcare: UploadcareWidget;
   }
 }
 

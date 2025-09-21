@@ -29,7 +29,6 @@ export function WalletComp({
 }: WalletCompProps) {
   const [balance] = React.useState<number>(DEMO_BALANCE);
   const [loading] = React.useState<boolean>(false);
-  const [selectedCurrency] = React.useState<string>('aed');
   
   const formatSol = (value: number) => {
     return value.toFixed(2) + ' SOL';

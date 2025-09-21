@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Menu, X, Filter, UserCircle, Compass, Heart, PlusSquare, Bell } from "lucide-react";
+import { Search, Menu, X, PlusSquare,  } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -11,7 +11,6 @@ import { useWalletUi } from "@wallet-ui/react";
 
 function Header() {
   const { connected } = useWalletUi();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchMode, setIsMobileSearchMode] = useState(false);
 

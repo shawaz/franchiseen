@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, Clock, MapPin, AlertCircle, ArrowUpRight, Calendar, ExternalLink, Check, X } from 'lucide-react';
+import { CheckCircle2, Clock, MapPin, AlertCircle, ExternalLink, Check} from 'lucide-react';
 
 type SetupStatus = 'not_started' | 'in_progress' | 'completed' | 'delayed';
 

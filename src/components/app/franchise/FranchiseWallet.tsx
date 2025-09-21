@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { CreditCard, Wallet as WalletIcon, ArrowUpDown, PlusCircle, Copy, MoveDownLeft, MoveUpRight } from 'lucide-react';
+import { ArrowUpDown, Copy, MoveDownLeft, MoveUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WalletProps {
@@ -29,7 +29,6 @@ const FranchiseWallet: React.FC<WalletProps> = ({
 }) => {
   const [balance] = useState<number>(DEMO_BALANCE);
   const [loading] = useState<boolean>(false);
-  const [selectedCurrency] = useState<string>('usd');
   
   const formatSol = (value: number) => {
     return value.toFixed(2) + ' SOL';

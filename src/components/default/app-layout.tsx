@@ -12,7 +12,6 @@ import Footer from '../app/Footer'
 
 export function AppLayout({
   children,
-  links,
 }: {
   children: React.ReactNode
   links: { label: string; path: string }[]

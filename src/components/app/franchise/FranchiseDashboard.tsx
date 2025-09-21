@@ -14,7 +14,6 @@ import {
   Link as LinkIcon,
   ExternalLink,
   CheckCircle,
-  AlertCircle,
   ArrowDownRight,
   CreditCard,
   Settings,
@@ -22,7 +21,6 @@ import {
   Library,
   Users,
 } from 'lucide-react';
-import Wallet from '../franchiser/BrandWallet';
 import Image from 'next/image';
 import FranchiseWallet from './FranchiseWallet';
 

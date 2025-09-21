@@ -1,6 +1,7 @@
 import React from 'react';
 import { FileText, Search, Download, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import Image from 'next/image';
 
 interface Invoice {
   id: string;
@@ -212,10 +213,12 @@ export default function InvoicesTab() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <img 
+                        <Image
                           className="h-10 w-10 rounded-md" 
                           src={invoice.franchise.brandLogo} 
                           alt={invoice.franchise.name} 
+                          width={40}
+                          height={40}
                         />
                       </div>
                       <div className="ml-4">

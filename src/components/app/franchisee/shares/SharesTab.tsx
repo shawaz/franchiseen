@@ -1,7 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
 import { Building2, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 interface FranchiseShare {
   id: string;

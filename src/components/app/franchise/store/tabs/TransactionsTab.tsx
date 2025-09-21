@@ -1,4 +1,4 @@
-import { CreditCard, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 export function TransactionsTab() {

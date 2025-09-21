@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface UsePlacesAutocompleteProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
@@ -89,7 +89,7 @@ export const usePlacesAutocomplete = ({
         }
       );
     }
-  }, [scriptLoaded, onPlaceSelected, countryCode]);
+  }, [scriptLoaded, onPlaceSelected, countryCode, inputRef]);
 
   return { scriptLoaded };
 };

@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, X, Image as ImageIcon, ArrowLeft, ArrowRight, Globe, Plus, Trash2, MapPin, Check, ChevronDown, CheckCircle, UploadCloud } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash2, UploadCloud } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import Image from 'next/image';
 
 // Common product categories
 const PRODUCT_CATEGORIES = [
@@ -90,56 +91,12 @@ type FormData = {
   locations: Location[];
 };
 
-interface Country {
-  code: string;
-  name: string;
-  cities: string[];
-}
 
 interface Industry {
   id: string;
   name: string;
   categories: string[];
 }
-
-// Sample countries data - you can replace this with an API call
-const countries: Country[] = [
-  {
-    code: 'US',
-    name: 'United States',
-    cities: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix']
-  },
-  {
-    code: 'CA',
-    name: 'Canada',
-    cities: ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa']
-  },
-  {
-    code: 'GB',
-    name: 'United Kingdom',
-    cities: ['London', 'Manchester', 'Birmingham', 'Glasgow', 'Liverpool']
-  },
-  {
-    code: 'AU',
-    name: 'Australia',
-    cities: ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide']
-  },
-  {
-    code: 'IN',
-    name: 'India',
-    cities: ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai']
-  },
-  {
-    code: 'AE',
-    name: 'UAE',
-    cities: ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Fujairah']
-  },
-  {
-    code: 'SA',
-    name: 'Saudi Arabia',
-    cities: ['Riyadh', 'Jeddah', 'Mecca', 'Medina', 'Dammam', 'Taif']
-  }
-];
 
 const industries: Industry[] = [
   {
@@ -167,12 +124,6 @@ const industries: Industry[] = [
 const BrandRegister: React.FC = () => {
   const router = useRouter();
   
-  // Get country names for multi-select
-  const countryOptions = countries.map(country => ({
-    value: country.name,
-    label: country.name
-  }));
-
   const [formData, setFormData] = useState<FormData>({
     brandName: '',
     brandUrl: '',
@@ -202,36 +153,13 @@ const BrandRegister: React.FC = () => {
   const [cityInput, setCityInput] = useState('');
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [isAddingLocation, setIsAddingLocation] = useState(false);
-  const [newLocation, setNewLocation] = useState<{
-    country: string[];
-    registrationFile: File | null;
-    registrationPreview: string | null;
-    availableNationwide: boolean;
-    selectedCities: string[];
-    customFinance: boolean;
-    finance: LocationFinance;
-  }>({
-    country: [],
-    registrationFile: null,
-    registrationPreview: null,
-    availableNationwide: true,
-    selectedCities: [],
-    customFinance: false,
-    finance: {
-      minCarpetArea: formData.minCarpetArea,
-      franchiseFee: formData.franchiseFee,
-      setupCostPerSqft: formData.setupCostPerSqft,
-      workingCapitalPerSqft: formData.workingCapitalPerSqft
-    }
-  });
   
   // State for file upload drag and drop
   const [isDragging, setIsDragging] = useState(false);
   const [interiorPhotos, setInteriorPhotos] = useState<Array<{ id: string; file: File; preview: string }>>([]);
   
   // State for products
-  const [products, setProducts] = useState<Array<{
+  type Product = {
     id: string;
     name: string;
     category: string;
@@ -239,86 +167,16 @@ const BrandRegister: React.FC = () => {
     cost: string;
     margin: string;
     price: string;
-    photo?: {
-      file: File;
+    photo: {
+      file: File | null;
       preview: string;
-    };
-  }>>([
-    { id: '1', name: '', category: 'none', description: '', cost: '', margin: '', price: '' },
-    { id: '2', name: '', category: 'none', description: '', cost: '', margin: '', price: '' }
+    } | null;
+  };
+
+  const [products, setProducts] = useState<Product[]>([
+    { id: '1', name: '', category: 'none', description: '', cost: '', margin: '', price: '', photo: null },
+    { id: '2', name: '', category: 'none', description: '', cost: '', margin: '', price: '', photo: null }
   ]);
-  
-  // Toggle country selection
-  const toggleCountry = (countryName: string): void => {
-    setFormData(prev => {
-      const selectedCountries = prev.locations[0]?.country ? [prev.locations[0].country] : [];
-      const newSelectedCountries = selectedCountries.includes(countryName)
-        ? selectedCountries.filter(c => c !== countryName)
-        : [...selectedCountries, countryName];
-
-      const updatedLocations = [...prev.locations];
-      if (updatedLocations.length > 0) {
-        updatedLocations[0] = {
-          ...updatedLocations[0],
-          country: newSelectedCountries[0] || '',
-          selectedCities: [] // Reset cities when country changes
-        };
-      }
-
-      return {
-        ...prev,
-        locations: updatedLocations
-      };
-    });
-  };
-  
-  // Toggle city selection
-  const toggleCity = (city: string): void => {
-    setFormData(prev => {
-      const selectedCities = prev.locations[0]?.selectedCities || [];
-      const newSelectedCities = selectedCities.includes(city)
-        ? selectedCities.filter(c => c !== city)
-        : [...selectedCities, city];
-
-      const updatedLocations = [...prev.locations];
-      if (updatedLocations.length > 0) {
-        updatedLocations[0] = {
-          ...updatedLocations[0],
-          selectedCities: newSelectedCities
-        };
-      }
-
-      return {
-        ...prev,
-        locations: updatedLocations
-      };
-    });
-  };
-  
-  // Toggle nationwide availability
-  const toggleNationwide = (checked: boolean) => {
-    setNewLocation(prev => ({
-      ...prev,
-      availableNationwide: checked,
-      // Clear selected cities when enabling nationwide
-      selectedCities: checked ? [] : prev.selectedCities
-    }));
-  };
-  
-  // Toggle custom finance
-  const toggleCustomFinance = (checked: boolean) => {
-    setNewLocation(prev => ({
-      ...prev,
-      customFinance: checked,
-      // Reset to form data values when disabling custom finance
-      finance: checked ? prev.finance : {
-        minCarpetArea: formData.minCarpetArea,
-        franchiseFee: formData.franchiseFee,
-        setupCostPerSqft: formData.setupCostPerSqft,
-        workingCapitalPerSqft: formData.workingCapitalPerSqft
-      }
-    }));
-  };
   
   // Handle interior photos upload
   const handleInteriorFiles = (files: File[]) => {
@@ -370,7 +228,8 @@ const BrandRegister: React.FC = () => {
         description: '',
         cost: '',
         margin: '',
-        price: ''
+        price: '',
+        photo: null
       }
     ]);
   };
@@ -381,22 +240,16 @@ const BrandRegister: React.FC = () => {
   };
 
   // Update product field
-  const updateProduct = (id: string, field: string, value: string) => {
+  const updateProduct = (id: string, field: string, value: string | number | { file: File | null; preview: string } | null) => {
     setProducts(prev =>
       prev.map(product => {
         if (product.id === id) {
-          const updated = { ...product, [field]: value };
-          
-          // Calculate price if cost or margin changes
-          if ((field === 'cost' || field === 'margin') && updated.cost && updated.margin) {
-            const cost = parseFloat(updated.cost);
-            const margin = parseFloat(updated.margin) / 100;
-            if (!isNaN(cost) && !isNaN(margin)) {
-              updated.price = (cost + (cost * margin)).toFixed(2);
-            }
+          if (field === 'photo' && value === undefined) {
+            // Handle photo removal
+            return { ...product, photo: null };
           }
-          
-          return updated;
+          // Handle other field updates
+          return { ...product, [field]: value };
         }
         return product;
       })
@@ -464,194 +317,6 @@ const BrandRegister: React.FC = () => {
     });
   };
 
-  // Handle file drop
-  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('application/pdf')) {
-      setNewLocation(prev => ({
-        ...prev,
-        registrationFile: file,
-        registrationPreview: URL.createObjectURL(file)
-      }));
-    }
-  };
-  
-  // Handle file input change
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('application/pdf')) {
-      setNewLocation(prev => ({
-        ...prev,
-        registrationFile: file,
-        registrationPreview: URL.createObjectURL(file)
-      }));
-    }
-  };
-  
-  // Remove registration file
-  const removeRegistrationFile = () => {
-    if (newLocation.registrationPreview) {
-      URL.revokeObjectURL(newLocation.registrationPreview);
-    }
-    setNewLocation(prev => ({
-      ...prev,
-      registrationFile: null,
-      registrationPreview: null
-    }));
-  };
-  
-  // Add new location
-  const addLocation = () => {
-    if (newLocation.country.length === 0) {
-      toast.error('Please select at least one country');
-      return;
-    }
-    
-    if (!newLocation.availableNationwide && newLocation.selectedCities.length === 0) {
-      toast.error('Please select at least one city or enable "Available Nationwide"');
-      return;
-    }
-    
-    // Create a location for each selected country
-    const newLocations = newLocation.country.map(countryName => {
-      const country = countries.find(c => c.name === countryName);
-      return {
-        id: `${countryName}-${Date.now()}`,
-        country: countryName,
-        registrationFile: newLocation.registrationFile,
-        registrationPreview: newLocation.registrationPreview,
-        availableNationwide: newLocation.availableNationwide,
-        selectedCities: country && !newLocation.availableNationwide 
-          ? country.cities.filter(city => newLocation.selectedCities.includes(city))
-          : [],
-        customFinance: newLocation.customFinance,
-        finance: { ...newLocation.finance }
-      };
-    });
-    
-    setFormData(prev => ({
-      ...prev,
-      locations: [...prev.locations, ...newLocations]
-    }));
-    
-    // Reset the form
-    setNewLocation({
-      country: [],
-      registrationFile: null,
-      registrationPreview: null,
-      availableNationwide: true,
-      selectedCities: [],
-      customFinance: false,
-      finance: {
-        minCarpetArea: formData.minCarpetArea,
-        franchiseFee: formData.franchiseFee,
-        setupCostPerSqft: formData.setupCostPerSqft,
-        workingCapitalPerSqft: formData.workingCapitalPerSqft
-      }
-    });
-    
-    setSelectedCountries([]);
-    setIsAddingLocation(false);
-    toast.success('Location(s) added successfully');
-  };
-  
-  // Remove location
-  const removeLocation = (locationId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      locations: prev.locations.filter(loc => loc.id !== locationId)
-    }));
-  };
-  
-  // Handle location finance change
-  const handleLocationFinanceChange = (locationIndex: number, field: keyof LocationFinance, value: string) => {
-    const numValue = value === '' ? '' : Number(value);
-    setFormData(prev => {
-      const updatedLocations = [...prev.locations];
-      updatedLocations[locationIndex] = {
-        ...updatedLocations[locationIndex],
-        finance: {
-          ...updatedLocations[locationIndex].finance,
-          [field]: numValue
-        }
-      };
-      return {
-        ...prev,
-        locations: updatedLocations
-      };
-    });
-  };
-  
-  // Toggle location custom finance
-  const toggleLocationCustomFinance = (locationId: string, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      locations: prev.locations.map(loc => 
-        loc.id === locationId 
-          ? { 
-              ...loc, 
-              customFinance: checked,
-              // Reset to form data values when disabling custom finance
-              finance: checked ? loc.finance : {
-                minCarpetArea: formData.minCarpetArea,
-                franchiseFee: formData.franchiseFee,
-                setupCostPerSqft: formData.setupCostPerSqft,
-                workingCapitalPerSqft: formData.workingCapitalPerSqft
-              }
-            } 
-          : loc
-      )
-    }));
-  };
-  
-  // Calculate total investment for a location
-  const calculateTotalInvestment = (finance: LocationFinance) => {
-    const minArea = Number(finance.minCarpetArea) || 0;
-    const franchiseFee = Number(finance.franchiseFee) || 0;
-    const setupCost = minArea * (Number(finance.setupCostPerSqft) || 0);
-    const workingCapital = minArea * (Number(finance.workingCapitalPerSqft) || 0);
-    return franchiseFee + setupCost + workingCapital;
-  };
-  
-  // Format currency
-  const formatCurrency = (amount: number | string): string => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(numAmount);
-  };
-
-  // Handle registration file upload
-  const handleRegistrationUpload = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Invalid file type', {
-        description: 'Please upload a PDF or image file (JPEG, PNG)'
-      });
-      return;
-    }
-
-    // Create preview URL for images
-    const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
-
-    setFormData(prev => ({
-      ...prev,
-      registrationFile: file,
-      registrationPreview: previewUrl
-    }));
-  };
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   // Generate URL slug from brand name
   const generateSlug = (name: string): string => {
     return name
@@ -709,34 +374,6 @@ const BrandRegister: React.FC = () => {
       logoFile: null,
       logoPreview: null
     }));
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-  
-    try {
-      const formDataWithCountries = {
-        ...formData,
-        locations: selectedCountries.map(country => ({
-          country,
-          // Add other fields from your form as needed
-        }))
-      };
-  
-      // Your existing submission logic
-      console.log('Submitting:', formDataWithCountries);
-      // await yourApiCall(formDataWithCountries);
-      
-      toast.success('Brand registered successfully!');
-      router.push('/franchise/success');
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      toast.error('Failed to register brand. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   // Get available categories based on selected industry
@@ -816,7 +453,7 @@ const BrandRegister: React.FC = () => {
                 <div className="relative w-24 h-24  border border-dashed  dark:border-stone-600 flex items-center justify-center overflow-hidden">
                   {formData.logoPreview ? (
                     <>
-                      <img
+                      <Image
                         src={formData.logoPreview || ''}
                         alt="Logo preview"
                         className="h-12 w-12 rounded-full object-cover"
@@ -1748,9 +1385,11 @@ const BrandRegister: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {interiorPhotos.map((photo) => (
                       <div key={photo.id} className="relative group">
-                        <img
+                        <Image
                           src={photo.preview}
                           alt="Interior preview"
+                          width={500}
+                          height={500}
                           className="w-full h-32 object-cover rounded-lg"
                         />
                         <button 
@@ -1807,8 +1446,10 @@ const BrandRegister: React.FC = () => {
                             <div className="relative w-full h-48 md:h-full flex items-center justify-center">
                               {product.photo ? (
                                 <>
-                                  <img
+                                  <Image
                                     src={product.photo.preview}
+                                    width={500}
+                                    height={500}
                                     alt="Product preview"
                                     className="w-full h-full object-cover"
                                   />
@@ -1817,7 +1458,7 @@ const BrandRegister: React.FC = () => {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       URL.revokeObjectURL(product.photo!.preview);
-                                      updateProduct(product.id, 'photo', undefined as any);
+                                      updateProduct(product.id, 'photo', null);
                                     }}
                                     className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
                                   >

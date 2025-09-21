@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import FranchiseCard from "@/components/app/franchise/FranchiseCard";
-import Header from "@/components/app/Header";
 import {
-  MapPin,
-  Calendar,
-  TrendingUp,
-  DollarSign,
-  Home as HomeIcon,
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

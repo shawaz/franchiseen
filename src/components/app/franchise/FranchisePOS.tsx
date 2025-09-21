@@ -24,8 +24,6 @@ import {
   Eye,
   Banknote
 } from 'lucide-react';
-import FranchiseWallet from './FranchiseWallet';
-import { WalletComp } from '../WalletComp';
 import FranchisePOSWallet from './FranchisePOSWallet';
 
 // Interfaces for cashier operations
@@ -68,13 +66,6 @@ interface Table {
   itemCount: number;
 }
 
-interface FranchiseCashierProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  convexUser: any;
-  business: any;
-  franchise: any;
-  brandSlug: string;
-}
 
 // Mock data generators
 const generateMockMenuItems = (): MenuItem[] => {
@@ -173,7 +164,8 @@ const generateMockOrders = (): Order[] => {
 };
 
 export default function FranchisePOS() {
-  const [activeTab, setActiveTab] = useState<'billing' | 'orders' | 'procurement' | 'inventory' | 'accounting'>('billing');
+  type TabId = 'billing' | 'orders' | 'procurement' | 'inventory' | 'accounting';
+  const [activeTab, setActiveTab] = useState<TabId>('billing');
   const [currentOrder, setCurrentOrder] = useState<OrderItem[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -189,11 +181,14 @@ export default function FranchisePOS() {
   const [tables] = useState<Table[]>(mockTables);
   const [orders] = useState<Order[]>(mockOrders);
 
-  const handleAddSOL = () => {
-    alert('Add SOL clicked! You can get devnet SOL from the airdrop button or Solana faucet.');
+
+  type Tab = {
+    id: TabId;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
   };
 
-  const tabs = [
+  const tabs: Tab[] = [
     { id: 'billing', label: 'Billing', icon: Receipt },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'procurement', label: 'Procurement', icon: Truck },
@@ -260,7 +255,7 @@ export default function FranchisePOS() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
                       ? 'border-primary text-primary'
@@ -341,7 +336,7 @@ export default function FranchisePOS() {
                 <h3 className="text-lg font-semibold mb-4">Menu Items</h3>
                 {filteredMenuItems.length === 0 ? (
                   <div className="text-center py-8 text-stone-500">
-                    <p>No menu items found matching "{searchQuery}"</p>
+                    <p>No menu items found matching {searchQuery}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -821,7 +816,7 @@ export default function FranchisePOS() {
                 <div className="flex items-center space-x-3">
                   <DollarSign className="h-8 w-8 text-green-500" />
                   <div>
-                    <p className="text-sm text-stone-500">Today's Revenue</p>
+                    <p className="text-sm text-stone-500">Todays Revenue</p>
                     <p className="text-2xl font-bold">{2847.50}</p>
                     <p className="text-sm text-green-600">+12.5% from yesterday</p>
                   </div>

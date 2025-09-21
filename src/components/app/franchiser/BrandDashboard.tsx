@@ -22,14 +22,21 @@ import { ApprovalTab } from './ApprovalTab';
 import { PayoutsTab } from './PayoutsTab';
 import { SetupTab } from './SetupTab';
 import { TeamTab } from './TeamTab';
-import { SettingsTab } from './SettingsTab';
+import SettingsTab from './SettingsTab';
 
+
+type TabId = 'overview' | 'products' | 'franchise' | 'approvals' | 'setup' | 'payouts' | 'team' | 'settings';
+
+type Tab = {
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
 
 export default function BrandDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'franchise' | 'approvals' | 'setup' | 'payouts' | 'team' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
 
-
-  const tabs = [
+  const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'products', label: 'Products', icon: Box },
     { id: 'franchise', label: 'Franchise', icon: Store },
@@ -41,7 +48,7 @@ export default function BrandDashboard() {
   ];
 
   return (
-    <div className="space-y-6 py-6">
+    <div className="space-y-6 py-12">
       <BrandWallet />
       {/* Navigation Tabs */}
       <Card className="p-0">
@@ -52,7 +59,7 @@ export default function BrandDashboard() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-amber-500 text-amber-600'

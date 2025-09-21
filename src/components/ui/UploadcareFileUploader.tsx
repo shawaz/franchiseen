@@ -2,6 +2,7 @@
 
 import { FileUploaderRegular } from '@uploadcare/react-uploader';
 import '@uploadcare/react-uploader/core.css';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 
 interface UploadcareFileUploaderProps {
@@ -29,8 +30,16 @@ export function UploadcareFileUploader({
     setPreviewUrl(value || null);
   }, [value]);
 
-  const handleUploadSuccess = (e: any) => {
-    const fileInfo = e.detail.successEntries[0];
+  interface FileInfo {
+    cdnUrl: string;
+    uuid: string;
+    name: string;
+    size: number;
+    isImage: boolean;
+    mimeType: string;
+  }
+
+  const handleUploadSuccess = (fileInfo: FileInfo) => {
     if (fileInfo) {
       setPreviewUrl(fileInfo.cdnUrl);
       onUploadSuccess({
@@ -53,9 +62,11 @@ export function UploadcareFileUploader({
       
       {previewUrl ? (
         <div className={`relative ${previewClassName}`}>
-          <img
+          <Image
             src={previewUrl}
             alt="Preview"
+            width={500}
+            height={500}
             className="max-w-full h-auto rounded-md border border-gray-200"
           />
           <button
@@ -72,16 +83,13 @@ export function UploadcareFileUploader({
       ) : (
         <div className="border-2 border-dashed border-gray-300 rounded-md p-4 flex items-center justify-center">
           <FileUploaderRegular
-            pubkey={process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY || 'YOUR_UPLOADCARE_PUBLIC_KEY'}
-            onUploadSuccess={handleUploadSuccess}
+            pubkey={process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY || ''}
+            onFileUploadSuccess={handleUploadSuccess}
             multiple={multiple}
-            sourceList="local, camera, url, dropbox, gdrive"
+            sourceList="local, url, camera"
             classNameUploader="w-full"
             imgOnly
-            previewStep
-            clearable
             cropPreset="1:1"
-            crop
           />
         </div>
       )}

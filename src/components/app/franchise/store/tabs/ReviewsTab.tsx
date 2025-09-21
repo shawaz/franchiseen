@@ -49,9 +49,7 @@ export interface ReviewsTabProps {
 const ReviewsTab: React.FC<ReviewsTabProps> = ({ 
   reviews, 
   averageRating, 
-  totalReviews, 
-  ratingDistribution 
-}) => {
+  totalReviews}) => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showReplyForm, setShowReplyForm] = useState<string | null>(null);
@@ -124,31 +122,6 @@ const ReviewsTab: React.FC<ReviewsTabProps> = ({
   const handleReportClick = (reviewId: string): void => {
     // In a real app, this would trigger a report dialog
     console.log(`Reported review ${reviewId}`);
-  };
-
-  // Function to render star rating
-  const renderStars = (rating: number, size: 'sm' | 'md' | 'lg' = 'md'): React.JSX.Element => {
-    const sizeClasses = {
-      sm: 'h-3 w-3',
-      md: 'h-4 w-4',
-      lg: 'h-5 w-5'
-    };
-
-    return (
-      <div className="flex items-center">
-        {Array(5).fill(0).map((_, i) => (
-          <Star 
-            key={i} 
-            className={`${sizeClasses[size]} ${
-              i < rating ? 'fill-amber-500 text-amber-500' : 'text-gray-300 dark:text-gray-600'
-            }`} 
-          />
-        ))}
-        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-          {rating.toFixed(1)}
-        </span>
-      </div>
-    );
   };
 
   return (

@@ -5,17 +5,13 @@ import {
   Compass,
   Heart,
   PlusSquare,
-  User,
   UserCircle,
-  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import React from "react";
 
 function FooterMobile() {
-  const [isEmailVerificationOpen, setIsEmailVerificationOpen] = useState(false);
-  // const { openTypeformRegisterBrandModal, openTypeformCreateFranchiseModal } = useModal();
   const pathname = usePathname();
 
   // Function to check if a path is active

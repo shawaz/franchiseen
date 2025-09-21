@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
-import { CreditCard, Wallet as WalletIcon, ArrowUpDown, PlusCircle, Copy, ArrowUpRight, ArrowDownRight, ArrowDownLeft, RotateCw } from 'lucide-react';
+import { ArrowUpDown, Copy, ArrowUpRight, ArrowDownLeft, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { useWalletUi, useWalletUiWallet } from '@wallet-ui/react';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl, Commitment } from '@solana/web3.js';
+import { useWalletUi } from '@wallet-ui/react';
+import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
 import { Button } from '../../ui/button';
 
 interface WalletProps {
@@ -18,8 +18,6 @@ interface WalletProps {
 }
 
 // Demo data
-const DEMO_BALANCE = 12.75;
-const DEMO_WALLET = 'HjZ5j...8Xy9z';
 const DEMO_RATE = 150.50; // SOL to AED rate
 
 const Wallet: React.FC<WalletProps> = ({
@@ -34,9 +32,15 @@ const Wallet: React.FC<WalletProps> = ({
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDevnet, setIsDevnet] = useState<boolean>(false);
-  const [selectedCurrency] = useState<string>('aed');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState<boolean>(false);
+
+  // List of reliable RPC endpoints to try (memoized to prevent recreation on every render)
+  const MAINNET_RPC_ENDPOINTS = useMemo(() => [
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-api.projectserum.com',
+    'https://solana-mainnet.rpc.extrnode.com',
+  ], []);
 
   // Check if we're on devnet
   useEffect(() => {
@@ -47,7 +51,7 @@ const Wallet: React.FC<WalletProps> = ({
           const connection = new Connection(clusterApiUrl('devnet'));
           await connection.getBalance(new PublicKey(account.address));
           setIsDevnet(true);
-        } catch (e) {
+        } catch {
           setIsDevnet(false);
         }
       }
@@ -56,23 +60,19 @@ const Wallet: React.FC<WalletProps> = ({
     checkNetwork();
   }, [connected, account?.address]);
 
-  // List of reliable RPC endpoints to try
-  const MAINNET_RPC_ENDPOINTS = [
-    'https://api.mainnet-beta.solana.com',
-    'https://solana-api.projectserum.com',
-    'https://solana-api.syndica.io/access-token/YOUR_SYNDICA_TOKEN_HERE/rpc',
-    'https://solana-mainnet.rpc.extrnode.com',
-  ];
-
   // Create a connection with retry logic
-  const createConnection = async (endpoint: string, retries = 3, delay = 1000): Promise<number> => {
+  const createConnection = useCallback(async (endpoint: string, retries = 3, delay = 1000): Promise<number> => {
+    if (!account?.address) {
+      throw new Error('No account connected');
+    }
+
     try {
       const connection = new Connection(endpoint, {
         commitment: 'confirmed',
         confirmTransactionInitialTimeout: 60000,
-      } as Commitment);
+      });
       
-      const publicKey = new PublicKey(account!.address);
+      const publicKey = new PublicKey(account.address);
       const balanceInLamports = await connection.getBalance(publicKey);
       return balanceInLamports / LAMPORTS_PER_SOL;
     } catch (error) {
@@ -83,36 +83,44 @@ const Wallet: React.FC<WalletProps> = ({
       }
       throw error;
     }
-  };
+  }, [account?.address]);
 
-  // Fetch SOL balance when account changes
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     if (!connected || !account?.address) {
       setBalance(0);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      let balance = 0;
-      let lastError: Error | null = null;
-
-      // Try each endpoint until one succeeds
-      for (const endpoint of isDevnet ? [clusterApiUrl('devnet')] : MAINNET_RPC_ENDPOINTS) {
+      // Try mainnet endpoints first
+      for (const endpoint of MAINNET_RPC_ENDPOINTS) {
         try {
-          balance = await createConnection(endpoint);
-          setBalance(balance);
+          const balanceInSol = await createConnection(endpoint);
+          setBalance(balanceInSol);
           setLastUpdated(new Date());
-          return; // Success, exit the function
-        } catch (error) {
-          console.warn(`Failed to fetch balance from ${endpoint}:`, error);
-          lastError = error as Error;
+          return;
+        } catch (e) {
+          console.warn(`Failed to fetch balance from ${endpoint}:`, e);
+          continue;
         }
       }
-
-      // If we get here, all endpoints failed
-      throw lastError || new Error('All RPC endpoints failed');
+      
+      // If all mainnet endpoints fail, try devnet
+      if (isDevnet) {
+        try {
+          const balanceInSol = await createConnection(clusterApiUrl('devnet'));
+          setBalance(balanceInSol);
+          setLastUpdated(new Date());
+        } catch (e) {
+          console.error('Failed to fetch balance from devnet:', e);
+          setBalance(0);
+        }
+      } else {
+        setBalance(0);
+      }
     } catch (error) {
       console.error('Error fetching balance from all endpoints:', error);
       toast.error('Failed to fetch balance. Please try again later.');
@@ -126,7 +134,7 @@ const Wallet: React.FC<WalletProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [connected, account?.address, isDevnet, balance, createConnection, MAINNET_RPC_ENDPOINTS]);
 
   useEffect(() => {
     fetchBalance();
@@ -134,7 +142,7 @@ const Wallet: React.FC<WalletProps> = ({
     const intervalId = setInterval(fetchBalance, 30000);
     
     return () => clearInterval(intervalId);
-  }, [connected, account?.address, isDevnet]);
+  }, [connected, account?.address, isDevnet, fetchBalance]);
 
   const requestAirdrop = async () => {
     if (!connected || !account?.address) return;
@@ -145,7 +153,7 @@ const Wallet: React.FC<WalletProps> = ({
       const connection = new Connection(endpoint, {
         commitment: 'confirmed',
         confirmTransactionInitialTimeout: 60000,
-      } as Commitment);
+      });
       const publicKey = new PublicKey(account.address);
       
       // Request 1 SOL airdrop (in lamports)
@@ -188,9 +196,6 @@ const Wallet: React.FC<WalletProps> = ({
     toast.info('This is a demo. Send SOL functionality is disabled.');
   };
 
-  const handleRefresh = () => {
-    toast.success('Balance refreshed!');
-  };
 
   return (
     <div>
