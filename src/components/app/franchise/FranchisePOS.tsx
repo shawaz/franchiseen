@@ -68,29 +68,11 @@ interface Table {
   itemCount: number;
 }
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  // Add other user properties as needed
-}
-
-interface Business {
-  id: string;
-  name: string;
-  // Add other business properties as needed
-}
-
-interface Franchise {
-  id: string;
-  name: string;
-  // Add other franchise properties as needed
-}
-
 interface FranchiseCashierProps {
-  convexUser: User;
-  business: Business;
-  franchise: Franchise;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  convexUser: any;
+  business: any;
+  franchise: any;
   brandSlug: string;
 }
 
@@ -212,11 +194,11 @@ export default function FranchisePOS() {
   };
 
   const tabs = [
-    { id: 'billing' as const, label: 'Billing', icon: Receipt },
-    { id: 'orders' as const, label: 'Orders', icon: ShoppingCart },
-    { id: 'procurement' as const, label: 'Procurement', icon: Truck },
-    { id: 'inventory' as const, label: 'Inventory', icon: Package },
-    { id: 'accounting' as const, label: 'Accounting', icon: Calculator },
+    { id: 'billing', label: 'Billing', icon: Receipt },
+    { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'procurement', label: 'Procurement', icon: Truck },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'accounting', label: 'Accounting', icon: Calculator },
   ];
 
   const addToOrder = (menuItem: MenuItem) => {
@@ -278,7 +260,7 @@ export default function FranchisePOS() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
                       ? 'border-primary text-primary'
@@ -359,7 +341,7 @@ export default function FranchisePOS() {
                 <h3 className="text-lg font-semibold mb-4">Menu Items</h3>
                 {filteredMenuItems.length === 0 ? (
                   <div className="text-center py-8 text-stone-500">
-                    <p>No menu items found matching &quot;{searchQuery}&quot;</p>
+                    <p>No menu items found matching "{searchQuery}"</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -820,13 +802,13 @@ export default function FranchisePOS() {
         {activeTab === 'accounting' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Accounting &amp; Finance</h2>
+              <h2 className="text-2xl font-bold">Accounting & Finance</h2>
               <div className="flex items-center space-x-4">
                 <button className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
                   <Plus className="h-4 w-4" />
                   <span>New Transaction</span>
                 </button>
-                <button className="flex items-center space-x-2 px-4 py-2 border border-stone-300 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800">
+                <button className="flex items-center space-x-2 px-4 py-2 border border-stone-300 rounded-lg hover:bg-stone-50 dark:hover:">
                   <FileText className="h-4 w-4" />
                   <span>Generate Report</span>
                 </button>
@@ -839,7 +821,7 @@ export default function FranchisePOS() {
                 <div className="flex items-center space-x-3">
                   <DollarSign className="h-8 w-8 text-green-500" />
                   <div>
-                    <p className="text-sm text-stone-500">Today&apos;s Revenue</p>
+                    <p className="text-sm text-stone-500">Today's Revenue</p>
                     <p className="text-2xl font-bold">{2847.50}</p>
                     <p className="text-sm text-green-600">+12.5% from yesterday</p>
                   </div>

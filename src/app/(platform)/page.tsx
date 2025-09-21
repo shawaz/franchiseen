@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import FranchiseCard from "@/components/app/franchise/FranchiseCard";
 import Header from "@/components/app/Header";
@@ -460,40 +460,7 @@ interface Franchise {
 }
 
 export default function Home() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50">
-          <Header />
-          <div className="container mx-auto py-8 px-4">
-            <div className="animate-pulse space-y-4">
-              <div className="h-10 bg-gray-200 rounded w-1/4"></div>
-              <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-lg shadow-sm p-4">
-                    <div className="h-48 bg-gray-200 rounded"></div>
-                    <div className="mt-4 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <HomeContent />
-    </Suspense>
-  );
-}
-
-function HomeContent() {
   const searchParams = useSearchParams();
-  const tab = searchParams.get('tab') || 'funding';
   const [activeTab, setActiveTab] = useState("fund");
   const [searchQuery, setSearchQuery] = useState("");
 

@@ -52,7 +52,7 @@ export default function BrandDashboard() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as 'overview' | 'products' | 'franchise' | 'approvals' | 'setup' | 'payouts' | 'team' | 'settings')}
+                  onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-amber-500 text-amber-600'

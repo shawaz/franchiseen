@@ -13,15 +13,29 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useWalletUi } from '@wallet-ui/react';
+import { useRouter } from 'next/navigation';
 
 const AccountDropdown = () => {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { disconnect } = useWalletUi();
+  const router = useRouter();
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await disconnect();
+      // Optional: Redirect to home page after sign out
+      router.push('/');
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
+    }
+  };
 
   if (!mounted) {
     return null;
@@ -132,6 +146,7 @@ const AccountDropdown = () => {
           </Link>
           {/* Settings Menu */}
           <div className="border-t">
+            <Link href="/register">
             <button
               className="w-full flex items-center gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
             >
@@ -140,21 +155,14 @@ const AccountDropdown = () => {
                 Register Brand
               </span>
             </button>
-          </div>
-          {/* Settings Menu */}
-          <div className="border-t">
-            <button
-              className="w-full flex items-center gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
-            >
-              <Settings className="h-5 w-5 dark:text-gray-400 text-gray-400" />
-              <span className="text-sm font-medium">
-                Settings
-              </span>
-            </button>
+            </Link>
           </div>
           <div className="border-t">
 
-                            <button className="w-full flex items-center cursor-pointer gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-red-900/50 hover:bg-red-50 transition-colors">
+                            <button 
+                              onClick={handleSignOut}
+                              className="w-full flex items-center cursor-pointer gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-red-900/50 hover:bg-red-50 transition-colors"
+                            >
                               <Power className="h-5 w-5 dark:text-red-400 text-red-400" />
                               <span className="text-sm text-red-600 dark:text-red-400 font-medium">
                                 Sign Out

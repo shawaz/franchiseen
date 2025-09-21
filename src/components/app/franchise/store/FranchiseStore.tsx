@@ -886,7 +886,7 @@ export default function FranchiseStore() {
                 <input
                   type="text"
                   placeholder="Search franchisee..."
-                  className="w-64 rounded-md border border-stone-200 py-2 pl-10 pr-4 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-64 rounded-md border border-stone-200 py-2 pl-10 pr-4 text-sm focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-500"
                 />
               </div>
             </div>
@@ -949,8 +949,8 @@ export default function FranchiseStore() {
                                   // In a real app, you would update the backend here
                                   console.log('Updated franchisees:', newFranchisees);
                                 }}
-                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
-                                  franchisee.isOfferActive ? 'bg-amber-600' : 'bg-stone-200'
+                                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 ${
+                                  franchisee.isOfferActive ? 'bg-stone-600' : 'bg-stone-200'
                                 }`}
                                 role="switch"
                                 aria-checked={franchisee.isOfferActive}
@@ -969,7 +969,7 @@ export default function FranchiseStore() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                              className="border-stone-500 text-stone-600 hover:bg-stone-50 hover:text-stone-700"
                             >
                               Make Offer
                             </Button>
@@ -1030,7 +1030,7 @@ export default function FranchiseStore() {
                     placeholder="Search products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-stone-200 bg-white text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm h-9"
+                    className="block w-full pl-10 pr-3 py-2 border border-stone-200 bg-white text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-500 focus:border-stone-500 text-sm h-9"
                   />
                 </div>
               </div>
@@ -1054,7 +1054,7 @@ export default function FranchiseStore() {
                         className="object-cover"
                       />
                       {/* <div className="absolute top-2 right-2 bg-white/90  p-1.5 shadow-sm">
-                        <Heart className="h-4 w-4 text-amber-500" />
+                        <Heart className="h-4 w-4 text-stone-500" />
                       </div> */}
                     </div>
                     <div className="p-4">
@@ -1065,10 +1065,10 @@ export default function FranchiseStore() {
                         </p>
                       </div>
                       <div className="mt-4 flex items-center justify-between">
-                        <span className="text-amber-600 font-bold text-lg">${product.price.toFixed(2)}</span>
+                        <span className="text-stone-600 font-bold text-lg">${product.price.toFixed(2)}</span>
                         {/* <button
                           // onClick={() => addToCart(product)}
-                          className="bg-amber-500 hover:bg-amber-600 text-white py-2 px-4  font-medium transition-colors"
+                          className="bg-stone-500 hover:bg-stone-600 text-white py-2 px-4  font-medium transition-colors"
                           disabled
                         >
                           Coming Soon
@@ -1100,7 +1100,7 @@ export default function FranchiseStore() {
         <DialogTrigger asChild>
           <div className="hidden"></div>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] dark:bg-stone-900">
           {/* <DialogHeader>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
@@ -1114,7 +1114,7 @@ export default function FranchiseStore() {
           </DialogHeader> */}
           
           {/* Franchise Details */}
-          <div className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-lg">
+          <div className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
             
             <div className="flex items-start space-x-4">
               {/* Brand Logo */}
@@ -1161,7 +1161,7 @@ export default function FranchiseStore() {
                   min={1}
                   max={1000}
                   step={1}
-                  className="w-full"
+                  className=""
                 />
 
               </Button>
@@ -1220,7 +1220,7 @@ export default function FranchiseStore() {
             </div>
           </div>
           {/* Total Cost in SOL */}
-          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-stone-600 dark:text-stone-300">Total Solana</p>

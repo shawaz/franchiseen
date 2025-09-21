@@ -125,7 +125,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-stone-200 dark:border-stone-700 py-4 text-center text-stone-500 dark:text-stone-400 flex flex-col md:flex-row items-center justify-center max-w-7xl mx-auto px-4 sm:px-6 gap-2">
-        <div>© 2024 Codelude Technologies Private Limited</div>
+        <div>DEMO PLATFORM FOR MARKETING AND TESTING</div>
         {/* <div>
           <Link href="#" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Privacy Policy</Link>
           <Link href="#" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Terms of Service</Link>

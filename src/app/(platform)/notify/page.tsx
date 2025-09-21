@@ -12,7 +12,6 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react";
-import FooterMobile from "@/components/app/FooterMobile";
 
 // Mock notification data - in a real app, this would come from your backend
 const mockNotifications = [

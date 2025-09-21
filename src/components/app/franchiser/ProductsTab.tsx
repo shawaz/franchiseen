@@ -175,7 +175,7 @@ export function ProductsTab() {
     const { name, value } = e.target;
     
     setFormData(prev => {
-      const updatedData = { ...prev, [name] : value };
+      let updatedData = { ...prev, [name]: value };
       
       // If cost or margin changes, update the price
       if ((name === 'cost' || name === 'margin') && !isNaN(Number(value))) {

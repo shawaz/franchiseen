@@ -1,43 +1,27 @@
 "use client";
 
-interface Business {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-interface BaseFranchise {
-  id: string;
-  name: string;
-  location: string;
-  status: 'active' | 'inactive' | 'pending';
-}
-
-interface FranchiseWithStats extends BaseFranchise {
-  progress: number;
-  raised: number;
-  goal: number;
-}
-
-type Franchise = BaseFranchise | FranchiseWithStats;
-
-// Type guard to check if a franchise has stats
-function hasStats(franchise: Franchise): franchise is FranchiseWithStats {
-  return 'progress' in franchise && 'raised' in franchise && 'goal' in franchise;
-}
+import React from "react";
 
 interface BrandOwnerDashboardProps {
-  business?: Business | null;
-  franchises?: Franchise[];
+  convexUser?: any;
+  business?: any;
+  franchises?: any[];
+  brandSlug?: string;
 }
 
-export default function BrandOwnerDashboard({ business, franchises = [] }: BrandOwnerDashboardProps) {
+export default function BrandOwnerDashboard({ convexUser, business, franchises = [], brandSlug }: BrandOwnerDashboardProps) {
   // Static UI with placeholder data
   const stats = [
     { label: "Total Franchises", value: franchises.length || 3 },
     { label: "Active Campaigns", value: 2 },
     { label: "Total Investors", value: 128 },
     { label: "Projected ROI", value: "8.5%" },
+  ];
+
+  const sampleFranchises = franchises.length ? franchises : [
+    { id: "f1", name: "Downtown Cafe", status: "Funding", progress: 65, raised: 120000, goal: 200000 },
+    { id: "f2", name: "Marina Kiosk", status: "Launching", progress: 40, raised: 60000, goal: 150000 },
+    { id: "f3", name: "Mall Outlet", status: "Live", progress: 100, raised: 300000, goal: 300000 },
   ];
 
   return (
@@ -66,29 +50,25 @@ export default function BrandOwnerDashboard({ business, franchises = [] }: Brand
         </div>
 
         <div className="space-y-3">
-          {franchises.map((franchise) => (
-            <div key={franchise.id} className="flex items-center justify-between border border-border rounded-md p-3">
+          {sampleFranchises.map((f) => (
+            <div key={f.id} className="flex items-center justify-between border border-border rounded-md p-3">
               <div>
-                <p className="font-medium">{franchise.name}</p>
-                <p className="text-xs text-muted-foreground">Status: {franchise.status}</p>
+                <p className="font-medium">{f.name}</p>
+                <p className="text-xs text-muted-foreground">Status: {f.status}</p>
               </div>
-              {hasStats(franchise) ? (
-                <div className="flex items-center gap-6">
-                  <div className="w-40">
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${franchise.progress}%` }} />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{franchise.progress}% funded</p>
+              <div className="flex items-center gap-6">
+                <div className="w-40">
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${f.progress}%` }} />
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">AED {franchise.raised.toLocaleString()} / {franchise.goal.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Raised / Goal</p>
-                  </div>
-                  <button className="px-3 py-1.5 text-sm border border-border rounded-md">Manage</button>
+                  <p className="text-xs text-muted-foreground mt-1">{f.progress}% funded</p>
                 </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">No funding data available</div>
-              )}
+                <div className="text-right">
+                  <p className="text-sm font-medium">AED {f.raised.toLocaleString()} / {f.goal.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Raised / Goal</p>
+                </div>
+                <button className="px-3 py-1.5 text-sm border border-border rounded-md">Manage</button>
+              </div>
             </div>
           ))}
         </div>

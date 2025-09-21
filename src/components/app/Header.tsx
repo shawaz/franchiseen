@@ -93,15 +93,16 @@ function Header() {
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center gap-4">
                 <ThemeSwitcher />
-                {connected && (
+                {connected ? (
                   <>
                     <Link href="/create" className="p-2">
                       <PlusSquare className="h-5 w-5" />
                     </Link>
                     <AccountDropdown />
                   </>
+                ) : (
+                  <WalletDropdown />
                 )}
-                <WalletDropdown />
               </div>
 
               {/* Mobile Menu Toggle */}

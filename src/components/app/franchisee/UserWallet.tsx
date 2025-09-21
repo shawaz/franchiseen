@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { CreditCard, Wallet as WalletIcon, ArrowUpDown, PlusCircle, Copy, ArrowUpRight, ArrowDownRight, ArrowDownLeft, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWalletUi, useWalletUiWallet } from '@wallet-ui/react';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl, Commitment } from '@solana/web3.js';
 import { Button } from '../../ui/button';
 
 interface WalletProps {
@@ -56,6 +56,35 @@ const Wallet: React.FC<WalletProps> = ({
     checkNetwork();
   }, [connected, account?.address]);
 
+  // List of reliable RPC endpoints to try
+  const MAINNET_RPC_ENDPOINTS = [
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-api.projectserum.com',
+    'https://solana-api.syndica.io/access-token/YOUR_SYNDICA_TOKEN_HERE/rpc',
+    'https://solana-mainnet.rpc.extrnode.com',
+  ];
+
+  // Create a connection with retry logic
+  const createConnection = async (endpoint: string, retries = 3, delay = 1000): Promise<number> => {
+    try {
+      const connection = new Connection(endpoint, {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 60000,
+      } as Commitment);
+      
+      const publicKey = new PublicKey(account!.address);
+      const balanceInLamports = await connection.getBalance(publicKey);
+      return balanceInLamports / LAMPORTS_PER_SOL;
+    } catch (error) {
+      if (retries > 0) {
+        console.warn(`Failed to fetch balance from ${endpoint}, retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return createConnection(endpoint, retries - 1, delay * 2);
+      }
+      throw error;
+    }
+  };
+
   // Fetch SOL balance when account changes
   const fetchBalance = async () => {
     if (!connected || !account?.address) {
@@ -66,16 +95,34 @@ const Wallet: React.FC<WalletProps> = ({
 
     try {
       setLoading(true);
-      const connection = new Connection(
-        isDevnet ? clusterApiUrl('devnet') : 'https://api.mainnet-beta.solana.com'
-      );
-      const publicKey = new PublicKey(account.address);
-      const balanceInLamports = await connection.getBalance(publicKey);
-      setBalance(balanceInLamports / LAMPORTS_PER_SOL);
-      setLastUpdated(new Date());
+      let balance = 0;
+      let lastError: Error | null = null;
+
+      // Try each endpoint until one succeeds
+      for (const endpoint of isDevnet ? [clusterApiUrl('devnet')] : MAINNET_RPC_ENDPOINTS) {
+        try {
+          balance = await createConnection(endpoint);
+          setBalance(balance);
+          setLastUpdated(new Date());
+          return; // Success, exit the function
+        } catch (error) {
+          console.warn(`Failed to fetch balance from ${endpoint}:`, error);
+          lastError = error as Error;
+        }
+      }
+
+      // If we get here, all endpoints failed
+      throw lastError || new Error('All RPC endpoints failed');
     } catch (error) {
-      console.error('Error fetching balance:', error);
-      toast.error('Failed to fetch balance');
+      console.error('Error fetching balance from all endpoints:', error);
+      toast.error('Failed to fetch balance. Please try again later.');
+      
+      // If we have a cached balance, don't show 0
+      if (balance > 0) {
+        toast.info('Showing cached balance. Some features may be limited.');
+      } else {
+        setBalance(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -90,11 +137,15 @@ const Wallet: React.FC<WalletProps> = ({
   }, [connected, account?.address, isDevnet]);
 
   const requestAirdrop = async () => {
-    if (!connected || !account?.address || !isDevnet) return;
+    if (!connected || !account?.address) return;
     
     try {
       setIsRequestingAirdrop(true);
-      const connection = new Connection(clusterApiUrl('devnet'));
+      const endpoint = isDevnet ? clusterApiUrl('devnet') : MAINNET_RPC_ENDPOINTS[0];
+      const connection = new Connection(endpoint, {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 60000,
+      } as Commitment);
       const publicKey = new PublicKey(account.address);
       
       // Request 1 SOL airdrop (in lamports)

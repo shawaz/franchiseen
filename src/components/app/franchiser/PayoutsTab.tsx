@@ -154,7 +154,7 @@ export function PayoutsTab() {
             <p className="text-xs text-muted-foreground">Awaiting processing</p>
           </CardContent>
         </Card>
-        <Card className="py-4">
+        <Card className="p-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Failed</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-500" />
