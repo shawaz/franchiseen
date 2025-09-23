@@ -155,7 +155,7 @@ export default function DailyPayoutsTab() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <Image className="h-10 w-10 rounded-md" width={100} height={100} src={payout.franchise.brandLogo} alt={payout.franchise.name} />
+                        <Image className="h-10 w-10" width={100} height={100} src={payout.franchise.brandLogo} alt={payout.franchise.name} />
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-stone-900 dark:text-white">{payout.franchise.name}</div>

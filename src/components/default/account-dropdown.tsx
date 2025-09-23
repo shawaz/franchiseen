@@ -13,7 +13,11 @@ import Image from "next/image";
 import { useWalletUi } from '@wallet-ui/react';
 import { useRouter } from 'next/navigation';
 
-const AccountDropdown = () => {
+interface AccountDropdownProps {
+  balance?: number;
+}
+
+const AccountDropdown = ({ balance }: AccountDropdownProps) => {
   const [mounted, setMounted] = useState(false);
   const { disconnect } = useWalletUi();
   const router = useRouter();
@@ -66,8 +70,8 @@ const AccountDropdown = () => {
                   Shawaz Sharif
                 </h3>
                 <p className="text-xs text-gray-500 truncate">
-                                            192 SOL
-                                            </p>
+                  {balance !== undefined ? `${balance.toFixed(2)} SOL` : 'Loading...'}
+                </p>
               </div>
             </div>
           </Link>  

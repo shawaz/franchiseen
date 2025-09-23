@@ -18,9 +18,9 @@ interface WalletProps {
 }
 
 // Demo data
-const DEMO_RATE = 150.50; // SOL to AED rate
+const DEMO_RATE = 200.00; // SOL to AED rate
 
-const Wallet: React.FC<WalletProps> = ({
+const UserWallet: React.FC<WalletProps> = ({
   onAddMoney,
   className = '',
   business = {
@@ -31,9 +31,11 @@ const Wallet: React.FC<WalletProps> = ({
   const { account, connected } = useWalletUi();
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isDevnet, setIsDevnet] = useState<boolean>(false);
+  const [isDevnet, setIsDevnet] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState<boolean>(false);
+  const [lastAirdropTime, setLastAirdropTime] = useState<number | null>(null);
+  const [nextAirdropIn, setNextAirdropIn] = useState<number | null>(null);
 
   // List of reliable RPC endpoints to try (memoized to prevent recreation on every render)
   const MAINNET_RPC_ENDPOINTS = useMemo(() => [
@@ -42,26 +44,59 @@ const Wallet: React.FC<WalletProps> = ({
     'https://solana-mainnet.rpc.extrnode.com',
   ], []);
 
-  // Check if we're on devnet
+  // Assume devnet by default since the app is configured with devnet/localnet clusters.
+  // This avoids a slow/brittle network probe that can hang the UI.
   useEffect(() => {
-    // This is a simple check - you might want to make this more robust
-    const checkNetwork = async () => {
-      if (connected && account?.address) {
-        try {
-          const connection = new Connection(clusterApiUrl('devnet'));
-          await connection.getBalance(new PublicKey(account.address));
-          setIsDevnet(true);
-        } catch {
-          setIsDevnet(false);
-        }
+    setIsDevnet(true);
+  }, []);
+
+  // Load last airdrop time from localStorage on component mount
+  useEffect(() => {
+    const savedTime = localStorage.getItem('lastAirdropTime');
+    if (savedTime) {
+      setLastAirdropTime(Number(savedTime));
+    }
+  }, []);
+
+  // Update next airdrop time every second
+  useEffect(() => {
+    if (!lastAirdropTime) return;
+
+    const checkAirdropCooldown = () => {
+      const now = Date.now();
+      const cooldownPeriod = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+      const timeSinceLastAirdrop = now - lastAirdropTime;
+      
+      if (timeSinceLastAirdrop < cooldownPeriod) {
+        const timeRemaining = cooldownPeriod - timeSinceLastAirdrop;
+        setNextAirdropIn(Math.ceil(timeRemaining / 1000)); // Convert to seconds
+      } else {
+        setNextAirdropIn(0);
       }
     };
+
+    checkAirdropCooldown();
+    const interval = setInterval(checkAirdropCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [lastAirdropTime]);
+
+  // Format time remaining as HH:MM:SS
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds <= 0) return '00:00:00';
     
-    checkNetwork();
-  }, [connected, account?.address]);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return [
+      hours.toString().padStart(2, '0'),
+      minutes.toString().padStart(2, '0'),
+      secs.toString().padStart(2, '0')
+    ].join(':');
+  };
 
   // Create a connection with retry logic
-  const createConnection = useCallback(async (endpoint: string, retries = 3, delay = 1000): Promise<number> => {
+  const createConnection = useCallback(async (endpoint: string, retries = 1, delay = 800): Promise<number> => {
     if (!account?.address) {
       throw new Error('No account connected');
     }
@@ -73,7 +108,11 @@ const Wallet: React.FC<WalletProps> = ({
       });
       
       const publicKey = new PublicKey(account.address);
-      const balanceInLamports = await connection.getBalance(publicKey);
+      // Add a timeout so hung RPCs don't freeze the UI indefinitely
+      const balanceInLamports = await Promise.race([
+        connection.getBalance(publicKey),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RPC timeout')), 4000)),
+      ]);
       return balanceInLamports / LAMPORTS_PER_SOL;
     } catch (error) {
       if (retries > 0) {
@@ -95,7 +134,17 @@ const Wallet: React.FC<WalletProps> = ({
     setLoading(true);
     
     try {
-      // Try mainnet endpoints first
+      // Prefer devnet first based on app configuration
+      try {
+        const balanceInSol = await createConnection(clusterApiUrl('devnet'));
+        setBalance(balanceInSol);
+        setLastUpdated(new Date());
+        return;
+      } catch (e) {
+        console.warn('Failed to fetch balance from devnet:', e);
+      }
+
+      // Fallback to common mainnet RPCs (with short timeouts)
       for (const endpoint of MAINNET_RPC_ENDPOINTS) {
         try {
           const balanceInSol = await createConnection(endpoint);
@@ -107,20 +156,9 @@ const Wallet: React.FC<WalletProps> = ({
           continue;
         }
       }
-      
-      // If all mainnet endpoints fail, try devnet
-      if (isDevnet) {
-        try {
-          const balanceInSol = await createConnection(clusterApiUrl('devnet'));
-          setBalance(balanceInSol);
-          setLastUpdated(new Date());
-        } catch (e) {
-          console.error('Failed to fetch balance from devnet:', e);
-          setBalance(0);
-        }
-      } else {
-        setBalance(0);
-      }
+
+      // Final fallback: zero balance
+      setBalance(0);
     } catch (error) {
       console.error('Error fetching balance from all endpoints:', error);
       toast.error('Failed to fetch balance. Please try again later.');
@@ -134,7 +172,7 @@ const Wallet: React.FC<WalletProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [connected, account?.address, isDevnet, balance, createConnection, MAINNET_RPC_ENDPOINTS]);
+  }, [connected, account?.address, balance, createConnection, MAINNET_RPC_ENDPOINTS]);
 
   useEffect(() => {
     fetchBalance();
@@ -145,33 +183,27 @@ const Wallet: React.FC<WalletProps> = ({
   }, [connected, account?.address, isDevnet, fetchBalance]);
 
   const requestAirdrop = async () => {
-    if (!connected || !account?.address) return;
+    if (!account?.address || (nextAirdropIn !== null && nextAirdropIn > 0)) return;
     
+    setIsRequestingAirdrop(true);
     try {
-      setIsRequestingAirdrop(true);
-      const endpoint = isDevnet ? clusterApiUrl('devnet') : MAINNET_RPC_ENDPOINTS[0];
-      const connection = new Connection(endpoint, {
-        commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 60000,
-      });
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       const publicKey = new PublicKey(account.address);
       
-      // Request 1 SOL airdrop (in lamports)
       const signature = await connection.requestAirdrop(
         publicKey,
-        1 * LAMPORTS_PER_SOL // 1 SOL
+        1 * LAMPORTS_PER_SOL
       );
       
-      // Confirm the transaction
-      await connection.confirmTransaction(signature);
-      
-      // Refresh balance
+      await connection.confirmTransaction(signature, 'confirmed');
+      const now = Date.now();
+      setLastAirdropTime(now);
+      localStorage.setItem('lastAirdropTime', now.toString());
       await fetchBalance();
-      
-      toast.success('Successfully received 1 devnet SOL!');
+      toast.success('1 SOL airdropped to your wallet!');
     } catch (error) {
       console.error('Error requesting airdrop:', error);
-      toast.error('Failed to request airdrop');
+      toast.error('Failed to request airdrop. Please try again.');
     } finally {
       setIsRequestingAirdrop(false);
     }
@@ -182,7 +214,7 @@ const Wallet: React.FC<WalletProps> = ({
   };
 
   const formatAmount = (sol: number) => {
-    return `${(sol * DEMO_RATE).toFixed(2)} AED`;
+    return `${(sol * DEMO_RATE).toFixed(2)} USDT`;
   };
 
   const copyWalletAddress = () => {
@@ -223,15 +255,21 @@ const Wallet: React.FC<WalletProps> = ({
               {business?.name || 'Demo Brand'}
             </h3>
             <div className="flex items-center gap-2">
-                <span className="font-mono text-xs">
-                  {`${account?.address.slice(0, 4)}...${account?.address.slice(-4)}`}
-                </span>
-              <button
-                onClick={copyWalletAddress}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
+              {account?.address ? (
+                <>
+                  <span className="font-mono text-xs">
+                    {`${account.address.slice(0, 4)}...${account.address.slice(-4)}`}
+                  </span>
+                  <button
+                    onClick={copyWalletAddress}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-gray-500 dark:text-gray-400">Wallet not connected</span>
+              )}
             </div>
           </div>
         </div>
@@ -264,16 +302,16 @@ const Wallet: React.FC<WalletProps> = ({
               </div>
             )} */}
             <div className="grid grid-cols-2 gap-4">
-              {/* AED Balance */}
+              {/* USDT Balance */}
               <div>
                 <div className="text-yellow-100 text-xs mb-1">
-                  AED Balance
+                  USDT Balance
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold">
                   {loading ? '...' : formatAmount(balance)}
                 </div>
                 <div className="text-yellow-200 text-xs mt-1">
-                  {DEMO_RATE.toFixed(2)} AED/SOL
+                  {DEMO_RATE.toFixed(2)} USDT/SOL
                 </div>
               </div>
               {/* SOL Balance */}
@@ -301,8 +339,13 @@ const Wallet: React.FC<WalletProps> = ({
             {isDevnet && connected && (
               <button
                 onClick={requestAirdrop}
-                disabled={isRequestingAirdrop}
-                className={`bg-yellow-500 text-yellow-900 font-bold p-2 hover:bg-yellow-400 transition flex items-center justify-center gap-2 text-xs ${isRequestingAirdrop ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isRequestingAirdrop || (nextAirdropIn !== null && nextAirdropIn > 0)}
+                className={`font-bold p-2 transition flex items-center justify-center gap-2 text-xs ${
+                  isRequestingAirdrop || (nextAirdropIn !== null && nextAirdropIn > 0)
+                    ? 'bg-gray-500 text-gray-200 cursor-not-allowed'
+                    : 'bg-yellow-500 text-yellow-900 hover:bg-yellow-400'
+                }`}
+                title={nextAirdropIn !== null && nextAirdropIn > 0 ? `Next airdrop available in ${formatTimeRemaining(nextAirdropIn)}` : ''}
               >
                 {isRequestingAirdrop ? (
                   <>
@@ -311,6 +354,11 @@ const Wallet: React.FC<WalletProps> = ({
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Requesting...
+                  </>
+                ) : nextAirdropIn !== null && nextAirdropIn > 0 ? (
+                  <>
+                    <ArrowDownLeft className="h-4 w-4" />
+                    NEXT IN {formatTimeRemaining(nextAirdropIn).split(':')[0]}:{formatTimeRemaining(nextAirdropIn).split(':')[1]}
                   </>
                 ) : (
                   <>
@@ -334,7 +382,7 @@ const Wallet: React.FC<WalletProps> = ({
               className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-4 "
             >
               <ArrowUpRight className="h-4 w-4" />
-              <span className="text-xs font-medium">WITHDRAW</span>
+              <span className="text-xs font-medium">WITHDRAW (Not Available In Demo)</span>
             </button>
           </div>
         </div>
@@ -343,4 +391,4 @@ const Wallet: React.FC<WalletProps> = ({
   );
 };
 
-export default Wallet;
+export default UserWallet;

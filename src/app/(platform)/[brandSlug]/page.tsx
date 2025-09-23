@@ -578,9 +578,6 @@ export default function Home() {
                   ? franchise.images[0]
                   : ""
               }
-              rating={franchise.rating || 4.5}
-              bedrooms={franchise.bedrooms}
-              bathrooms={franchise.bathrooms}
               size={franchise.squareFeet}
               returnRate={franchise.returnRate || 8}
               investorsCount={franchise.investorsCount || 42}

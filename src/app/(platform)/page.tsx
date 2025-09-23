@@ -8,10 +8,6 @@ export interface Franchise {
   location: string;
   price: number;
   images: string[];
-  rating?: number;
-  bedrooms?: number;
-  bathrooms?: number;
-  size?: string | number;
   squareFeet?: number;
   description?: string;
   type: "fund" | "launch" | "live";

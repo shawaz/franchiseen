@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Copy } from 'lucide-react';
+import { Copy, Heart, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 interface WalletProps {
   onAddMoney?: () => void;
@@ -46,7 +47,7 @@ const FranchisePOSWallet: React.FC<WalletProps> = ({
   return (
     <div>
       {/* Brand Header */}
-      <div className="p-3 sm:p-4 bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700">
+      <div className="p-3 sm:p-4 flex items-center gap-3 justify-between bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700">
         <div className="flex items-center gap-3">
           {/* Brand Logo */}
           <div className="w-10 h-10 rounded overflow-hidden bg-white/20 flex items-center justify-center">
@@ -81,6 +82,16 @@ const FranchisePOSWallet: React.FC<WalletProps> = ({
             </div>
           </div>
         </div>
+        <div className="flex items-center space-x-2 mr-2">
+                    <Button variant="outline">
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
+                    <Button variant="outline">
+                      <Heart className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                  </div>
       </div>
 
       {/* Wallet Card */}

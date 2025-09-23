@@ -14,7 +14,7 @@ import {
   Store,
   PieChart,
 } from 'lucide-react';
-import Wallet from './UserWallet';
+import UserWallet from './UserWallet';
 import SharesTab from './shares/SharesTab';
 import DailyPayoutsTab from './payouts/DailyPayoutsTab';
 import InvoicesTab from './invoices/InvoicesTab';
@@ -34,7 +34,7 @@ export default function ProfileDashboard() {
 
   return (
     <div className="space-y-6 py-12">
-        <Wallet />
+        <UserWallet />
 
 
       {/* Navigation Tabs */}

@@ -123,7 +123,7 @@ function HomeContent() {
             <FranchiseCard
               key={franchise._id.toString()}
               id={franchise._id.toString()}
-              type={activeTab as "fund" | "launch" | "live"}
+              type={activeTab as "fund"}
               logo={franchise.logo}
               title={franchise.title}
               location={franchise.location || "Dubai, UAE"}
@@ -133,9 +133,6 @@ function HomeContent() {
                   ? franchise.images[0]
                   : ""
               }
-              rating={franchise.rating || 4.5}
-              bedrooms={franchise.bedrooms}
-              bathrooms={franchise.bathrooms}
               size={franchise.squareFeet}
               returnRate={franchise.returnRate || 8}
               investorsCount={franchise.investorsCount || 42}

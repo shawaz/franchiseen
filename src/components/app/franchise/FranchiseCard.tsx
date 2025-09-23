@@ -11,10 +11,7 @@ interface FranchiseCardProps {
   location: string;
   price: number;
   image: string;
-  logo: string;
-  rating?: number;
-  bedrooms?: number;
-  bathrooms?: number;
+  logo: string; 
   size?: string | number;
   returnRate?: string | number;
   investorsCount?: number;
@@ -38,7 +35,6 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   location,
   price,
   image,
-  rating,
   size,
   returnRate,
   investorsCount,
@@ -56,9 +52,9 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   const router = useRouter();
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-AE", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "AED",
+      currency: "USD",
       maximumFractionDigits: 0,
     }).format(amount);
   };
@@ -188,7 +184,6 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
     location,
     price,
     images: [image],
-    rating,
     size: size ? String(size) : undefined,
     status: type,
     // Add franchise-specific properties
@@ -274,7 +269,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               alt=""
               width={30}
               height={30}
-              className="rounded hidden md:block mr-4"
+              className=" mr-4"
             />
             <div>
               <h3 className="font-semibold truncate">{title}</h3>

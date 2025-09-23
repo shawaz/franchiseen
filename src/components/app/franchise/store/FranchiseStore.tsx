@@ -13,17 +13,13 @@ import {
   DollarSign, 
   Box, 
   Users, 
-  Star, 
   Store, 
-  Heart, 
-  Share2, 
   Phone, 
   Mail, 
   Globe, 
 } from 'lucide-react';
 import Image from 'next/image';
 import FranchisePOSWallet from '../FranchisePOSWallet';
-import  ReviewsTab  from './tabs/ReviewsTab';
 
 
 interface Product {
@@ -62,10 +58,10 @@ interface MonthlyRevenue {
   status: 'on-track' | 'below-target' | 'above-target';
 }
 
-type TabId = 'franchise' | 'franchisee' | 'finances' | 'products' | 'reviews';
+type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' ;
 
 export default function FranchiseStore() {
-  const [activeTab, setActiveTab] = useState<TabId>('franchise');
+  const [activeTab, setActiveTab] = useState<TabId>('products');
   const [franchise] = useState({
     name: "Hubcv - 01",
     brandLogo: "/logo/logo-4.svg", // Update with your logo path
@@ -217,11 +213,11 @@ export default function FranchiseStore() {
  
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'franchise', label: 'Franchise', icon: Store },
+    { id: 'products', label: 'Products', icon: Box },
     { id: 'franchisee', label: 'Franchisee', icon: Users },
     { id: 'finances', label: 'Finances', icon: DollarSign },
-    { id: 'products', label: 'Products', icon: Box },
-    { id: 'reviews', label: 'Reviews', icon: Star },
+    { id: 'franchise', label: 'Franchise', icon: Store },
+    // { id: 'reviews', label: 'Reviews', icon: Star },
   ];
 
   // Store tab component
@@ -249,7 +245,7 @@ export default function FranchiseStore() {
     return (
       <div className="space-y-6">
         {/* Store Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold">{franchise.name}</h2>
             <div className="flex items-center mt-1 text-sm text-stone-600 dark:text-stone-400">
@@ -257,17 +253,8 @@ export default function FranchiseStore() {
               <span>{franchise.location}</span>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
-            <Button variant="outline" size="sm">
-              <Heart className="h-4 w-4 mr-2" />
-              Save
-            </Button>
-          </div>
-        </div>
+          
+        </div> */}
 
         {/* Store Images */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -395,63 +382,56 @@ export default function FranchiseStore() {
   };
 
   // Sample review data
-  const reviews = [
-    {
-      id: '1',
-      userName: 'Alex Johnson',
-      userAvatar: '/avatar/avatar-m-1.png',
-      rating: 5,
-      date: '2024-09-15',
-      comment: 'Amazing experience! The food was delicious and the service was excellent. Will definitely come back again.',
-      images: ['/products/product-1.jpg', '/products/product-2.jpg'],
-      verified: true
-    },
-    {
-      id: '2',
-      userName: 'Sarah Williams',
-      userAvatar: '/avatar/avatar-f-2.png',
-      rating: 4,
-      date: '2024-09-10',
-      comment: 'Great food and atmosphere, but the service was a bit slow. Otherwise, a wonderful experience!',
-      verified: true
-    },
-    {
-      id: '3',
-      userName: 'Michael Brown',
-      userAvatar: '/avatar/avatar-m-2.png',
-      rating: 5,
-      date: '2024-09-05',
-      comment: 'Best burger I\'ve ever had! The ingredients were fresh and the flavors were amazing. Highly recommend!',
-      images: ['/products/product-3.jpg'],
-      verified: false
-    },
-    {
-      id: '4',
-      userName: 'Emily Davis',
-      userAvatar: '/avatar/avatar-f-3.png',
-      rating: 3,
-      date: '2024-08-28',
-      comment: 'Food was good but a bit overpriced. The ambiance was nice though.',
-      verified: true
-    },
-    {
-      id: '5',
-      userName: 'David Wilson',
-      userAvatar: '/avatar/avatar-m-3.png',
-      rating: 5,
-      date: '2024-08-20',
-      comment: 'Exceptional service and the food was cooked to perfection. The staff went above and beyond to make our anniversary special.',
-      images: ['/products/product-4.jpg', '/products/product-5.jpg', '/products/product-6.jpg'],
-      verified: true
-    }
-  ];
-
-  // Calculate average rating and rating distribution
-  const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
-  const ratingDistribution = reviews.reduce((acc, review) => {
-    acc[review.rating as keyof typeof acc]++;
-    return acc;
-  }, { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
+  // const reviews = [
+  //   {
+  //     id: '1',
+  //     userName: 'Alex Johnson',
+  //     userAvatar: '/avatar/avatar-m-1.png',
+  //     rating: 5,
+  //     date: '2024-09-15',
+  //     comment: 'Amazing experience! The food was delicious and the service was excellent. Will definitely come back again.',
+  //     images: ['/products/product-1.jpg', '/products/product-2.jpg'],
+  //     verified: true
+  //   },
+  //   {
+  //     id: '2',
+  //     userName: 'Sarah Williams',
+  //     userAvatar: '/avatar/avatar-f-2.png',
+  //     rating: 4,
+  //     date: '2024-09-10',
+  //     comment: 'Great food and atmosphere, but the service was a bit slow. Otherwise, a wonderful experience!',
+  //     verified: true
+  //   },
+  //   {
+  //     id: '3',
+  //     userName: 'Michael Brown',
+  //     userAvatar: '/avatar/avatar-m-2.png',
+  //     rating: 5,
+  //     date: '2024-09-05',
+  //     comment: 'Best burger I\'ve ever had! The ingredients were fresh and the flavors were amazing. Highly recommend!',
+  //     images: ['/products/product-3.jpg'],
+  //     verified: false
+  //   },
+  //   {
+  //     id: '4',
+  //     userName: 'Emily Davis',
+  //     userAvatar: '/avatar/avatar-f-3.png',
+  //     rating: 3,
+  //     date: '2024-08-28',
+  //     comment: 'Food was good but a bit overpriced. The ambiance was nice though.',
+  //     verified: true
+  //   },
+  //   {
+  //     id: '5',
+  //     userName: 'David Wilson',
+  //     userAvatar: '/avatar/avatar-m-3.png',
+  //     rating: 5,
+  //     date: '2024-08-20',
+  //     comment: 'Exceptional service and the food was cooked to perfection. The staff went above and beyond to make our anniversary special.',
+  //     images: ['/products/product-4.jpg', '/products/product-5.jpg', '/products/product-6.jpg'],
+  //     verified: true
+  //   }
+  // ];
 
   // Sample franchisee data - this would typically come from your backend
   const franchisees: Franchisee[] = [
@@ -918,14 +898,14 @@ export default function FranchiseStore() {
 
 
         
-          {activeTab === 'reviews' && (
+          {/* {activeTab === 'reviews' && (
             <ReviewsTab 
               reviews={reviews}
               averageRating={averageRating}
               totalReviews={reviews.length}
               ratingDistribution={ratingDistribution}
             />
-          )}
+          )} */}
         </div>
       </Card>
 

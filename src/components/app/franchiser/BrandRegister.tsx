@@ -149,10 +149,12 @@ const BrandRegister: React.FC = () => {
   });
   
   // State for the new location being added (temporary state for the form)
+  const [isNationwide, setIsNationwide] = useState<boolean>(true);
+  const [isFinance, setIsFinance] = useState<boolean>(false);
   const [countryInput, setCountryInput] = useState('');
-  const [cityInput, setCityInput] = useState('');
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [cityInput, setCityInput] = useState('');
   
   // State for file upload drag and drop
   const [isDragging, setIsDragging] = useState(false);
@@ -450,25 +452,24 @@ const BrandRegister: React.FC = () => {
             <div className="space-y-2">
               <Label htmlFor="logo">Brand Logo *</Label>
               <div className="flex items-center gap-4">
-                <div className="relative w-24 h-24  border border-dashed  dark:border-stone-600 flex items-center justify-center overflow-hidden">
+                <div className="relative w-24 h-24 border border-dashed  dark:border-stone-600 flex items-center justify-center overflow-hidden">
                   {formData.logoPreview ? (
-                    <>
+                    <div className="relative w-full h-full">
                       <Image
-                        src={formData.logoPreview || ''}
+                        src={formData.logoPreview}
                         alt="Logo preview"
-                        className="h-12 w-12 rounded-full object-cover"
-                        width={48}
-                        height={48}
+                        fill
+                        sizes="96px"
                       />
                       <button
                         type="button"
                         onClick={removeLogo}
-                        className="absolute top-1 right-1 bg-red-500 text-white  p-1 hover:bg-red-600 transition-colors"
+                        className="absolute top-1 right-1 bg-red-500 text-white p-1 hover:bg-red-600 transition-colors z-10"
                         aria-label="Remove logo"
                       >
                         <X className="w-3 h-3" />
                       </button>
-                    </>
+                    </div>
                   ) : (
                     <ImageIcon className="w-8 h-8 text-stone-400" />
                   )}
@@ -1050,274 +1051,295 @@ const BrandRegister: React.FC = () => {
                 </div>
                     {/* Country Multi-select */}
             <div className="space-y-2">
-            <div className="flex justify-between items-center border-t pt-4 pb-4">
-            <Label htmlFor="countries">Select City *</Label>
-
-                        <div className="flex items-center space-x-2">
-                            <Label htmlFor="airplane-mode">Available Nationwide</Label>
-                            <Switch id="airplane-mode" />
-                        </div>
+                <div className="flex justify-between items-center border-t pt-4 pb-4">
+                    <Label htmlFor="countries">Select City *</Label>
+                    <div className="flex items-center space-x-2">
+                        <Label htmlFor="available-nationwide">Available Nationwide</Label>
+                        <Switch 
+                            id="available-nationwide" 
+                            checked={isNationwide} 
+                            onCheckedChange={setIsNationwide} 
+                            defaultChecked
+                        />
                     </div>
-                <div className="relative">
-                    <Input
-                    type="text"
-                    value={cityInput}
-                    onChange={(e) => setCityInput(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && cityInput.trim()) {
-                        e.preventDefault();
-                        const city = cityInput.trim();
-                        if (!selectedCities.includes(city)) {
-                            setSelectedCities([...selectedCities, city]);
-                        }
-                        setCityInput('');
-                        }
-                    }}
-                    placeholder="Type a city name and press Enter"
-                    className="pr-10"
-                    />
-                    {cityInput && (
-                    <button
-                        onClick={() => setCityInput('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                    )}
                 </div>
+                
+                {!isNationwide && (
+                    <>
+                        <div className="relative">
+                            <Input
+                                type="text"
+                                value={cityInput}
+                                onChange={(e) => setCityInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && cityInput.trim()) {
+                                        e.preventDefault();
+                                        const city = cityInput.trim();
+                                        if (!selectedCities.includes(city)) {
+                                            setSelectedCities([...selectedCities, city]);
+                                        }
+                                        setCityInput('');
+                                    }
+                                }}
+                                placeholder="Type a city name and press Enter"
+                                className="pr-10"
+                            />
+                            {cityInput && (
+                                <button
+                                    onClick={() => setCityInput('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
 
-                {/* Selected City List */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedCities.map((city) => (
-                    <Badge
-                        key={city}
-                        variant="secondary"
-                        className="flex dark:hover:text-stone-400 hover:text-stone-600 dark:bg-stone-700 items-center gap-1"
-                    >
-                        {city}
-                        <button
-                        onClick={() => {
-                            setSelectedCities(
-                            selectedCities.filter((c) => c !== city)
-                            );
-                        }}
-                        className="ml-1 text-stone-400 dark:text-stone-400 hover:text-stone-600"
-                        >
-                        <X className="h-3 w-3" />
-                        </button>
-                    </Badge>
-                    ))}
-                </div>
+                        {/* Selected City List */}
+                        {selectedCities.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {selectedCities.map((city) => (
+                                    <Badge
+                                        key={city}
+                                        variant="secondary"
+                                        className="flex dark:hover:text-stone-400 hover:text-stone-600 dark:bg-stone-700 items-center gap-1"
+                                    >
+                                        {city}
+                                        <button
+                                            onClick={() => {
+                                                setSelectedCities(
+                                                    selectedCities.filter((c) => c !== city)
+                                                );
+                                            }}
+                                            className="ml-1 text-stone-400 dark:text-stone-400 hover:text-stone-600"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
                     <div className="flex justify-between items-center border-t pt-4">
                         <Label htmlFor="airplane-mode">Min Total Investment for 500 sqft *</Label>
                         <div className="flex items-center space-x-2">
-                            <Label htmlFor="airplane-mode">Update Finance</Label>
-                            <Switch id="airplane-mode" />
+                            <Label htmlFor="airplane-mode">Update Investment</Label>
+                            <Switch id="airplane-mode" 
+                              checked={isFinance}
+                              onCheckedChange={setIsFinance}
+                            />
                         </div>
                     </div>
-                    <h2 className="font-bold border-b pb-4">$50,000</h2>
+                    <h2 className="font-bold ">$50,000</h2>
+                    {isFinance && (
+                        <div className="mt-4 border-t pt-4">
+                        {/* Single Row Layout */}
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                     {/* Minimum Carpet Area */}
+                     <div className="space-y-1">
+                         <div className="flex justify-between items-center">
+                         <Label htmlFor="minCarpetArea" className="text-xs font-medium">Min. Area *</Label>
+                         <span className="text-xs text-stone-500">
+                             {formData.minCarpetArea ? `${formData.minCarpetArea.toLocaleString()} sq.ft` : '0'}
+                         </span>
+                         </div>
+                         <div className="flex items-center gap-1">
+                         <Input
+                             id="minCarpetArea"
+                             type="number"
+                             min="100"
+                             step="50"
+                             value={formData.minCarpetArea || ''}
+                             onChange={(e) => {
+                             const value = e.target.value ? Math.max(100, parseInt(e.target.value)) : '';
+                             setFormData(prev => ({
+                                 ...prev,
+                                 minCarpetArea: value as number | ''
+                             }));
+                             }}
+                             placeholder="500"
+                             className="h-9 text-sm"
+                             required
+                         />
+                         </div>
+                         <p className="text-[10px] text-stone-400">Min. space required</p>
+                     </div>
+ 
+                     {/* Franchise Fee */}
+                     <div className="space-y-1">
+                         <div className="flex justify-between items-center">
+                         <Label htmlFor="franchiseFee" className="text-xs font-medium">Franchise Fee *</Label>
+                         <span className="text-xs text-stone-500">
+                             {formData.franchiseFee ? `$${formData.franchiseFee.toLocaleString()}` : '$0'}
+                         </span>
+                         </div>
+                         <div className="relative">
+                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
+                         <Input
+                             id="franchiseFee"
+                             type="number"
+                             min="0"
+                             step="1000"
+                             value={formData.franchiseFee || ''}
+                             onChange={(e) => {
+                             const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
+                             setFormData(prev => ({
+                                 ...prev,
+                                 franchiseFee: value as number | ''
+                             }));
+                             }}
+                             className="pl-6 h-9 text-sm"
+                             placeholder="25,000"
+                             required
+                         />
+                         </div>
+                         <p className="text-[10px] text-stone-400">One-time fee</p>
+                     </div>
+ 
+                     {/* Setup Cost */}
+                     <div className="space-y-1">
+                         <div className="flex justify-between items-center">
+                         <Label htmlFor="setupCostPerSqft" className="text-xs font-medium">Setup Cost *</Label>
+                         <span className="text-xs text-stone-500">
+                             {formData.setupCostPerSqft ? `$${formData.setupCostPerSqft}` : '$0'}/sq.ft
+                         </span>
+                         </div>
+                         <div className="relative">
+                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
+                         <Input
+                             id="setupCostPerSqft"
+                             type="number"
+                             min="0"
+                             step="10"
+                             value={formData.setupCostPerSqft || ''}
+                             onChange={(e) => {
+                             const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
+                             setFormData(prev => ({
+                                 ...prev,
+                                 setupCostPerSqft: value as number | ''
+                             }));
+                             }}
+                             className="pl-6 h-9 text-sm"
+                             placeholder="150"
+                             required
+                         />
+                         </div>
+                         <p className="text-[10px] text-stone-400">
+                         {formData.minCarpetArea && formData.setupCostPerSqft ? 
+                             `Total: $${(formData.minCarpetArea * formData.setupCostPerSqft).toLocaleString()}` : 
+                             'Per sq.ft, one-time'}
+                         </p>
+                     </div>
+ 
+                     {/* Working Capital */}
+                     <div className="space-y-1">
+                         <div className="flex justify-between items-center">
+                         <Label htmlFor="workingCapitalPerSqft" className="text-xs font-medium">Working Capital *</Label>
+                         <span className="text-xs text-stone-500">
+                             {formData.workingCapitalPerSqft ? `$${formData.workingCapitalPerSqft}` : '$0'}/sq.ft
+                         </span>
+                         </div>
+                         <div className="relative">
+                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
+                         <Input
+                             id="workingCapitalPerSqft"
+                             type="number"
+                             min="0"
+                             step="5"
+                             value={formData.workingCapitalPerSqft || ''}
+                             onChange={(e) => {
+                             const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
+                             setFormData(prev => ({
+                                 ...prev,
+                                 workingCapitalPerSqft: value as number | ''
+                             }));
+                             }}
+                             className="pl-6 h-9 text-sm"
+                             placeholder="100"
+                             required
+                         />
+                         </div>
+                         <p className="text-[10px] text-stone-400">
+                         {formData.minCarpetArea && formData.workingCapitalPerSqft ? 
+                             `1 Year: $${(formData.minCarpetArea * formData.workingCapitalPerSqft).toLocaleString()}` : 
+                             'Per sq.ft, 1 year'}
+                         </p>
+                     </div>
+                     </div>
+ 
+                     {/* Total Investment Summary */}
+                     <div className="mt-8 p-6 bg-stone-50 dark:bg-stone-800/50 rounded-lg border border-stone-200 dark:border-stone-700">
+                     <h4 className="font-semibold text-lg mb-4 flex items-center">
+                         <svg className="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                         </svg>
+                         Total Minimum Investment
+                     </h4>
+                     <div className="space-y-3">
+                         <div className="flex justify-between">
+                         <span className="text-stone-600 dark:text-stone-300">Franchise Fee</span>
+                         <span className="font-medium">
+                             ${(formData.franchiseFee || 0).toLocaleString()}
+                         </span>
+                         </div>
+                         
+                         <div className="flex justify-between">
+                         <span className="text-stone-600 dark:text-stone-300">
+                             Setup Cost
+                             {formData.minCarpetArea && (
+                             <span className="text-xs text-stone-500 block">
+                                 ({formData.minCarpetArea.toLocaleString()} sq.ft × ${formData.setupCostPerSqft || 0}/sq.ft)
+                             </span>
+                             )}
+                         </span>
+                         <span className="font-medium">
+                             ${(formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0).toLocaleString()}
+                         </span>
+                         </div>
+                         
+                         <div className="flex justify-between">
+                         <span className="text-stone-600 dark:text-stone-300">
+                             Working Capital (1 Year)
+                             {formData.minCarpetArea && (
+                             <span className="text-xs text-stone-500 block">
+                                 ({formData.minCarpetArea.toLocaleString()} sq.ft × ${formData.workingCapitalPerSqft || 0}/sq.ft)
+                             </span>
+                             )}
+                         </span>
+                         <span className="font-medium">
+                             ${(formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0).toLocaleString()}
+                         </span>
+                         </div>
+                         
+                         <div className="border-t border-stone-200 dark:border-stone-700 pt-3 mt-2">
+                         <div className="flex justify-between items-center">
+                             <span className="text-lg font-semibold">Total Investment</span>
+                             <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">
+                             ${
+                                 (
+                                 (formData.franchiseFee || 0) +
+                                 (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
+                                 (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0)
+                                 ).toLocaleString(undefined, {
+                                 minimumFractionDigits: 0,
+                                 maximumFractionDigits: 0
+                                 })
+                             }
+                             </span>
+                         </div>
+                         <p className="text-xs text-stone-500 mt-2">
+                             This is the estimated minimum investment required to open this franchise location.
+                         </p>
+                         </div>
+                     </div>
+                     </div>
+                     </div>
+                        )}
 
-                    {/* Single Row Layout */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Minimum Carpet Area */}
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                        <Label htmlFor="minCarpetArea" className="text-xs font-medium">Min. Area *</Label>
-                        <span className="text-xs text-stone-500">
-                            {formData.minCarpetArea ? `${formData.minCarpetArea.toLocaleString()} sq.ft` : '0'}
-                        </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                        <Input
-                            id="minCarpetArea"
-                            type="number"
-                            min="100"
-                            step="50"
-                            value={formData.minCarpetArea || ''}
-                            onChange={(e) => {
-                            const value = e.target.value ? Math.max(100, parseInt(e.target.value)) : '';
-                            setFormData(prev => ({
-                                ...prev,
-                                minCarpetArea: value as number | ''
-                            }));
-                            }}
-                            placeholder="500"
-                            className="h-9 text-sm"
-                            required
-                        />
-                        </div>
-                        <p className="text-[10px] text-stone-400">Min. space required</p>
-                    </div>
+                    
 
-                    {/* Franchise Fee */}
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                        <Label htmlFor="franchiseFee" className="text-xs font-medium">Franchise Fee *</Label>
-                        <span className="text-xs text-stone-500">
-                            {formData.franchiseFee ? `$${formData.franchiseFee.toLocaleString()}` : '$0'}
-                        </span>
-                        </div>
-                        <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
-                        <Input
-                            id="franchiseFee"
-                            type="number"
-                            min="0"
-                            step="1000"
-                            value={formData.franchiseFee || ''}
-                            onChange={(e) => {
-                            const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
-                            setFormData(prev => ({
-                                ...prev,
-                                franchiseFee: value as number | ''
-                            }));
-                            }}
-                            className="pl-6 h-9 text-sm"
-                            placeholder="25,000"
-                            required
-                        />
-                        </div>
-                        <p className="text-[10px] text-stone-400">One-time fee</p>
-                    </div>
-
-                    {/* Setup Cost */}
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                        <Label htmlFor="setupCostPerSqft" className="text-xs font-medium">Setup Cost *</Label>
-                        <span className="text-xs text-stone-500">
-                            {formData.setupCostPerSqft ? `$${formData.setupCostPerSqft}` : '$0'}/sq.ft
-                        </span>
-                        </div>
-                        <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
-                        <Input
-                            id="setupCostPerSqft"
-                            type="number"
-                            min="0"
-                            step="10"
-                            value={formData.setupCostPerSqft || ''}
-                            onChange={(e) => {
-                            const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
-                            setFormData(prev => ({
-                                ...prev,
-                                setupCostPerSqft: value as number | ''
-                            }));
-                            }}
-                            className="pl-6 h-9 text-sm"
-                            placeholder="150"
-                            required
-                        />
-                        </div>
-                        <p className="text-[10px] text-stone-400">
-                        {formData.minCarpetArea && formData.setupCostPerSqft ? 
-                            `Total: $${(formData.minCarpetArea * formData.setupCostPerSqft).toLocaleString()}` : 
-                            'Per sq.ft, one-time'}
-                        </p>
-                    </div>
-
-                    {/* Working Capital */}
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center">
-                        <Label htmlFor="workingCapitalPerSqft" className="text-xs font-medium">Working Capital *</Label>
-                        <span className="text-xs text-stone-500">
-                            {formData.workingCapitalPerSqft ? `$${formData.workingCapitalPerSqft}` : '$0'}/sq.ft
-                        </span>
-                        </div>
-                        <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
-                        <Input
-                            id="workingCapitalPerSqft"
-                            type="number"
-                            min="0"
-                            step="5"
-                            value={formData.workingCapitalPerSqft || ''}
-                            onChange={(e) => {
-                            const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
-                            setFormData(prev => ({
-                                ...prev,
-                                workingCapitalPerSqft: value as number | ''
-                            }));
-                            }}
-                            className="pl-6 h-9 text-sm"
-                            placeholder="100"
-                            required
-                        />
-                        </div>
-                        <p className="text-[10px] text-stone-400">
-                        {formData.minCarpetArea && formData.workingCapitalPerSqft ? 
-                            `1 Year: $${(formData.minCarpetArea * formData.workingCapitalPerSqft).toLocaleString()}` : 
-                            'Per sq.ft, 1 year'}
-                        </p>
-                    </div>
-                    </div>
-
-                    {/* Total Investment Summary */}
-                    <div className="mt-8 p-6 bg-stone-50 dark:bg-stone-800/50 rounded-lg border border-stone-200 dark:border-stone-700">
-                    <h4 className="font-semibold text-lg mb-4 flex items-center">
-                        <svg className="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                        Total Minimum Investment
-                    </h4>
-                    <div className="space-y-3">
-                        <div className="flex justify-between">
-                        <span className="text-stone-600 dark:text-stone-300">Franchise Fee</span>
-                        <span className="font-medium">
-                            ${(formData.franchiseFee || 0).toLocaleString()}
-                        </span>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                        <span className="text-stone-600 dark:text-stone-300">
-                            Setup Cost
-                            {formData.minCarpetArea && (
-                            <span className="text-xs text-stone-500 block">
-                                ({formData.minCarpetArea.toLocaleString()} sq.ft × ${formData.setupCostPerSqft || 0}/sq.ft)
-                            </span>
-                            )}
-                        </span>
-                        <span className="font-medium">
-                            ${(formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0).toLocaleString()}
-                        </span>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                        <span className="text-stone-600 dark:text-stone-300">
-                            Working Capital (1 Year)
-                            {formData.minCarpetArea && (
-                            <span className="text-xs text-stone-500 block">
-                                ({formData.minCarpetArea.toLocaleString()} sq.ft × ${formData.workingCapitalPerSqft || 0}/sq.ft)
-                            </span>
-                            )}
-                        </span>
-                        <span className="font-medium">
-                            ${(formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0).toLocaleString()}
-                        </span>
-                        </div>
-                        
-                        <div className="border-t border-stone-200 dark:border-stone-700 pt-3 mt-2">
-                        <div className="flex justify-between items-center">
-                            <span className="text-lg font-semibold">Total Investment</span>
-                            <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">
-                            ${
-                                (
-                                (formData.franchiseFee || 0) +
-                                (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
-                                (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0)
-                                ).toLocaleString(undefined, {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 0
-                                })
-                            }
-                            </span>
-                        </div>
-                        <p className="text-xs text-stone-500 mt-2">
-                            This is the estimated minimum investment required to open this franchise location.
-                        </p>
-                        </div>
-                    </div>
-                    </div>
+                   
                 </CardContent>
                 </Card>
             ))}
@@ -1442,14 +1464,14 @@ const BrandRegister: React.FC = () => {
                       <CardContent className="p-0">
                         <div className="flex flex-col md:flex-row">
                           {/* Left Section - Product Photo */}
-                          <div className="w-full md:w-1/3 bg-stone-100 dark:bg-stone-800 p-4 flex items-center justify-center">
-                            <div className="relative w-full h-48 md:h-full flex items-center justify-center">
+                          <div className="w-full md:w-1/3 p-4 flex flex-col items-center">
+                            <div className="relative w-full aspect-square max-w-xs bg-stone-100 dark:bg-stone-800 rounded-lg overflow-hidden">
                               {product.photo ? (
                                 <>
                                   <Image
                                     src={product.photo.preview}
-                                    width={500}
-                                    height={500}
+                                    width={400}
+                                    height={400}
                                     alt="Product preview"
                                     className="w-full h-full object-cover"
                                   />
@@ -1466,19 +1488,17 @@ const BrandRegister: React.FC = () => {
                                   </button>
                                 </>
                               ) : (
-                                <div className="text-center">
-                                  <UploadCloud className="w-10 h-10 mx-auto text-stone-400 mb-2" />
-                                  <p className="text-sm text-stone-600 dark:text-stone-400">
-                                    <span className="text-yellow-600 font-medium">Click to upload</span> or drag and drop
-                                  </p>
-                                  <p className="text-xs text-stone-500 mt-1">
-                                    PNG, JPG, JPEG (max. 5MB)
-                                  </p>
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ImageIcon className="w-12 h-12 text-stone-400" />
                                 </div>
                               )}
+                            </div>
+                            
+                            <div className="mt-3 w-full">
                               <input
+                                id={`product-photo-${product.id}`}
                                 type="file"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                className="hidden"
                                 accept="image/png, image/jpeg, image/jpg"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
@@ -1487,6 +1507,17 @@ const BrandRegister: React.FC = () => {
                                   }
                                 }}
                               />
+                               <p className="text-xs text-center text-stone-500 dark:text-stone-400">
+                                PNG, JPG (max. 5MB)
+                              </p>
+                              <label
+                                htmlFor={`product-photo-${product.id}`}
+                                className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 border border-stone-300 dark:border-stone-600 text-sm font-medium text-stone-700 dark:text-stone-200 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 cursor-pointer transition-colors"
+                              >
+                                <Upload className="w-4 h-4 mr-2" />
+                                {product.photo ? 'Change Image' : 'Upload Image'}
+                              </label>
+                             
                             </div>
                           </div>
                           
