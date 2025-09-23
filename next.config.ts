@@ -1,39 +1,52 @@
-import type { NextConfig } from 'next'
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Environment variables are automatically loaded from .env.local
+  // No need to manually specify them in next.config.js
+  
   // Enable server components
-  env: {
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['@react-google-maps/api'],
-  },
+  serverExternalPackages: ['@react-google-maps/api', 'react-google-maps'],
+  
+  // Configure image domains
   images: {
+    domains: [
+      'images.unsplash.com',
+      'maps.googleapis.com',
+      'maps.gstatic.com',
+      'lh3.googleusercontent.com',
+      'maps.google.com',
+      'csi.gstatic.com',
+    ],
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-        search: '',
-      },
-      {
-        protocol: 'https',
-        hostname: 'maps.googleapis.com',
-        port: '',
-        pathname: '/**',
-        search: '',
-      },
-      {
-        protocol: 'https',
-        hostname: 'maps.gstatic.com',
-        port: '',
-        pathname: '/**',
-        search: '',
+        hostname: '**',
       },
     ],
   },
-}
+  
+  // Enable CORS for Google Maps API
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'X-Requested-With, Content-Type, Authorization',
+          },
+        ],
+      },
+    ];
+  },
+};
 
-export default nextConfig
+export default nextConfig;

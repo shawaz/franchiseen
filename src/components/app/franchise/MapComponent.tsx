@@ -4,6 +4,7 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, MapPinIcon } from 'lucide-react';
+import { reverseGeocode } from '@/lib/maps';
 
 interface MapComponentProps {
   onLocationSelect: (location: { lat: number; lng: number; address: string }) => void;
@@ -18,7 +19,7 @@ const MapComponent = ({
 }: MapComponentProps) => {
   const [isSelecting, setSelecting] = useState(true);
   const [mapCenter, setMapCenter] = useState(initialCenter);
-  const [mapError] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
   const [tempLocation, setTempLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   
@@ -33,48 +34,68 @@ const MapComponent = ({
   const onMapLoad = useCallback((map: google.maps.Map) => {
     console.log('Map loaded successfully');
     mapRef.current = map;
+    
+    // Set up map options
+    map.setOptions({
+      gestureHandling: 'auto',
+      disableDefaultUI: false,
+      zoomControl: true,
+      mapTypeControl: true,
+      scaleControl: true,
+      streetViewControl: true,
+      rotateControl: true,
+      fullscreenControl: true,
+    });
   }, []);
 
-  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+  const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (e.latLng && isSelecting) {
       const lat = e.latLng.lat();
       const lng = e.latLng.lng();
       
       // Update the temporary location
       setMapCenter({ lat, lng });
+      setMapError(null);
       
-      // Reverse geocode to get the address
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
+      try {
+        // Reverse geocode to get the address
+        const results = await reverseGeocode(lat, lng);
+        if (results && results[0]) {
           setTempLocation({
             lat,
             lng,
             address: results[0].formatted_address
           });
         }
-      });
+      } catch (error) {
+        console.error('Error reverse geocoding:', error);
+        setMapError('Could not find address for this location. Please try another location.');
+      }
     }
   };
   
-  const handleDragEnd = useCallback(() => {
+  const handleDragEnd = useCallback(async () => {
     if (mapRef.current && isSelecting) {
       const center = mapRef.current.getCenter();
       if (center) {
         const lat = center.lat();
         const lng = center.lng();
         
-        const geocoder = new window.google.maps.Geocoder();
-        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-          if (status === 'OK' && results && results[0]) {
+        try {
+          const results = await reverseGeocode(lat, lng);
+          if (results && results[0]) {
             const newLocation = {
               lat,
               lng,
               address: results[0].formatted_address
             };
             setTempLocation(newLocation);
+            setMapError(null);
           }
-        });
+        } catch (error) {
+          console.error('Error reverse geocoding:', error);
+          setMapError('Could not find address for this location. Please try another location.');
+        }
       }
     }
   }, [isSelecting]);
@@ -154,9 +175,9 @@ const MapComponent = ({
 
           {/* Centered map pin - only show when selecting */}
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full z-10 pointer-events-none">
-            <MapPinIcon className={`w-10 h-10 ${isSelecting ? 'text-red-500' : 'text-gray-400'} drop-shadow-lg transition-colors duration-200`} />
+            <MapPinIcon className={`w-10 h-10 ${isSelecting ? 'text-yellow-800' : 'text-yellow-400/0'} drop-shadow-lg transition-colors duration-200`} />
             {isSelecting && (
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-4 bg-red-500"></div>
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-4 bg-yellow-500/0"></div>
             )}
           </div>
 
