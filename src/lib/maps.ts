@@ -38,12 +38,12 @@ export const loadGoogleMapsApi = (apiKey: string, callback: GoogleMapsCallback):
     callback();
     
     // Clean up
-    try {
-      delete window[callbackName];
-    } catch (e) {
-      // In some environments, delete might not work
-      window[callbackName] = undefined as unknown as undefined;
-    }
+    // try {
+    //   delete window[callbackName];
+    // } catch (e) {
+    //   // In some environments, delete might not work
+    //   window[callbackName] = undefined as unknown as undefined;
+    // }
   };
 
   // Create script element
@@ -57,11 +57,11 @@ export const loadGoogleMapsApi = (apiKey: string, callback: GoogleMapsCallback):
     console.error('Error loading Google Maps API:', error);
     
     // Clean up in case of error
-    try {
-      delete window[callbackName];
-    } catch (e) {
-      window[callbackName] = undefined as unknown as undefined;
-    }
+    // try {
+    //   delete window[callbackName];
+    // } catch (e) {
+    //   window[callbackName] = undefined as unknown as undefined;
+    // }
     
     // Reject the promise if we were using one
     if (typeof callback === 'function') {

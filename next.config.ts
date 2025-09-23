@@ -9,18 +9,30 @@ const nextConfig: NextConfig = {
   
   // Configure image domains
   images: {
-    domains: [
-      'images.unsplash.com',
-      'maps.googleapis.com',
-      'maps.gstatic.com',
-      'lh3.googleusercontent.com',
-      'maps.google.com',
-      'csi.gstatic.com',
-    ],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'maps.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'maps.gstatic.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'maps.google.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'csi.gstatic.com',
       },
     ],
   },

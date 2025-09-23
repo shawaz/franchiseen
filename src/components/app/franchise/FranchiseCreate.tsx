@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Building, Search,  LocateFixed } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building, Search, LocateFixed, X } from 'lucide-react';
+import { LoadScript } from '@react-google-maps/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -171,6 +172,11 @@ const FranchiseCreate: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesService = useRef<google.maps.places.PlacesService | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [selectedIndustry, setSelectedIndustry] = useState<string>('All');
   const [mapCenter, setMapCenter] = useState({ lat: 25.2048, lng: 55.2708 }); // Default to Dubai coordinates
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
@@ -179,6 +185,91 @@ const FranchiseCreate: React.FC = () => {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [conflictingLocation] = useState<boolean>(false);
   const usdtPerSol = 100; // Dummy exchange rate
+
+  // Initialize Google Maps services
+  useEffect(() => {
+    if (window.google && window.google.maps && window.google.maps.places) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      placesService.current = new window.google.maps.places.PlacesService(
+        document.createElement('div')
+      );
+    } else {
+      console.error('Google Maps API not loaded');
+    }
+  }, []);
+
+  // Handle input changes and fetch predictions
+  const handleInputChange = (value: string) => {
+    setMapSearchQuery(value);
+    
+    if (value.length > 2) {
+      autocompleteService.current?.getPlacePredictions(
+        {
+          input: value,
+          types: ['establishment', 'geocode'],
+        },
+        (predictions, status) => {
+          if (status === 'OK' && predictions) {
+            setSuggestions(predictions);
+            setShowSuggestions(true);
+          } else {
+            setSuggestions([]);
+          }
+        }
+      );
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Handle suggestion selection
+  const handleSelectSuggestion = (placeId: string, description: string) => {
+    if (!placesService.current) return;
+    
+    setMapSearchQuery(description);
+    setShowSuggestions(false);
+    
+    const request = {
+      placeId,
+      fields: ['geometry', 'name', 'formatted_address']
+    };
+    
+    placesService.current.getDetails(request, (place, status) => {
+      if (status === 'OK' && place?.geometry?.location) {
+        const location = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+          address: place.formatted_address || description
+        };
+        
+        setSelectedLocation(location);
+        setMapCenter(location);
+        
+        // Update form with selected place details
+        // setValue('location', {
+        //   address: place.formatted_address || '',
+        //   lat: place.geometry.location.lat(),
+        //   lng: place.geometry.location.lng()
+        // });
+        // setValue('locationDetails.buildingName', place.name || '');
+      }
+    });
+  };
+  
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Extract unique industries from businesses
   const industries = ['All', ...Array.from(new Set(dummyBusinesses
@@ -548,15 +639,48 @@ const FranchiseCreate: React.FC = () => {
             <div>
               <div>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
+                  <div className="relative flex-1" ref={inputRef}>
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
                     <Input
+                      ref={inputRef}
                       placeholder="Search for a location..."
                       value={mapSearchQuery}
-                      onChange={(e) => setMapSearchQuery(e.target.value)}
+                      onChange={(e) => handleInputChange(e.target.value)}
+                      onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                       onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-                      className="w-full pl-10 pr-4 py-2 border"
+                      className="w-full pl-10 pr-10 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                    {mapSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMapSearchQuery('');
+                          setSuggestions([]);
+                          setShowSuggestions(false);
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+                        <ul className="py-1 max-h-60 overflow-auto">
+                          {suggestions.map((suggestion) => (
+                            <li
+                              key={suggestion.place_id}
+                              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => handleSelectSuggestion(suggestion.place_id, suggestion.description)}
+                            >
+                              {suggestion.structured_formatting.main_text} 
+                              <span className="text-gray-500">
+                                {suggestion.structured_formatting.secondary_text}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <Button
                     type="button"
@@ -912,4 +1036,20 @@ const FranchiseCreate: React.FC = () => {
   );
 };
 
-export default FranchiseCreate;
+// Wrap the component with Google Maps LoadScript
+const FranchiseCreateWithGoogleMaps: React.FC = () => {
+  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    return <div>Google Maps API key is not configured</div>;
+  }
+
+  return (
+    <LoadScript
+      googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+      libraries={['places']}
+    >
+      <FranchiseCreate />
+    </LoadScript>
+  );
+};
+
+export default FranchiseCreateWithGoogleMaps;
