@@ -2325,7 +2325,7 @@ const FranchiserRegister: React.FC = () => {
                     await createFranchiserWithDetails(submissionData as any);
                     
                     toast.success('Brand registered successfully!');
-                    router.push('/franchise/account');
+                    router.push(`/${formData.brandUrl}/account`);
                     
                   } catch (error) {
                     console.error('Error submitting form:', error);

@@ -6,194 +6,72 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Pencil, Image as ImageIcon, X, Upload, Package, Store } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useAllProductCategories } from '@/hooks/useMasterData';
+import { Id } from '../../../../convex/_generated/dataModel';
 
 export interface Product {
-  id: string;
+  _id: Id<"franchiserProducts">;
+  franchiserId: Id<"franchiser">;
   name: string;
-  description: string;
+  description?: string;
   cost: number;
-  margin: number;
   price: number;
-  image: string;
-  isActive: boolean;
-  whStock: number;
-  franchiseStock: number;
-  stock: {
-    warehouse: number;
-    franchise: number;
-  };
-  warehouse: number;
-  franchise: number;
-  createdAt: string;
-  updatedAt: string;
+  images: Id<"_storage">[];
+  category: string;
+  status: "draft" | "active" | "archived";
+  stock?: number;
+  sold?: number;
+  createdAt: number;
 }
 
-// Dummy product data
-const dummyProducts: Product[] = [
-  {
-      id: 'prod_1',
-      name: 'Classic T-Shirt',
-      description: 'Comfortable cotton t-shirt',
-      cost: 15.99,
-      margin: 50,
-      price: 23.99,
-      image: '/products/product-1.jpg',
-      isActive: true,
-      whStock: 100,
-      franchiseStock: 42,
-      stock: {
-          warehouse: 100,
-          franchise: 42
-      },
-      warehouse: 100,
-      franchise: 42,
-      createdAt: '2024-09-10T08:30:00Z',
-      updatedAt: '2024-09-18T14:20:00Z',
-  },
-  {
-    id: 'prod_2',
-    name: 'Slim Fit Jeans',
-    description: 'Stylish slim fit jeans',
-    cost: 29.99,
-    margin: 60,
-    price: 47.98,
-    image: '/products/product-2.jpg',
-    isActive: true,
-    whStock: 75,
-    franchiseStock: 30,
-    stock: {
-      warehouse: 75,
-      franchise: 30
-    },
-    warehouse: 75,
-    franchise: 30,
-    createdAt: '2024-09-05T10:15:00Z',
-    updatedAt: '2024-09-17T16:45:00Z'
-  },
-  {
-    id: 'prod_3',
-    name: 'Running Shoes',
-    description: 'High-performance running shoes',
-    cost: 45.00,
-    margin: 70,
-    price: 76.50,
-    image: '/products/product-3.jpg',
-    isActive: true,
-    whStock: 50,
-    franchiseStock: 25,
-    stock: {
-      warehouse: 50,
-      franchise: 25
-    },
-    warehouse: 50,
-    franchise: 25,
-    createdAt: '2024-08-20T09:45:00Z',
-    updatedAt: '2024-09-19T11:30:00Z'
-  },
-  {
-    id: 'prod_4',
-    name: 'Formal Blazer',
-    description: 'Elegant formal blazer',
-    cost: 75.99,
-    margin: 80,
-    price: 136.78,
-    image: '/products/product-4.jpg',
-    isActive: true,
-    whStock: 30,
-    franchiseStock: 15,
-    stock: {
-      warehouse: 30,
-      franchise: 15
-    },
-    warehouse: 30,
-    franchise: 15,
-    createdAt: '2024-08-15T14:20:00Z',
-    updatedAt: '2024-09-17T10:15:00Z'
-  },
-  {
-    id: 'prod_5',
-    name: 'Summer Dress',
-    description: 'Light and flowy summer dress',
-    cost: 35.50,
-    margin: 65,
-    price: 58.58,
-    image: '/products/product-5.jpg',
-    isActive: true,
-    whStock: 55,
-    franchiseStock: 28,
-    stock: {
-      warehouse: 55,
-      franchise: 28
-    },
-    warehouse: 55,
-    franchise: 28,
-    createdAt: '2024-05-12T13:45:00Z',
-    updatedAt: '2024-09-16T15:20:00Z'
-  }
-];
+interface ProductsTabProps {
+  products: Product[];
+  productImageUrls?: string[];
+}
 
-export function ProductsTab() {
-  const [products, setProducts] = useState<Product[]>(dummyProducts);
+export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   
+  // Fetch product categories for display
+  const productCategories = useAllProductCategories();
+  
+  // Helper function to get category name by ID
+  const getCategoryName = (categoryId: string) => {
+    const category = productCategories?.find(cat => cat._id === categoryId);
+    return category?.name || categoryId;
+  };
+  
+  // Helper function to calculate margin percentage
+  const calculateMargin = (cost: number, price: number) => {
+    if (cost === 0) return 0;
+    return ((price - cost) / cost) * 100;
+  };
+  
   // Form state
-  const [formData, setFormData] = useState<Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'stock'>>({
+  const [formData, setFormData] = useState<Omit<Product, '_id' | 'franchiserId' | 'createdAt' | 'images'>>({
     name: '',
     description: '',
     cost: 0,
-    margin: 0,
     price: 0,
-    image: '',
-    whStock: 0,
-    franchiseStock: 0,
-    warehouse: 0,
-    franchise: 0,
-  });
-  
-  const [stockData, setStockData] = useState({
-    warehouse: 0,
-    franchise: 0
+    category: '',
+    status: 'active',
+    stock: 0,
+    sold: 0,
   });
   
   const [imagePreview, setImagePreview] = useState<string>('');
 
-  // Calculate price based on cost and margin
-  const calculatePrice = (cost: number, margin: number) => {
-    return cost + (cost * margin / 100);
-  };
-
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
-    setFormData(prev => {
-      // Create an updated data object
-      const updatedData = { ...prev, [name]: value };
-      
-      // If cost or margin changes, update the price
-      if ((name === 'cost' || name === 'margin') && !isNaN(Number(value))) {
-        const cost = name === 'cost' ? parseFloat(value) || 0 : parseFloat(prev.cost.toString()) || 0;
-        const margin = name === 'margin' ? parseFloat(value) || 0 : parseFloat(prev.margin.toString()) || 0;
-        updatedData.price = parseFloat(calculatePrice(cost, margin).toFixed(2));
-      }
-      
-      return updatedData;
-    });
-  };
-  
-  // Handle stock changes
-  const handleStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setStockData(prev => ({
-      ...prev,
-      [name]: parseInt(value) || 0
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   // Handle image upload
@@ -216,17 +94,11 @@ export function ProductsTab() {
       name: '',
       description: '',
       cost: 0,
-      margin: 0,
       price: 0,
-      image: '',
-      whStock: 0,
-      franchiseStock: 0,
-      warehouse: 0,
-      franchise: 0,
-    });
-    setStockData({
-      warehouse: 0,
-      franchise: 0
+      category: '',
+      status: 'active',
+      stock: 0,
+      sold: 0,
     });
     setImagePreview('');
     setEditingProduct(null);
@@ -235,36 +107,8 @@ export function ProductsTab() {
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const now = new Date().toISOString();
-    
-    if (editingProduct) {
-      // Update existing product
-      setProducts(products.map(p => 
-        p.id === editingProduct.id 
-          ? { 
-              ...formData, 
-              id: editingProduct.id, 
-              stock: stockData,
-              updatedAt: now, 
-              isActive: editingProduct.isActive, 
-              createdAt: editingProduct.createdAt 
-            }
-          : p
-      ));
-    } else {
-      // Add new product
-      const newProduct: Product = {
-        ...formData,
-        id: `prod_${Date.now()}`,
-        stock: stockData,
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setProducts([...products, newProduct]);
-    }
-    
+    // TODO: Implement product creation/update with Convex mutations
+    console.log('Form submitted:', formData);
     resetForm();
     setIsDialogOpen(false);
   };
@@ -274,21 +118,15 @@ export function ProductsTab() {
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      description: product.description,
+      description: product.description || '',
       cost: product.cost,
-      margin: product.margin,
       price: product.price,
-      image: product.image,
-      whStock: product.whStock,
-      franchiseStock: product.franchiseStock,
-      warehouse: product.warehouse,
-      franchise: product.franchise,
+      category: product.category,
+      status: product.status,
+      stock: product.stock || 0,
+      sold: product.sold || 0,
     });
-    setStockData({
-      warehouse: product.stock.warehouse,
-      franchise: product.stock.franchise
-    });
-    setImagePreview(product.image);
+    setImagePreview(product.images.length > 0 ? productImageUrls[0] || '' : '');
     setIsDialogOpen(true);
   };
 
@@ -300,7 +138,8 @@ export function ProductsTab() {
 
   const confirmDelete = () => {
     if (productToDelete) {
-      setProducts(products.filter(p => p.id !== productToDelete));
+      // TODO: Implement product deletion with Convex mutation
+      console.log('Delete product:', productToDelete);
       setIsDeleteDialogOpen(false);
       setProductToDelete(null);
     }
@@ -326,11 +165,12 @@ export function ProductsTab() {
                   <TableRow>
                     <TableHead>Image</TableHead>
                     <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Cost</TableHead>
-                    <TableHead>Margin</TableHead>
                     <TableHead>Price</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Franchise</TableHead>
+                    <TableHead>Margin</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Sold</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -343,13 +183,15 @@ export function ProductsTab() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    products.map((product) => (
-                      <TableRow key={product.id}>
+                    products.map((product, index) => {
+                      const margin = calculateMargin(product.cost, product.price);
+                      return (
+                        <TableRow key={product._id}>
                         <TableCell>
-                          {product.image ? (
+                            {product.images.length > 0 && productImageUrls[index] ? (
                             <div className="relative h-10 w-10">
                               <Image
-                                src={product.image}
+                                  src={productImageUrls[index]}
                                 alt={product.name}
                                 fill
                                 className="object-cover rounded"
@@ -362,30 +204,39 @@ export function ProductsTab() {
                           )}
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>{getCategoryName(product.category)}</TableCell>
                         <TableCell>${product.cost.toFixed(2)}</TableCell>
-                        <TableCell>{product.margin}%</TableCell>
                         <TableCell>${product.price.toFixed(2)}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center">
-                            <Package className="h-4 w-4 mr-1 text-blue-500" />
-                            <span>{product.whStock}</span>
+                          <TableCell>
+                            <span className={`font-medium ${
+                              margin > 0 ? 'text-green-600' : margin < 0 ? 'text-red-600' : 'text-stone-600'
+                            }`}>
+                              {margin.toFixed(1)}%
+                            </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Package className="h-4 w-4 text-blue-500" />
+                            <span className="font-medium">{product.stock || 0}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center">
-                            <Store className="h-4 w-4 mr-1 text-green-500" />
-                            <span>{product.franchiseStock}</span>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Store className="h-4 w-4 text-green-500" />
+                            <span className="font-medium">{product.sold || 0}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <span 
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              product.isActive 
+                                product.status === 'active'
                                 ? 'bg-green-100 text-green-800' 
+                                  : product.status === 'draft'
+                                  ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-stone-100 text-stone-800'
                             }`}
                           >
-                            {product.isActive ? 'Active' : 'Inactive'}
+                              {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
                           </span>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
@@ -399,14 +250,15 @@ export function ProductsTab() {
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => handleDelete(product.id)}
+                              onClick={() => handleDelete(product._id)}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -473,46 +325,6 @@ export function ProductsTab() {
                   </div>
                 </div>
                 
-                {/* Stock Management */}
-                <div className="space-y-4 pt-4 border-t">
-                  <h3 className="text-sm font-medium">Stock Management</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <Package className="h-4 w-4 mr-2 text-blue-500" />
-                        <label htmlFor="warehouse-stock" className="block text-sm font-medium">
-                          Warehouse Stock
-                        </label>
-                      </div>
-                      <Input
-                        id="warehouse-stock"
-                        name="warehouse"
-                        type="number"
-                        min="0"
-                        value={stockData.warehouse}
-                        onChange={handleStockChange}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <Store className="h-4 w-4 mr-2 text-green-500" />
-                        <label htmlFor="franchise-stock" className="block text-sm font-medium">
-                          Franchise Stock
-                        </label>
-                      </div>
-                      <Input
-                        id="franchise-stock"
-                        name="franchise"
-                        type="number"
-                        min="0"
-                        value={stockData.franchise}
-                        onChange={handleStockChange}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Right Column - Form Fields */}
@@ -532,15 +344,24 @@ export function ProductsTab() {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="sku" className="block text-sm font-medium">
-                    SKU
+                  <label htmlFor="category" className="block text-sm font-medium">
+                    Category
                   </label>
-                  <Input
-                    id="sku"
-                    name="sku"
-                    onChange={handleInputChange}
-                    placeholder="Enter SKU (optional)"
-                  />
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {productCategories?.map((category) => (
+                        <SelectItem key={category._id} value={category._id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -557,7 +378,7 @@ export function ProductsTab() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="cost" className="block text-sm font-medium">
                       Cost ($)
@@ -574,27 +395,56 @@ export function ProductsTab() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="margin" className="block text-sm font-medium">
-                      Margin (%)
+                    <label htmlFor="price" className="block text-sm font-medium">
+                      Price ($)
                     </label>
                     <Input
-                      id="margin"
-                      name="margin"
+                      id="price"
+                      name="price"
                       type="number"
                       min="0"
-                      step="0.1"
-                      value={formData.margin}
+                      step="0.01"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-blue-500" />
+                      <label htmlFor="stock" className="block text-sm font-medium">
+                        Stock Quantity
+                      </label>
+                    </div>
+                    <Input
+                      id="stock"
+                      name="stock"
+                      type="number"
+                      min="0"
+                      value={formData.stock}
                       onChange={handleInputChange}
                       placeholder="0"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-stone-700">
-                      Price
-                    </label>
-                    <div className="h-10 px-3 py-2 flex items-center border rounded-md bg-stone-50">
-                      <span className="text-stone-900">${formData.price.toFixed(2)}</span>
+                    <div className="flex items-center gap-2">
+                      <Store className="h-4 w-4 text-green-500" />
+                      <label htmlFor="sold" className="block text-sm font-medium">
+                        Sold Quantity
+                      </label>
                     </div>
+                    <Input
+                      id="sold"
+                      name="sold"
+                      type="number"
+                      min="0"
+                      value={formData.sold}
+                      onChange={handleInputChange}
+                      placeholder="0"
+                    />
                   </div>
                 </div>
               </div>

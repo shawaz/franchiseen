@@ -23,7 +23,12 @@ import { PayoutsTab } from './PayoutsTab';
 import { SetupTab } from './SetupTab';
 import { TeamTab } from './TeamTab';
 import SettingsTab from './SettingsTab';
+import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
+import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
 
+interface BrandDashboardProps {
+  brandSlug: string;
+}
 
 type TabId = 'overview' | 'products' | 'franchise' | 'approvals' | 'setup' | 'payouts' | 'team' | 'settings';
 
@@ -33,8 +38,40 @@ type Tab = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
-export default function BrandDashboard() {
+export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const { franchiseData, isLoading, error } = useFranchiseBySlug(brandSlug);
+  const logoUrl = useConvexImageUrl(franchiseData?.franchiser.logoUrl);
+  
+  // Get product image URLs
+  const allProductImages = franchiseData?.products.flatMap(product => product.images) || [];
+  const productImageUrls = useConvexImageUrls(allProductImages);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 py-12">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+            <p className="text-stone-600">Loading brand dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !franchiseData) {
+    return (
+      <div className="space-y-6 py-12">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-stone-800 mb-2">Brand Not Found</h1>
+            <p className="text-stone-600">The brand you are looking for does not exist or has been removed.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
@@ -49,7 +86,12 @@ export default function BrandDashboard() {
 
   return (
     <div className="space-y-6 py-12">
-      <BrandWallet />
+      <BrandWallet 
+        business={{
+          name: franchiseData.franchiser.name,
+          logoUrl: logoUrl || undefined
+        }}
+      />
       {/* Navigation Tabs */}
       <Card className="p-0">
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -77,43 +119,48 @@ export default function BrandDashboard() {
         <div className="p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
+
               {/* Stats Overview */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Investment</p>
-                      <p className="text-xl font-bold">123</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Locations</p>
+                      <p className="text-xl font-bold">{franchiseData.locations.length}</p>
                     </div>
-                    <CreditCard className="h-6 w-6 text-blue-500" />
+                    <Building2 className="h-6 w-6 text-blue-500" />
                   </div>
                 </Card>
                 
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Shares</p>
-                      <p className="text-xl font-bold">123</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Products</p>
+                      <p className="text-xl font-bold">{franchiseData.products.length}</p>
                     </div>
-                    <Building2 className="h-6 w-6 text-green-500" />
+                    <Box className="h-6 w-6 text-green-500" />
                   </div>
                 </Card>
                 
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Earnings</p>
-                      <p className="text-xl font-bold text-green-600">123</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Min Investment</p>
+                      <p className="text-xl font-bold text-green-600">
+                        ${franchiseData.locations[0]?.franchiseFee?.toLocaleString() || '0'}
+                      </p>
                     </div>
-                    <TrendingUp className="h-6 w-6 text-green-500" />
+                    <CreditCard className="h-6 w-6 text-green-500" />
                   </div>
                 </Card>
                 
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">This Month</p>
-                      <p className="text-xl font-bold text-green-600">123</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                      <p className="text-xl font-bold text-green-600">
+                        {franchiseData.franchiser.status === 'approved' ? 'Live' : 'Pending'}
+                      </p>
                     </div>
                     <Calendar className="h-6 w-6 text-purple-500" />
                   </div>
@@ -123,37 +170,54 @@ export default function BrandDashboard() {
               {/* Recent Activity Summary */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-4">
-                  <h3 className="text-lg font-semibold mb-4">Recent Earnings</h3>
+                  <h3 className="text-lg font-semibold mb-4">Locations Overview</h3>
                   <div className="space-y-3">
-
-                      <div className="flex items-center justify-between">
+                    {franchiseData.locations.map((location, index) => (
+                      <div key={index} className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-sm">Franchise 1</p>
-                          <p className="text-xs text-gray-500">Sep 2024</p>
+                          <p className="font-medium text-sm">{location.country}</p>
+                          <p className="text-xs text-gray-500">
+                            {location.isNationwide ? 'Nationwide' : location.city}
+                          </p>
                         </div>
-                        <p className="font-semibold text-green-600">123</p>
+                        <p className="font-semibold text-green-600">
+                          ${location.franchiseFee.toLocaleString()}
+                        </p>
                       </div>
-
+                    ))}
                   </div>
                 </Card>
 
                 <Card className="p-4">
-                  <h3 className="text-lg font-semibold mb-4">Active Contracts</h3>
+                  <h3 className="text-lg font-semibold mb-4">Products Overview</h3>
                   <div className="space-y-3">
-
-                      <div className="flex items-center justify-between">
+                    {franchiseData.products.slice(0, 3).map((product, index) => (
+                      <div key={index} className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-sm">Franchise 1</p>
-                          <p className="text-xs text-gray-500">Token #123</p>
+                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="text-xs text-gray-500">{product.category}</p>
                         </div>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          ${product.price.toFixed(2)}
+                        </span>
                       </div>
+                    ))}
+                    {franchiseData.products.length > 3 && (
+                      <p className="text-xs text-gray-500 text-center">
+                        +{franchiseData.products.length - 3} more products
+                      </p>
+                    )}
                   </div>
                 </Card>
               </div>
             </div>
           )}
-          {activeTab === 'products' && <ProductsTab />}
+          {activeTab === 'products' && (
+            <ProductsTab 
+              products={franchiseData.products} 
+              productImageUrls={productImageUrls?.filter(url => url !== null) as string[] || []} 
+            />
+          )}
           {activeTab === 'franchise' && <FranchiseTab />}
           {activeTab === 'approvals' && <ApprovalTab />}
           {activeTab === 'setup' && <SetupTab />}
