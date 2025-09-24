@@ -1407,38 +1407,120 @@ const FranchiserRegister: React.FC = () => {
             {/* Country Multi-select with Google Places */}
             <div className="space-y-2">
                 <Label htmlFor="countries">Select Countries *</Label>
-                <PlacesAutocomplete
-                    value={countryInput}
-                    onChange={setCountryInput}
-                    onPlaceSelect={(place) => {
-                        const country = place.structured_formatting.main_text;
-                        const normalizedCountry = normalizeCountryName(country);
-                        
-                        if (!isCountryAlreadySelected(country)) {
-                            setSelectedCountries([...selectedCountries, normalizedCountry]);
-                            // Initialize location data for this country
-                            setLocationData(prev => ({
+                <div className="relative">
+                  <PlacesAutocomplete
+                      value={countryInput}
+                      onChange={setCountryInput}
+                      onPlaceSelect={(place) => {
+                          const country = place.structured_formatting.main_text;
+                          const normalizedCountry = normalizeCountryName(country);
+                          
+                          if (!isCountryAlreadySelected(country)) {
+                              setSelectedCountries([...selectedCountries, normalizedCountry]);
+                              // Initialize location data for this country
+                              setLocationData(prev => ({
+                                  ...prev,
+                                  [normalizedCountry]: {
+                                      isNationwide: true,
+                                      cities: [],
+                                      cityInput: '',
+                                      minArea: formData.minCarpetArea || 500,
+                                      franchiseFee: formData.franchiseFee || 25000,
+                                      setupCost: formData.setupCostPerSqft || 150,
+                                      workingCapital: formData.workingCapitalPerSqft || 100,
+                                      isFinance: false,
+                                      licenseFile: null,
+                                      licensePreview: null,
+                                  }
+                              }));
+                          }
+                          setCountryInput('');
+                      }}
+                      placeholder="Search for a country..."
+                      types="country"
+                      className="w-full"
+                  />
+                  
+                  {/* Fallback manual input if Google Places fails */}
+                  {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+                    <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        Google Maps API not configured. Please enter countries manually:
+                      </p>
+                      <Input
+                        value={countryInput}
+                        onChange={(e) => setCountryInput(e.target.value)}
+                        placeholder="Enter country name"
+                        className="mt-2"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && countryInput.trim()) {
+                            const normalizedCountry = normalizeCountryName(countryInput.trim());
+                            if (!isCountryAlreadySelected(normalizedCountry)) {
+                              setSelectedCountries([...selectedCountries, normalizedCountry]);
+                              setLocationData(prev => ({
                                 ...prev,
                                 [normalizedCountry]: {
-                                    isNationwide: true,
-                                    cities: [],
-                                    cityInput: '',
-                                    minArea: formData.minCarpetArea || 500,
-                                    franchiseFee: formData.franchiseFee || 25000,
-                                    setupCost: formData.setupCostPerSqft || 150,
-                                    workingCapital: formData.workingCapitalPerSqft || 100,
-                                    isFinance: false,
-                                    licenseFile: null,
-                                    licensePreview: null,
+                                  isNationwide: true,
+                                  cities: [],
+                                  cityInput: '',
+                                  minArea: formData.minCarpetArea || 500,
+                                  franchiseFee: formData.franchiseFee || 25000,
+                                  setupCost: formData.setupCostPerSqft || 150,
+                                  workingCapital: formData.workingCapitalPerSqft || 100,
+                                  isFinance: false,
+                                  licenseFile: null,
+                                  licensePreview: null,
                                 }
-                            }));
-                        }
-                        setCountryInput('');
-                    }}
-                    placeholder="Search for a country..."
-                    types="country"
-                    className="w-full"
-                />
+                              }));
+                              setCountryInput('');
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Manual country selection as backup */}
+                  <div className="mt-4">
+                    <p className="text-sm text-stone-600 dark:text-stone-400 mb-2">
+                      Or select from common countries:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'France', 'United Arab Emirates', 'India', 'Singapore', 'Japan'].map((country) => (
+                        <Button
+                          key={country}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (!isCountryAlreadySelected(country)) {
+                              setSelectedCountries([...selectedCountries, country]);
+                              setLocationData(prev => ({
+                                ...prev,
+                                [country]: {
+                                  isNationwide: true,
+                                  cities: [],
+                                  cityInput: '',
+                                  minArea: formData.minCarpetArea || 500,
+                                  franchiseFee: formData.franchiseFee || 25000,
+                                  setupCost: formData.setupCostPerSqft || 150,
+                                  workingCapital: formData.workingCapitalPerSqft || 100,
+                                  isFinance: false,
+                                  licenseFile: null,
+                                  licensePreview: null,
+                                }
+                              }));
+                            }
+                          }}
+                          disabled={isCountryAlreadySelected(country)}
+                          className="text-xs"
+                        >
+                          {country}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Selected Countries List */}
                 <div className="flex flex-wrap gap-2 mt-2">

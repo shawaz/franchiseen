@@ -65,7 +65,13 @@ export default function GoogleMapsLoader({
   // Show error if API key is missing
   if (!apiKey) {
     console.error('Google Maps API key is not set. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your environment variables.');
-    return errorFallback(new Error('Google Maps API key is not configured'));
+    return (
+      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+          Google Maps API key is not configured. Please contact support or use manual input.
+        </p>
+      </div>
+    );
   }
 
   // Show loading state

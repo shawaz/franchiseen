@@ -44,6 +44,16 @@ function PlacesAutocompleteInner({
     componentRestrictions,
   });
 
+  // Debug logging for production issues
+  useEffect(() => {
+    if (error) {
+      console.error('PlacesAutocomplete error:', error);
+    }
+    if (value.length > 2 && predictions.length === 0 && !loading) {
+      console.warn('No predictions found for:', value);
+    }
+  }, [error, predictions.length, loading, value]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     onChange(newValue);

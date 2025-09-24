@@ -28,6 +28,13 @@ export function useGooglePlaces({ input, types = 'country', componentRestriction
       return;
     }
 
+    // Check if Google Maps is available
+    if (typeof window === 'undefined' || !window.google || !window.google.maps || !window.google.maps.places) {
+      setError('Google Maps API not loaded');
+      setLoading(false);
+      return;
+    }
+
     const searchPlaces = async () => {
       setLoading(true);
       setError(null);
@@ -46,17 +53,21 @@ export function useGooglePlaces({ input, types = 'country', componentRestriction
             }),
           },
           (predictions, status) => {
+            console.log('Google Places API response:', { status, predictions: predictions?.length || 0 });
+            
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
               setPredictions(predictions);
             } else {
-              setError('Failed to fetch places');
+              console.error('Google Places API error:', status);
+              setError(`API Error: ${status}`);
               setPredictions([]);
             }
             setLoading(false);
           }
         );
-      } catch {
-        setError('Error fetching places');
+      } catch (err) {
+        console.error('Google Places API exception:', err);
+        setError(`Exception: ${err instanceof Error ? err.message : 'Unknown error'}`);
         setLoading(false);
       }
     };
