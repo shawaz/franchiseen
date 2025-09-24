@@ -8,7 +8,14 @@ import GoogleMapsLoader from '@/components/maps/GoogleMapsLoader';
 interface PlacesAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
-  onPlaceSelect: (place: any) => void;
+  onPlaceSelect: (place: {
+    place_id: string;
+    description: string;
+    structured_formatting: {
+      main_text: string;
+      secondary_text: string;
+    };
+  }) => void;
   placeholder?: string;
   types?: string;
   componentRestrictions?: {
@@ -44,7 +51,14 @@ function PlacesAutocompleteInner({
     setSelectedIndex(-1);
   };
 
-  const handlePlaceSelect = (prediction: any) => {
+  const handlePlaceSelect = (prediction: {
+    place_id: string;
+    description: string;
+    structured_formatting: {
+      main_text: string;
+      secondary_text: string;
+    };
+  }) => {
     onChange(prediction.description);
     onPlaceSelect(prediction);
     setIsOpen(false);
@@ -125,7 +139,7 @@ function PlacesAutocompleteInner({
       {isOpen && (predictions.length > 0 || loading) && (
         <div
           ref={listRef}
-          className="absolute z-50 w-full mt-1 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md shadow-lg max-h-60 overflow-auto"
+          className="absolute z-[9999] w-full mt-1 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md shadow-lg max-h-60 overflow-auto"
         >
           {loading && (
             <div className="px-3 py-2 text-sm text-stone-500">

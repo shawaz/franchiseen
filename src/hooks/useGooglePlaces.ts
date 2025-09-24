@@ -39,7 +39,11 @@ export function useGooglePlaces({ input, types = 'country', componentRestriction
           {
             input,
             types: [types],
-            componentRestrictions,
+            ...(componentRestrictions && componentRestrictions.country && { 
+              componentRestrictions: { 
+                country: componentRestrictions.country 
+              } 
+            }),
           },
           (predictions, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
@@ -51,7 +55,7 @@ export function useGooglePlaces({ input, types = 'country', componentRestriction
             setLoading(false);
           }
         );
-      } catch (err) {
+      } catch {
         setError('Error fetching places');
         setLoading(false);
       }

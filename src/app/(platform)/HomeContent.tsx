@@ -94,13 +94,19 @@ function HomeContent() {
     }
 
     // Convert Convex data to Franchise format
-    const convertToFranchise = (franchiser: any): Franchise => ({
+    const convertToFranchise = (franchiser: {
+      _id: string;
+      logoUrl?: string;
+      name: string;
+      interiorImages?: string[];
+      description?: string;
+    }): Franchise => ({
       _id: franchiser._id,
-      logo: franchiser.logoUrl,
+      logo: franchiser.logoUrl || "",
       title: franchiser.name,
       location: "Dubai, UAE", // Default location, could be enhanced with location data
       price: 15000, // Default price, could be enhanced with pricing data
-      images: franchiser.interiorImages,
+      images: franchiser.interiorImages || [],
       squareFeet: 1200, // Default size
       type: "fund" as const, // Default type
       description: franchiser.description,

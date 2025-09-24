@@ -14,11 +14,13 @@ export function useFranchiserByWallet(walletAddress: string) {
 }
 
 export function useFranchiserLocations(franchiserId: string) {
-  return useQuery(api.franchises.getFranchiserLocations, { franchiserId });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return useQuery(api.franchises.getFranchiserLocations, { franchiserId } as any);
 }
 
 export function useFranchiserProducts(franchiserId: string) {
-  return useQuery(api.franchises.getFranchiserProducts, { franchiserId });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return useQuery(api.franchises.getFranchiserProducts, { franchiserId } as any);
 }
 
 export function useFranchisersByStatus(status: "draft" | "pending" | "approved" | "rejected") {

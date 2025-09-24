@@ -12,15 +12,6 @@ export default defineSchema({
     industry: v.string(),
     category: v.string(),
     website: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    email: v.optional(v.string()),
-    socialMedia: v.object({
-      telegram: v.optional(v.string()),
-      instagram: v.optional(v.string()),
-      facebook: v.optional(v.string()),
-      twitter: v.optional(v.string()),
-      linkedin: v.optional(v.string()),
-    }),
     interiorImages: v.array(v.id("_storage")),
     status: v.union(
       v.literal("draft"),
@@ -72,4 +63,62 @@ export default defineSchema({
     fileType: v.string(),
     uploadedAt: v.number(),
   }),
+
+  // Master data tables
+  countries: defineTable({
+    name: v.string(),
+    code: v.string(), // ISO country code (e.g., "AE", "US", "GB")
+    flag: v.optional(v.string()), // Flag emoji or URL
+    currency: v.optional(v.string()), // Currency code (e.g., "AED", "USD", "GBP")
+    timezone: v.optional(v.string()), // Timezone (e.g., "Asia/Dubai", "America/New_York")
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_code", ["code"]).index("by_active", ["isActive"]),
+
+  cities: defineTable({
+    name: v.string(),
+    countryId: v.id("countries"),
+    countryCode: v.string(), // For easier querying
+    state: v.optional(v.string()), // State/Province
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+    population: v.optional(v.number()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_country", ["countryId"]).index("by_countryCode", ["countryCode"]).index("by_active", ["isActive"]),
+
+  industries: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    icon: v.optional(v.string()), // Icon name or URL
+    isActive: v.boolean(),
+    sortOrder: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_active", ["isActive"]).index("by_sortOrder", ["sortOrder"]),
+
+  categories: defineTable({
+    name: v.string(),
+    industryId: v.id("industries"),
+    description: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    isActive: v.boolean(),
+    sortOrder: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_industry", ["industryId"]).index("by_active", ["isActive"]).index("by_sortOrder", ["sortOrder"]),
+
+  productCategories: defineTable({
+    name: v.string(),
+    categoryId: v.id("categories"),
+    industryId: v.id("industries"), // For easier querying
+    description: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    isActive: v.boolean(),
+    sortOrder: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_category", ["categoryId"]).index("by_industry", ["industryId"]).index("by_active", ["isActive"]).index("by_sortOrder", ["sortOrder"]),
 });

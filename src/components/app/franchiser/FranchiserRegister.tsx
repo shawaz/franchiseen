@@ -17,41 +17,142 @@ import { useCreateFranchiserWithDetails } from '@/hooks/useFranchises';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useSolana } from '@/components/solana/use-solana';
 import { PlacesAutocomplete } from '@/components/ui/places-autocomplete';
-// import { Id } from '../../../convex/_generated/dataModel';
+import { useMasterData } from '@/hooks/useMasterData';
 
-// Common product categories
-const PRODUCT_CATEGORIES = [
-  'Appetizers',
-  'Main Course',
-  'Desserts',
-  'Beverages',
-  'Sides',
-  'Salads',
-  'Sandwiches',
-  'Pizzas',
-  'Burgers',
-  'Pasta',
-  'Rice Dishes',
-  'Soups',
-  'Breakfast',
-  'Lunch Specials',
-  'Dinner Specials',
-  'Kids Menu',
-  'Vegetarian',
-  'Vegan',
-  'Gluten-Free',
-  'Specials',
-  'Seasonal',
-  'Happy Hour',
-  'Cocktails',
-  'Wine',
-  'Beer',
-  'Dessert Wines',
-  'Non-Alcoholic Drinks',
-  'Coffee & Tea',
-  'Smoothies',
-  'Shakes'
-].sort();
+// Country code mapping for Google Places API
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  'United Arab Emirates': 'AE',
+  'United States': 'US',
+  'United Kingdom': 'GB',
+  'Canada': 'CA',
+  'Australia': 'AU',
+  'Germany': 'DE',
+  'France': 'FR',
+  'Italy': 'IT',
+  'Spain': 'ES',
+  'Netherlands': 'NL',
+  'Belgium': 'BE',
+  'Switzerland': 'CH',
+  'Austria': 'AT',
+  'Sweden': 'SE',
+  'Norway': 'NO',
+  'Denmark': 'DK',
+  'Finland': 'FI',
+  'Ireland': 'IE',
+  'Portugal': 'PT',
+  'Greece': 'GR',
+  'Turkey': 'TR',
+  'Poland': 'PL',
+  'Czech Republic': 'CZ',
+  'Hungary': 'HU',
+  'Romania': 'RO',
+  'Bulgaria': 'BG',
+  'Croatia': 'HR',
+  'Slovenia': 'SI',
+  'Slovakia': 'SK',
+  'Lithuania': 'LT',
+  'Latvia': 'LV',
+  'Estonia': 'EE',
+  'Luxembourg': 'LU',
+  'Malta': 'MT',
+  'Cyprus': 'CY',
+  'Japan': 'JP',
+  'South Korea': 'KR',
+  'China': 'CN',
+  'India': 'IN',
+  'Singapore': 'SG',
+  'Malaysia': 'MY',
+  'Thailand': 'TH',
+  'Philippines': 'PH',
+  'Indonesia': 'ID',
+  'Vietnam': 'VN',
+  'Brazil': 'BR',
+  'Argentina': 'AR',
+  'Chile': 'CL',
+  'Colombia': 'CO',
+  'Peru': 'PE',
+  'Mexico': 'MX',
+  'South Africa': 'ZA',
+  'Egypt': 'EG',
+  'Morocco': 'MA',
+  'Tunisia': 'TN',
+  'Algeria': 'DZ',
+  'Nigeria': 'NG',
+  'Kenya': 'KE',
+  'Ghana': 'GH',
+  'Israel': 'IL',
+  'Saudi Arabia': 'SA',
+  'Qatar': 'QA',
+  'Kuwait': 'KW',
+  'Bahrain': 'BH',
+  'Oman': 'OM',
+  'Jordan': 'JO',
+  'Lebanon': 'LB',
+  'Iraq': 'IQ',
+  'Iran': 'IR',
+  'Pakistan': 'PK',
+  'Bangladesh': 'BD',
+  'Sri Lanka': 'LK',
+  'Nepal': 'NP',
+  'Bhutan': 'BT',
+  'Maldives': 'MV',
+  'Afghanistan': 'AF',
+  'Kazakhstan': 'KZ',
+  'Uzbekistan': 'UZ',
+  'Kyrgyzstan': 'KG',
+  'Tajikistan': 'TJ',
+  'Turkmenistan': 'TM',
+  'Mongolia': 'MN',
+  'Russia': 'RU',
+  'Ukraine': 'UA',
+  'Belarus': 'BY',
+  'Moldova': 'MD',
+  'Georgia': 'GE',
+  'Armenia': 'AM',
+  'Azerbaijan': 'AZ',
+  'New Zealand': 'NZ',
+  'Fiji': 'FJ',
+  'Papua New Guinea': 'PG',
+  'Solomon Islands': 'SB',
+  'Vanuatu': 'VU',
+  'Samoa': 'WS',
+  'Tonga': 'TO',
+  'Kiribati': 'KI',
+  'Tuvalu': 'TV',
+  'Nauru': 'NR',
+  'Palau': 'PW',
+  'Marshall Islands': 'MH',
+  'Micronesia': 'FM',
+  'Cook Islands': 'CK',
+  'Niue': 'NU',
+  'Tokelau': 'TK',
+  'Pitcairn Islands': 'PN',
+  'Norfolk Island': 'NF',
+  'Christmas Island': 'CX',
+  'Cocos Islands': 'CC',
+  'Heard Island': 'HM',
+  'Macquarie Island': 'AU',
+  'Bouvet Island': 'BV',
+  'South Georgia': 'GS',
+  'South Sandwich Islands': 'GS',
+  'French Southern Territories': 'TF',
+  'Antarctica': 'AQ',
+  'Arctic': 'AQ',
+  'Greenland': 'GL',
+  'Faroe Islands': 'FO',
+  'Iceland': 'IS',
+  'Svalbard': 'SJ',
+  'Jan Mayen': 'SJ',
+  'Peter I Island': 'AQ',
+  'Queen Maud Land': 'AQ',
+  'Ross Dependency': 'AQ',
+  'Australian Antarctic Territory': 'AQ',
+  'Adélie Land': 'AQ',
+  'Chilean Antarctic Territory': 'AQ',
+  'Argentine Antarctica': 'AQ',
+  'Norwegian Antarctic Territory': 'AQ',
+  'Unclaimed Antarctic Territory': 'AQ'
+};
 
 // Define types for our data
 type LocationFinance = {
@@ -79,13 +180,11 @@ type FormData = {
   category: string;
   shortDescription: string;
   website: string;
-  email: string;
-  phone: string;
-  socialMedia: {
-    instagram: string;
-    telegram: string;
-    linkedin: string;
-    facebook: string;
+  timingPerWeek: {
+    is24Hours: boolean;
+    days: string[];
+    startTime: string;
+    endTime: string;
   };
   logoFile: File | null;
   logoPreview: string | null;
@@ -99,40 +198,63 @@ type FormData = {
 };
 
 
-interface Industry {
-  id: string;
-  name: string;
-  categories: string[];
-}
-
-const industries: Industry[] = [
-  {
-    id: 'food-beverage',
-    name: 'Food & Beverage',
-    categories: ['Quick Service Restaurant', 'Cafe', 'Fine Dining', 'Food Truck', 'Bakery', 'Dessert', 'Beverage']
-  },
-  {
-    id: 'retail',
-    name: 'Retail',
-    categories: ['Apparel', 'Electronics', 'Beauty', 'Home Goods', 'Specialty']
-  },
-  {
-    id: 'health-beauty',
-    name: 'Health & Beauty',
-    categories: ['Hair Salon', 'Nail Salon', 'Spa', 'Fitness', 'Wellness']
-  },
-  {
-    id: 'services',
-    name: 'Services',
-    categories: ['Education', 'Cleaning', 'Maintenance', 'Consulting', 'Other Services']
-  }
-];
+// Industries and categories will be loaded from Convex database
 
 const FranchiserRegister: React.FC = () => {
   const router = useRouter();
   const createFranchiserWithDetails = useCreateFranchiserWithDetails();
   const { uploadFile, uploadMultipleFiles } = useFileUpload();
   const { account } = useSolana();
+  
+  // Load master data from Convex
+  const { industries, categories, productCategories, isLoading: masterDataLoading } = useMasterData();
+  // const { hierarchicalData } = useHierarchicalData(); // Commented out as it's not used
+
+  // Helper function to get country code
+  const getCountryCode = (countryName: string): string | undefined => {
+    return COUNTRY_CODE_MAP[countryName];
+  };
+
+  // Helper function to normalize country names
+  const normalizeCountryName = (countryName: string): string => {
+    const countryAliases: Record<string, string> = {
+      'UAE': 'United Arab Emirates',
+      'USA': 'United States',
+      'United States of America': 'United States',
+      'America': 'United States',
+      'UK': 'United Kingdom',
+      'Great Britain': 'United Kingdom',
+      'Britain': 'United Kingdom',
+      'Emirates': 'United Arab Emirates',
+    };
+    
+    return countryAliases[countryName] || countryName;
+  };
+
+  // Helper function to check if country is already selected
+  const isCountryAlreadySelected = (countryName: string): boolean => {
+    const normalizedName = normalizeCountryName(countryName);
+    return selectedCountries.some(country => 
+      normalizeCountryName(country) === normalizedName
+    );
+  };
+
+  // Validation helper functions
+  const validateWebsite = (website: string): boolean => {
+    try {
+      // Add protocol if missing
+      const url = website.startsWith('http') ? website : `https://${website}`;
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // State for validation errors
+  const [validationErrors, setValidationErrors] = useState<{
+    website?: string;
+  }>({});
   
   const [formData, setFormData] = useState<FormData>({
     brandName: '',
@@ -141,13 +263,11 @@ const FranchiserRegister: React.FC = () => {
     category: '',
     shortDescription: '',
     website: '',
-    email: '',
-    phone: '',
-    socialMedia: {
-      instagram: '',
-      telegram: '',
-      linkedin: '',
-      facebook: ''
+    timingPerWeek: {
+      is24Hours: false,
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      startTime: '09:00',
+      endTime: '18:00'
     },
     logoFile: null,
     logoPreview: null,
@@ -161,21 +281,22 @@ const FranchiserRegister: React.FC = () => {
   });
   
   // State for the new location being added (temporary state for the form)
-  const [isNationwide, setIsNationwide] = useState<boolean>(true);
-  const [isFinance, setIsFinance] = useState<boolean>(false);
+  // const [isFinance, setIsFinance] = useState<boolean>(false); // Commented out as it's not used
   const [countryInput, setCountryInput] = useState('');
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [cityInput, setCityInput] = useState('');
   
   // State for location-specific data
   const [locationData, setLocationData] = useState<Record<string, {
     isNationwide: boolean;
     cities: string[];
+    cityInput: string;
     minArea: number;
     franchiseFee: number;
     setupCost: number;
     workingCapital: number;
+    isFinance: boolean;
+    licenseFile: File | null;
+    licensePreview: string | null;
   }>>({});
   
   // State for file upload drag and drop
@@ -221,11 +342,18 @@ const FranchiserRegister: React.FC = () => {
       return true;
     });
     
-    const newPhotos = validFiles.map(file => ({
+    const newPhotos = validFiles.map((file, index) => {
+      // Create new file with brand URL as filename reference
+      const fileExtension = file.name.split('.').pop();
+      const newFileName = `${formData.brandUrl || 'brand'}-interior-${index + 1}.${fileExtension}`;
+      const renamedFile = new File([file], newFileName, { type: file.type });
+      
+      return {
       id: Math.random().toString(36).substring(7),
-      file,
-      preview: URL.createObjectURL(file)
-    }));
+        file: renamedFile,
+        preview: URL.createObjectURL(file) // Use original file for preview
+      };
+    });
     
     setInteriorPhotos(prev => {
       const updated = [...prev, ...newPhotos];
@@ -313,11 +441,18 @@ const FranchiserRegister: React.FC = () => {
             URL.revokeObjectURL(product.photo.preview);
           }
           
+          // Create new file with brand URL as filename reference, product name, and category
+          const fileExtension = file.name.split('.').pop();
+          const productName = product.name ? product.name.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'product';
+          const productCategory = product.category && product.category !== 'none' ? product.category.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'uncategorized';
+          const newFileName = `${formData.brandUrl || 'brand'}-${productName}-${productCategory}-${productId}.${fileExtension}`;
+          const renamedFile = new File([file], newFileName, { type: file.type });
+          
           return {
             ...product,
             photo: {
-              file,
-              preview: URL.createObjectURL(file)
+              file: renamedFile,
+              preview: URL.createObjectURL(file) // Use original file for preview
             }
           };
         }
@@ -325,6 +460,50 @@ const FranchiserRegister: React.FC = () => {
       })
     );
   };
+
+  // Update interior photos when brand URL changes
+  useEffect(() => {
+    if (formData.brandUrl && interiorPhotos.length > 0) {
+      setInteriorPhotos(prev => 
+        prev.map((photo, index) => {
+          const fileExtension = photo.file.name.split('.').pop();
+          const newFileName = `${formData.brandUrl}-interior-${index + 1}.${fileExtension}`;
+          const renamedFile = new File([photo.file], newFileName, { type: photo.file.type });
+          
+          return {
+            ...photo,
+            file: renamedFile
+          };
+        })
+      );
+    }
+  }, [formData.brandUrl, interiorPhotos.length]);
+
+  // Update product photos when brand URL changes
+  useEffect(() => {
+    if (formData.brandUrl && products.length > 0) {
+      setProducts(prev => 
+        prev.map(product => {
+          if (product.photo && product.photo.file) {
+            const fileExtension = product.photo.file.name.split('.').pop();
+            const productName = product.name ? product.name.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'product';
+            const productCategory = product.category && product.category !== 'none' ? product.category.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'uncategorized';
+            const newFileName = `${formData.brandUrl}-${productName}-${productCategory}-${product.id}.${fileExtension}`;
+            const renamedFile = new File([product.photo.file], newFileName, { type: product.photo.file.type });
+            
+            return {
+              ...product,
+              photo: {
+                ...product.photo,
+                file: renamedFile
+              }
+            };
+          }
+          return product;
+        })
+      );
+    }
+  }, [formData.brandUrl, products.length]);
 
   // Clean up object URLs when component unmounts
   useEffect(() => {
@@ -351,9 +530,59 @@ const FranchiserRegister: React.FC = () => {
     });
   };
 
+  // Handle license file upload for a country
+  const handleLicenseUpload = (country: string, file: File) => {
+    // Check file type (PDF only)
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file for the license');
+      return;
+    }
+
+    // Check file size (max 10MB for PDFs)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size should be less than 10MB');
+      return;
+    }
+
+    // Create new file with brand URL as filename reference
+    const fileExtension = file.name.split('.').pop();
+    const newFileName = `${formData.brandUrl || 'brand'}-license-${country.toLowerCase().replace(/[^a-z0-9]/g, '-')}.${fileExtension}`;
+    const renamedFile = new File([file], newFileName, { type: file.type });
+
+    // Create preview URL for PDF
+    const previewUrl = URL.createObjectURL(file);
+
+    setLocationData(prev => ({
+      ...prev,
+      [country]: {
+        ...prev[country],
+        licenseFile: renamedFile,
+        licensePreview: previewUrl,
+      }
+    }));
+  };
+
+  // Remove license file for a country
+  const removeLicenseFile = (country: string) => {
+    setLocationData(prev => {
+      const countryData = prev[country];
+      if (countryData?.licensePreview) {
+        URL.revokeObjectURL(countryData.licensePreview);
+      }
+      return {
+        ...prev,
+        [country]: {
+          ...countryData,
+          licenseFile: null,
+          licensePreview: null,
+        }
+      };
+    });
+  };
+
   // Generate URL slug from brand name
-  const generateSlug = (name: string): string => {
-    return name
+  const generateSlugFromBrandName = (brandName: string): string => {
+    return brandName
       .toLowerCase()
       .replace(/[^\w\s-]/g, '') // Remove special characters
       .replace(/\s+/g, '-') // Replace spaces with hyphens
@@ -364,14 +593,16 @@ const FranchiserRegister: React.FC = () => {
   // Update brand URL when brand name changes
   const handleBrandNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const name = e.target.value;
+    const brandUrl = generateSlugFromBrandName(name);
+    
     setFormData(prev => ({
       ...prev,
       brandName: name,
-      brandUrl: generateSlug(name)
+      brandUrl: brandUrl
     }));
   };
 
-  // Handle file upload
+  // Handle logo upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -398,6 +629,7 @@ const FranchiserRegister: React.FC = () => {
     }));
   };
 
+
   // Remove logo
   const removeLogo = (): void => {
     if (formData.logoPreview) {
@@ -406,15 +638,16 @@ const FranchiserRegister: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       logoFile: null,
-      logoPreview: null
+      logoPreview: null,
+      brandUrl: '' // Clear brandUrl when logo is removed
     }));
   };
 
   // Get available categories based on selected industry
   const availableCategories = useMemo(() => {
-    const industryObj = industries.find(i => i.id === formData.industry);
-    return industryObj ? industryObj.categories : [];
-  }, [formData.industry]);
+    if (!categories || !formData.industry) return [];
+    return categories.filter(cat => cat.industryId === formData.industry);
+  }, [categories, formData.industry]);
 
   // Format website URL to ensure it has https://
   const formatWebsiteUrl = (url: string): string => {
@@ -439,10 +672,10 @@ const FranchiserRegister: React.FC = () => {
 
   // Function to prepare form data for submission
   const prepareFormData = async () => {
-    // Upload logo
+    // Upload logo with brand URL as filename
     const logoStorageId = formData.logoFile ? await uploadFileToConvex(formData.logoFile) : undefined;
     
-    // Upload interior images
+    // Upload interior images with brand URL as filename
     const interiorImageStorageIds = await uploadMultipleFiles(
       interiorPhotos.map(photo => photo.file)
     );
@@ -460,6 +693,17 @@ const FranchiserRegister: React.FC = () => {
       }))
     );
 
+    // Upload license files
+    const licenseStorageIds = await Promise.all(
+      selectedCountries.map(async (country) => {
+        const countryData = locationData[country];
+        if (countryData?.licenseFile) {
+          return await uploadFileToConvex(countryData.licenseFile);
+        }
+        return null;
+      })
+    );
+
     // Prepare locations data - create unique location for each country
     const locationsData = selectedCountries.map((country, index) => {
       const countryData = locationData[country] || {
@@ -475,7 +719,7 @@ const FranchiserRegister: React.FC = () => {
         country,
         isNationwide: countryData.isNationwide,
         city: countryData.isNationwide ? undefined : countryData.cities.join(', '),
-        registrationCertificate: `cert-${country.toLowerCase()}-${Date.now()}-${index}`,
+        registrationCertificate: licenseStorageIds[index] || `cert-${country.toLowerCase()}-${Date.now()}-${index}`,
         minArea: countryData.minArea,
         franchiseFee: countryData.franchiseFee,
         setupCost: countryData.setupCost,
@@ -487,22 +731,14 @@ const FranchiserRegister: React.FC = () => {
     return {
       franchiser: {
         walletAddress: account?.address || '', // Use actual wallet address
-        logoUrl: logoStorageId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        logoUrl: logoStorageId as any, // Cast to match Convex ID type
         name: formData.brandName,
         slug: formData.brandUrl,
         description: formData.shortDescription,
         industry: formData.industry,
         category: formData.category,
         website: formData.website || undefined,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
-        socialMedia: {
-          telegram: formData.socialMedia.telegram || undefined,
-          instagram: formData.socialMedia.instagram || undefined,
-          facebook: formData.socialMedia.facebook || undefined,
-          twitter: undefined,
-          linkedin: formData.socialMedia.linkedin || undefined,
-        },
         interiorImages: interiorImageStorageIds,
         status: 'pending' as const,
       },
@@ -516,8 +752,14 @@ const FranchiserRegister: React.FC = () => {
     if (currentStep === 1) {
       if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
           !formData.industry || !formData.category || !formData.logoFile || 
-          !formData.email || !formData.phone) {
+          (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0)) {
         toast.error('Please fill in all required fields');
+        return;
+      }
+
+      // Validate website format (if provided)
+      if (formData.website && !validateWebsite(formData.website)) {
+        toast.error('Please enter a valid website URL');
         return;
       }
     }
@@ -537,6 +779,13 @@ const FranchiserRegister: React.FC = () => {
         toast.error('Please select at least one country');
         return;
       }
+      
+      // Check if all countries have license files
+      const missingLicenses = selectedCountries.filter(country => !locationData[country]?.licenseFile);
+      if (missingLicenses.length > 0) {
+        toast.error(`Please upload license documents for: ${missingLicenses.join(', ')}`);
+        return;
+      }
     }
     
     if (currentStep < 4) {
@@ -550,8 +799,23 @@ const FranchiserRegister: React.FC = () => {
     }
   };
 
+  // Show loading state while master data is being fetched
+  if (masterDataLoading) {
   return (
+      <Card className="w-full max-w-4xl mx-auto my-12 py-6">
+        <CardContent>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+              <p className="text-stone-600">Loading form data...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
+  return (
         <Card className="w-full max-w-4xl mx-auto my-12 py-6">
         <CardContent>
         <div className="flex justify-between items-center mb-6">
@@ -656,9 +920,9 @@ const FranchiserRegister: React.FC = () => {
                 <Input
                   id="brandUrl"
                   value={formData.brandUrl}
-                  onChange={(e) => setFormData(prev => ({ ...prev, brandUrl: generateSlug(e.target.value) }))}
-                  className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm"
-                  placeholder="your-brand-name"
+                  onChange={(e) => setFormData(prev => ({ ...prev, brandUrl: e.target.value }))}
+                  className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm bg-stone-50 dark:bg-stone-800"
+                  placeholder="brand-url"
                   required
                 />
               </div>
@@ -704,8 +968,9 @@ const FranchiserRegister: React.FC = () => {
                     <SelectValue placeholder="Select industry" />
                   </SelectTrigger>
                   <SelectContent>
-                    {industries.map((industry) => (
-                      <SelectItem key={industry.id} value={industry.id}>
+                    {industries?.map((industry) => (
+                      <SelectItem key={industry._id} value={industry._id}>
+                        {industry.icon && <span className="mr-2">{industry.icon}</span>}
                         {industry.name}
                       </SelectItem>
                     ))}
@@ -727,8 +992,9 @@ const FranchiserRegister: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {availableCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                      <SelectItem key={category._id} value={category._id}>
+                        {category.icon && <span className="mr-2">{category.icon}</span>}
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -745,140 +1011,157 @@ const FranchiserRegister: React.FC = () => {
                     id="website"
                     type="url"
                     value={formData.website.replace(/^https?:\/\//, '')}
-                    onChange={(e) => setFormData(prev => ({
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const formattedUrl = formatWebsiteUrl(value);
+                      setFormData(prev => ({
                       ...prev,
-                      website: formatWebsiteUrl(e.target.value)
-                    }))}
-                    className="flex-1 min-w-0 w-full px-3 py-2 text-sm border-l-0"
+                        website: formattedUrl
+                      }));
+                      
+                      // Real-time validation
+                      if (value && !validateWebsite(formattedUrl)) {
+                        setValidationErrors(prev => ({ ...prev, website: 'Please enter a valid website URL' }));
+                      } else {
+                        setValidationErrors(prev => ({ ...prev, website: undefined }));
+                      }
+                    }}
+                    className={`flex-1 min-w-0 w-full px-3 py-2 text-sm border-l-0 ${validationErrors.website ? 'border-red-500 focus:border-red-500' : ''}`}
                     placeholder="yourwebsite.com"
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Email and Phone */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+1 (555) 123-4567"
-                  required
-                />
+                {validationErrors.website && (
+                  <p className="text-sm text-red-500">{validationErrors.website}</p>
+                )}
+                </div>
               </div>
               
-              
+              {/* Timing per Week */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                <Label htmlFor="timingPerWeek">Business Hours *</Label>
+                
+                {/* 24 Hours Toggle */}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is24Hours"
+                    checked={formData.timingPerWeek.is24Hours}
+                    onCheckedChange={(checked) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        timingPerWeek: {
+                          ...prev.timingPerWeek,
+                          is24Hours: checked,
+                          days: checked ? [] : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+                        }
+                      }));
+                    }}
+                  />
+                  <Label htmlFor="is24Hours" className="text-sm font-medium">
+                    Open 24 Hours
+                  </Label>
             </div>
 
             
 
-            
-
-            {/* Social Media */}
-            <div>
-              <Label className="block mb-2">Social Media</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </div>
                 
 
-                <div className="space-y-1">
-                  <div className="flex  ">
-                    <span className="inline-flex items-center px-3  border border-r-0  text-stone-500 sm:text-sm">
-                    telegram/@
-                    </span>
-                    <Input
-                      id="telegram"
-                      value={formData.socialMedia.telegram.replace(/^@/, '')}
-                      onChange={(e) => setFormData(prev => ({
+                {!formData.timingPerWeek.is24Hours && (
+                  <div className="space-y-4">
+                    {/* Days Selection */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Operating Days</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                          <div key={day} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`day-${day}`}
+                              checked={formData.timingPerWeek.days.includes(day)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData(prev => ({
                         ...prev,
-                        socialMedia: {
-                          ...prev.socialMedia,
-                          telegram: e.target.value
-                        }
-                      }))}
-                      className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm"
-                      placeholder="username"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex  ">
-                    <span className="inline-flex items-center px-3 border border-r-0  text-stone-500 sm:text-sm">
-                      instagram/@
-                    </span>
-                    <Input
-                      id="instagram"
-                      value={formData.socialMedia.instagram.replace(/^@/, '')}
-                      onChange={(e) => setFormData(prev => ({
+                                    timingPerWeek: {
+                                      ...prev.timingPerWeek,
+                                      days: [...prev.timingPerWeek.days, day]
+                                    }
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
                         ...prev,
-                        socialMedia: {
-                          ...prev.socialMedia,
-                          instagram: e.target.value
-                        }
-                      }))}
-                      className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm"
-                      placeholder="username"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  
-                  <div className="flex  ">
-                    <span className="inline-flex items-center px-3  border border-r-0  text-stone-500 sm:text-sm">
-                      linkedin.com/in/
-                    </span>
-                    <Input
-                      id="linkedin"
-                      value={formData.socialMedia.linkedin}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        socialMedia: {
-                          ...prev.socialMedia,
-                          linkedin: e.target.value
-                        }
-                      }))}
-                      className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm"
-                      placeholder="username"
-                    />
+                                    timingPerWeek: {
+                                      ...prev.timingPerWeek,
+                                      days: prev.timingPerWeek.days.filter(d => d !== day)
+                                    }
+                                  }));
+                                }
+                              }}
+                              className="rounded border-stone-300"
+                            />
+                            <Label htmlFor={`day-${day}`} className="text-xs">
+                              {day.slice(0, 3)}
+                            </Label>
+                          </div>
+                        ))}
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex  ">
-                    <span className="inline-flex items-center px-3 border border-r-0  text-stone-500 sm:text-sm">
-                      facebook.com/
-                    </span>
+                    {/* Time Selection */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="startTime" className="text-sm font-medium">Opening Time</Label>
                     <Input
-                      id="facebook"
-                      value={formData.socialMedia.facebook}
+                          id="startTime"
+                          type="time"
+                          value={formData.timingPerWeek.startTime}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        socialMedia: {
-                          ...prev.socialMedia,
-                          facebook: e.target.value
+                            timingPerWeek: {
+                              ...prev.timingPerWeek,
+                              startTime: e.target.value
                         }
                       }))}
-                      className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm"
-                      placeholder="username"
+                          className="h-9"
+                    />
+                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="endTime" className="text-sm font-medium">Closing Time</Label>
+                    <Input
+                          id="endTime"
+                          type="time"
+                          value={formData.timingPerWeek.endTime}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                            timingPerWeek: {
+                              ...prev.timingPerWeek,
+                              endTime: e.target.value
+                        }
+                      }))}
+                          className="h-9"
                     />
                   </div>
                 </div>
               </div>
+                )}
+
+                {/* Display Summary */}
+                <div className="p-3 bg-stone-50 dark:bg-stone-800 rounded-lg">
+                  <p className="text-sm font-medium text-stone-700 dark:text-stone-300">
+                    {formData.timingPerWeek.is24Hours ? (
+                      "Open 24 Hours, 7 Days a Week"
+                    ) : (
+                      formData.timingPerWeek.days.length > 0 ? (
+                        `${formData.timingPerWeek.days.join(', ')}: ${formData.timingPerWeek.startTime} - ${formData.timingPerWeek.endTime}`
+                      ) : (
+                        "Please select operating days"
+                      )
+                    )}
+                  </p>
             </div>
+              </div>
+              
             </div>
           )}
 
@@ -910,11 +1193,33 @@ const FranchiserRegister: React.FC = () => {
                         step="50"
                         value={formData.minCarpetArea || ''}
                         onChange={(e) => {
-                          const value = e.target.value ? Math.max(100, parseInt(e.target.value)) : '';
+                          const inputValue = e.target.value;
+                          if (inputValue === '') {
                           setFormData(prev => ({
                             ...prev,
-                            minCarpetArea: value as number | ''
-                          }));
+                              minCarpetArea: ''
+                            }));
+                          } else {
+                            const numValue = parseInt(inputValue);
+                            if (!isNaN(numValue)) {
+                              setFormData(prev => ({
+                                ...prev,
+                                minCarpetArea: numValue
+                              }));
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const inputValue = e.target.value;
+                          if (inputValue !== '') {
+                            const numValue = parseInt(inputValue);
+                            if (!isNaN(numValue) && numValue < 100) {
+                              setFormData(prev => ({
+                                ...prev,
+                                minCarpetArea: 100
+                              }));
+                            }
+                          }
                         }}
                         placeholder="500"
                         className="h-9 text-sm"
@@ -1107,18 +1412,24 @@ const FranchiserRegister: React.FC = () => {
                     onChange={setCountryInput}
                     onPlaceSelect={(place) => {
                         const country = place.structured_formatting.main_text;
-                        if (!selectedCountries.includes(country)) {
-                            setSelectedCountries([...selectedCountries, country]);
+                        const normalizedCountry = normalizeCountryName(country);
+                        
+                        if (!isCountryAlreadySelected(country)) {
+                            setSelectedCountries([...selectedCountries, normalizedCountry]);
                             // Initialize location data for this country
                             setLocationData(prev => ({
                                 ...prev,
-                                [country]: {
+                                [normalizedCountry]: {
                                     isNationwide: true,
                                     cities: [],
+                                    cityInput: '',
                                     minArea: formData.minCarpetArea || 500,
                                     franchiseFee: formData.franchiseFee || 25000,
                                     setupCost: formData.setupCostPerSqft || 150,
                                     workingCapital: formData.workingCapitalPerSqft || 100,
+                                    isFinance: false,
+                                    licenseFile: null,
+                                    licensePreview: null,
                                 }
                             }));
                         }
@@ -1160,7 +1471,7 @@ const FranchiserRegister: React.FC = () => {
             </div>
 
             {/* Country Cards */}
-            <div className="">
+            <div className=" space-y-4">
             {selectedCountries.map((country) => (
                 <Card key={country} className="relative py-5">
                 <CardHeader className="pb-3">
@@ -1181,81 +1492,130 @@ const FranchiserRegister: React.FC = () => {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4 border-t pt-4">
-            <Label htmlFor="countries">Business Registration Certificate *</Label>
 
-                <div 
-                  className="border-2 border-dashed border-stone-300 dark:border-stone-700 rounded-lg p-8 text-center cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/50 transition-colors"
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDragging(false);
-                    // Handle file drop
-                    const files = Array.from(e.dataTransfer.files);
-                    handleInteriorFiles(files);
-                  }}
-                >
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <UploadCloud className={`w-12 h-12 ${isDragging ? 'text-yellow-600' : 'text-stone-400'}`} />
-                    <p className="text-sm text-stone-600 dark:text-stone-400">
-                      <span className="font-medium text-yellow-600 hover:text-yellow-700">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      PNG, JPG, JPEG (max. 5MB each)
-                    </p>
+                  {/* License File Upload */}
+                  <div className="space-y-2 ">
+                        <Label htmlFor={`license-${country}`}>License Document (PDF) *</Label>
+                        <div className="flex items-center gap-4">
+                            <div className="relative w-24 h-24 border border-dashed dark:border-stone-600 flex items-center justify-center overflow-hidden">
+                                {locationData[country]?.licensePreview ? (
+                                    <div className="relative w-full h-full flex items-center justify-center">
+                                        <div className="text-center">
+                                            <div className="w-8 h-8 bg-red-500 text-white rounded flex items-center justify-center mb-1">
+                                                PDF
+                                            </div>
+                                            <span className="text-xs text-stone-600">License</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeLicenseFile(country)}
+                                            className="absolute top-1 right-1 bg-red-500 text-white p-1 hover:bg-red-600 transition-colors z-10"
+                                            aria-label="Remove license"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
                   </div>
+                                ) : (
+                                    <div className="text-center">
+                                        <Upload className="w-6 h-6 text-stone-400 mb-1" />
+                                        <span className="text-xs text-stone-500">PDF</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div>
                   <input
                     type="file"
-                    id="interior-photos"
+                                    id={`license-${country}`}
+                                    accept=".pdf"
                     className="hidden"
-                    accept="image/png, image/jpeg, image/jpg"
-                    multiple
                     onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      handleInteriorFiles(files);
-                    }}
-                  />
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            handleLicenseUpload(country, file);
+                                        }
+                                    }}
+                                />
+                                <Label
+                                    htmlFor={`license-${country}`}
+                                    className="inline-flex items-center px-4 py-2 border text-sm font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 cursor-pointer"
+                                >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    {locationData[country]?.licenseFile ? 'Change License' : 'Upload License'}
+                                </Label>
+                                <p className="mt-1 text-xs text-stone-500">
+                                    {formData.brandUrl ? `File: ${formData.brandUrl}-license-${country.toLowerCase().replace(/[^a-z0-9]/g, '-')}.pdf` : 'PDF file, max 10MB'}
+                                </p>
                 </div>
+                        </div>
+                    </div>
+
                     {/* Country Multi-select */}
-            <div className="space-y-2">
-                <div className="flex justify-between items-center border-t pt-4 pb-4">
+            <div className="space-y-2 border-t pt-4">
+                <div className="flex justify-between items-center">
                     <Label htmlFor="countries">Select City *</Label>
                     <div className="flex items-center space-x-2">
-                        <Label htmlFor="available-nationwide">Available Nationwide</Label>
+                        <Label htmlFor={`available-nationwide-${country}`}>Available Nationwide</Label>
                         <Switch 
-                            id="available-nationwide" 
-                            checked={isNationwide} 
-                            onCheckedChange={setIsNationwide} 
-                            defaultChecked
+                            id={`available-nationwide-${country}`}
+                            checked={locationData[country]?.isNationwide ?? true} 
+                            onCheckedChange={(checked) => {
+                                setLocationData(prev => ({
+                                    ...prev,
+                                    [country]: {
+                                        ...prev[country],
+                                        isNationwide: checked
+                                    }
+                                }));
+                            }}
                         />
                     </div>
                 </div>
                 
-                        {!isNationwide && (
+                {!locationData[country]?.isNationwide && (
                     <>
-                        <PlacesAutocomplete
-                            value={cityInput}
-                            onChange={setCityInput}
+                        {selectedCountries.length === 0 ? (
+                            <div className="w-full p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
+                                Please select a country first to search for cities
+                            </div>
+                        ) : (
+                            <PlacesAutocomplete
+                                value={locationData[country]?.cityInput || ''}
+                                onChange={(value) => {
+                                    setLocationData(prev => ({
+                                        ...prev,
+                                        [country]: {
+                                            ...prev[country],
+                                            cityInput: value
+                                        }
+                                    }));
+                                }}
                             onPlaceSelect={(place) => {
                                 const city = place.structured_formatting.main_text;
-                                if (!selectedCities.includes(city)) {
-                                    setSelectedCities([...selectedCities, city]);
+                                
+                                if (!locationData[country]?.cities.includes(city)) {
+                                    setLocationData(prev => ({
+                                        ...prev,
+                                        [country]: {
+                                            ...prev[country],
+                                            cities: [...(prev[country]?.cities || []), city],
+                                            cityInput: ''
+                                        }
+                                    }));
                                 }
-                                setCityInput('');
                             }}
-                            placeholder="Search for a city..."
-                            types="(cities)"
-                            componentRestrictions={{ country: selectedCountries[0] }}
-                            className="w-full"
-                        />
+                                placeholder={`Search for a city in ${country}...`}
+                                types="(cities)"
+                                componentRestrictions={getCountryCode(country) ? { 
+                                    country: getCountryCode(country) 
+                                } : undefined}
+                                className="w-full"
+                            />
+                        )}
 
                         {/* Selected City List */}
-                        {selectedCities.length > 0 && (
+                        {locationData[country]?.cities.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-2">
-                                {selectedCities.map((city) => (
+                                {locationData[country].cities.map((city) => (
                                     <Badge
                                         key={city}
                                         variant="secondary"
@@ -1264,9 +1624,13 @@ const FranchiserRegister: React.FC = () => {
                                         {city}
                                         <button
                                             onClick={() => {
-                                                setSelectedCities(
-                                                    selectedCities.filter((c) => c !== city)
-                                                );
+                                                setLocationData(prev => ({
+                                                    ...prev,
+                                                    [country]: {
+                                                        ...prev[country],
+                                                        cities: prev[country].cities.filter((c) => c !== city)
+                                                    }
+                                                }));
                                             }}
                                             className="ml-1 text-stone-400 dark:text-stone-400 hover:text-stone-600"
                                         >
@@ -1279,18 +1643,32 @@ const FranchiserRegister: React.FC = () => {
                     </>
                 )}
             </div>
+                    
+
                     <div className="flex justify-between items-center border-t pt-4">
-                        <Label htmlFor="airplane-mode">Min Total Investment for 500 sqft *</Label>
+                        <Label htmlFor="airplane-mode">Min Total Investment *</Label>
                         <div className="flex items-center space-x-2">
                             <Label htmlFor="airplane-mode">Update Investment</Label>
                             <Switch id="airplane-mode" 
-                              checked={isFinance}
-                              onCheckedChange={setIsFinance}
+                              checked={locationData[country]?.isFinance || false}
+                              onCheckedChange={(checked) => {
+                                setLocationData(prev => ({
+                                    ...prev,
+                                    [country]: {
+                                        ...prev[country],
+                                        isFinance: checked
+                                    }
+                                }));
+                              }}
                             />
                         </div>
                     </div>
-                    <h2 className="font-bold ">$50,000</h2>
-                    {isFinance && (
+                    <div className="flex justify-between items-center">
+                      <h2 className="font-bold ">{locationData[country]?.minArea || 500} sq.ft</h2>
+                      <h2 className="font-bold ">${locationData[country]?.franchiseFee || 50000}</h2>
+                    </div>
+                   
+                    {locationData[country]?.isFinance && (
                         <div className="mt-4 border-t pt-4">
                         {/* Single Row Layout */}
                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1299,7 +1677,7 @@ const FranchiserRegister: React.FC = () => {
                          <div className="flex justify-between items-center">
                          <Label htmlFor="minCarpetArea" className="text-xs font-medium">Min. Area *</Label>
                          <span className="text-xs text-stone-500">
-                             {formData.minCarpetArea ? `${formData.minCarpetArea.toLocaleString()} sq.ft` : '0'}
+                             {locationData[country]?.minArea ? `${locationData[country].minArea.toLocaleString()} sq.ft` : '0'}
                          </span>
                          </div>
                          <div className="flex items-center gap-1">
@@ -1308,13 +1686,44 @@ const FranchiserRegister: React.FC = () => {
                              type="number"
                              min="100"
                              step="50"
-                             value={formData.minCarpetArea || ''}
+                             value={locationData[country]?.minArea || ''}
                              onChange={(e) => {
-                             const value = e.target.value ? Math.max(100, parseInt(e.target.value)) : '';
-                             setFormData(prev => ({
+                             const inputValue = e.target.value;
+                             if (inputValue === '') {
+                                 setLocationData(prev => ({
                                  ...prev,
-                                 minCarpetArea: value as number | ''
-                             }));
+                                     [country]: {
+                                         ...prev[country],
+                                         minArea: 0
+                                     }
+                                 }));
+                             } else {
+                                 const numValue = parseInt(inputValue);
+                                 if (!isNaN(numValue)) {
+                                     setLocationData(prev => ({
+                                         ...prev,
+                                         [country]: {
+                                             ...prev[country],
+                                             minArea: numValue
+                                         }
+                                     }));
+                                 }
+                             }
+                             }}
+                             onBlur={(e) => {
+                             const inputValue = e.target.value;
+                             if (inputValue !== '') {
+                                 const numValue = parseInt(inputValue);
+                                 if (!isNaN(numValue) && numValue < 100) {
+                                     setLocationData(prev => ({
+                                         ...prev,
+                                         [country]: {
+                                             ...prev[country],
+                                             minArea: 100
+                                         }
+                                     }));
+                                 }
+                             }
                              }}
                              placeholder="500"
                              className="h-9 text-sm"
@@ -1329,7 +1738,7 @@ const FranchiserRegister: React.FC = () => {
                          <div className="flex justify-between items-center">
                          <Label htmlFor="franchiseFee" className="text-xs font-medium">Franchise Fee *</Label>
                          <span className="text-xs text-stone-500">
-                             {formData.franchiseFee ? `$${formData.franchiseFee.toLocaleString()}` : '$0'}
+                             {locationData[country]?.franchiseFee ? `$${locationData[country].franchiseFee.toLocaleString()}` : '$0'}
                          </span>
                          </div>
                          <div className="relative">
@@ -1339,12 +1748,15 @@ const FranchiserRegister: React.FC = () => {
                              type="number"
                              min="0"
                              step="1000"
-                             value={formData.franchiseFee || ''}
+                             value={locationData[country]?.franchiseFee || ''}
                              onChange={(e) => {
                              const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
-                             setFormData(prev => ({
+                             setLocationData(prev => ({
                                  ...prev,
-                                 franchiseFee: value as number | ''
+                                 [country]: {
+                                     ...prev[country],
+                                     franchiseFee: value as number
+                                 }
                              }));
                              }}
                              className="pl-6 h-9 text-sm"
@@ -1360,7 +1772,7 @@ const FranchiserRegister: React.FC = () => {
                          <div className="flex justify-between items-center">
                          <Label htmlFor="setupCostPerSqft" className="text-xs font-medium">Setup Cost *</Label>
                          <span className="text-xs text-stone-500">
-                             {formData.setupCostPerSqft ? `$${formData.setupCostPerSqft}` : '$0'}/sq.ft
+                             {locationData[country]?.setupCost ? `$${locationData[country].setupCost}` : '$0'}/sq.ft
                          </span>
                          </div>
                          <div className="relative">
@@ -1370,12 +1782,15 @@ const FranchiserRegister: React.FC = () => {
                              type="number"
                              min="0"
                              step="10"
-                             value={formData.setupCostPerSqft || ''}
+                             value={locationData[country]?.setupCost || ''}
                              onChange={(e) => {
                              const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
-                             setFormData(prev => ({
+                             setLocationData(prev => ({
                                  ...prev,
-                                 setupCostPerSqft: value as number | ''
+                                 [country]: {
+                                     ...prev[country],
+                                     setupCost: value as number
+                                 }
                              }));
                              }}
                              className="pl-6 h-9 text-sm"
@@ -1384,8 +1799,8 @@ const FranchiserRegister: React.FC = () => {
                          />
                          </div>
                          <p className="text-[10px] text-stone-400">
-                         {formData.minCarpetArea && formData.setupCostPerSqft ? 
-                             `Total: $${(formData.minCarpetArea * formData.setupCostPerSqft).toLocaleString()}` : 
+                         {locationData[country]?.minArea && locationData[country]?.setupCost ? 
+                             `Total: $${(locationData[country].minArea * locationData[country].setupCost).toLocaleString()}` : 
                              'Per sq.ft, one-time'}
                          </p>
                      </div>
@@ -1395,7 +1810,7 @@ const FranchiserRegister: React.FC = () => {
                          <div className="flex justify-between items-center">
                          <Label htmlFor="workingCapitalPerSqft" className="text-xs font-medium">Working Capital *</Label>
                          <span className="text-xs text-stone-500">
-                             {formData.workingCapitalPerSqft ? `$${formData.workingCapitalPerSqft}` : '$0'}/sq.ft
+                             {locationData[country]?.workingCapital ? `$${locationData[country].workingCapital}` : '$0'}/sq.ft
                          </span>
                          </div>
                          <div className="relative">
@@ -1405,12 +1820,15 @@ const FranchiserRegister: React.FC = () => {
                              type="number"
                              min="0"
                              step="5"
-                             value={formData.workingCapitalPerSqft || ''}
+                             value={locationData[country]?.workingCapital || ''}
                              onChange={(e) => {
                              const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
-                             setFormData(prev => ({
+                             setLocationData(prev => ({
                                  ...prev,
-                                 workingCapitalPerSqft: value as number | ''
+                                 [country]: {
+                                     ...prev[country],
+                                     workingCapital: value as number
+                                 }
                              }));
                              }}
                              className="pl-6 h-9 text-sm"
@@ -1419,8 +1837,8 @@ const FranchiserRegister: React.FC = () => {
                          />
                          </div>
                          <p className="text-[10px] text-stone-400">
-                         {formData.minCarpetArea && formData.workingCapitalPerSqft ? 
-                             `1 Year: $${(formData.minCarpetArea * formData.workingCapitalPerSqft).toLocaleString()}` : 
+                         {locationData[country]?.minArea && locationData[country]?.workingCapital ? 
+                             `1 Year: $${(locationData[country].minArea * locationData[country].workingCapital).toLocaleString()}` : 
                              'Per sq.ft, 1 year'}
                          </p>
                      </div>
@@ -1438,35 +1856,35 @@ const FranchiserRegister: React.FC = () => {
                          <div className="flex justify-between">
                          <span className="text-stone-600 dark:text-stone-300">Franchise Fee</span>
                          <span className="font-medium">
-                             ${(formData.franchiseFee || 0).toLocaleString()}
+                             ${(locationData[country]?.franchiseFee || 0).toLocaleString()}
                          </span>
                          </div>
                          
                          <div className="flex justify-between">
                          <span className="text-stone-600 dark:text-stone-300">
                              Setup Cost
-                             {formData.minCarpetArea && (
+                             {locationData[country]?.minArea && (
                              <span className="text-xs text-stone-500 block">
-                                 ({formData.minCarpetArea.toLocaleString()} sq.ft × ${formData.setupCostPerSqft || 0}/sq.ft)
+                                 ({locationData[country].minArea.toLocaleString()} sq.ft × ${locationData[country]?.setupCost || 0}/sq.ft)
                              </span>
                              )}
                          </span>
                          <span className="font-medium">
-                             ${(formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0).toLocaleString()}
+                             ${(locationData[country]?.minArea && locationData[country]?.setupCost ? locationData[country].minArea * locationData[country].setupCost : 0).toLocaleString()}
                          </span>
                          </div>
                          
                          <div className="flex justify-between">
                          <span className="text-stone-600 dark:text-stone-300">
                              Working Capital (1 Year)
-                             {formData.minCarpetArea && (
+                             {locationData[country]?.minArea && (
                              <span className="text-xs text-stone-500 block">
-                                 ({formData.minCarpetArea.toLocaleString()} sq.ft × ${formData.workingCapitalPerSqft || 0}/sq.ft)
+                                 ({locationData[country].minArea.toLocaleString()} sq.ft × ${locationData[country]?.workingCapital || 0}/sq.ft)
                              </span>
                              )}
                          </span>
                          <span className="font-medium">
-                             ${(formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0).toLocaleString()}
+                             ${(locationData[country]?.minArea && locationData[country]?.workingCapital ? locationData[country].minArea * locationData[country].workingCapital : 0).toLocaleString()}
                          </span>
                          </div>
                          
@@ -1476,9 +1894,9 @@ const FranchiserRegister: React.FC = () => {
                              <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">
                              ${
                                  (
-                                 (formData.franchiseFee || 0) +
-                                 (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
-                                 (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0)
+                                 (locationData[country]?.franchiseFee || 0) +
+                                 (locationData[country]?.minArea && locationData[country]?.setupCost ? locationData[country].minArea * locationData[country].setupCost : 0) +
+                                 (locationData[country]?.minArea && locationData[country]?.workingCapital ? locationData[country].minArea * locationData[country].workingCapital : 0)
                                  ).toLocaleString(undefined, {
                                  minimumFractionDigits: 0,
                                  maximumFractionDigits: 0
@@ -1562,6 +1980,11 @@ const FranchiserRegister: React.FC = () => {
                       </span>
                     )}
                   </h4>
+                  {formData.brandUrl && (
+                    <p className="text-xs text-stone-500 mb-3">
+                      Files will be named: <span className="font-mono">{formData.brandUrl}-interior-1.jpg</span>, <span className="font-mono">{formData.brandUrl}-interior-2.jpg</span>, etc.
+                    </p>
+                  )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {interiorPhotos.map((photo) => (
                       <div key={photo.id} className="relative group">
@@ -1667,6 +2090,9 @@ const FranchiserRegister: React.FC = () => {
                               />
                                <p className="text-xs text-center text-stone-500 dark:text-stone-400">
                                 PNG, JPG (max. 5MB)
+                                {/* {formData.brandUrl && product.name && (
+                                  <><br />File: <span className="font-mono text-xs">{formData.brandUrl}-{product.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-{product.category && product.category !== 'none' ? product.category.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'uncategorized'}-{product.id}.jpg</span></>
+                                )} */}
                               </p>
                               <label
                                 htmlFor={`product-photo-${product.id}`}
@@ -1733,11 +2159,12 @@ const FranchiserRegister: React.FC = () => {
                                         <div className="px-2 py-1">
                                           <SelectItem value="none" className="text-sm">None</SelectItem>
                                         </div>
-                                        <div className="  px-2">
-                                          {PRODUCT_CATEGORIES.map((category) => (
-                                            <div key={category} className="col-span-1">
-                                              <SelectItem value={category} className="text-sm truncate">
-                                                {category}
+                                        <div className="px-2">
+                                          {productCategories?.map((productCategory) => (
+                                            <div key={productCategory._id} className="col-span-1">
+                                              <SelectItem value={productCategory._id} className="text-sm truncate">
+                                                {productCategory.icon && <span className="mr-2">{productCategory.icon}</span>}
+                                                {productCategory.name}
                                               </SelectItem>
                                             </div>
                                           ))}
@@ -1852,19 +2279,34 @@ const FranchiserRegister: React.FC = () => {
               <Button
                 onClick={async () => {
                   try {
-                    setLoading(true);
+                  setLoading(true);
                     
                     // Validate required fields
                     if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
                         !formData.industry || !formData.category || !formData.logoFile ||
-                        !formData.email || !formData.phone) {
-                      toast.error('Please fill in all required fields including logo, email, and phone');
+                        (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0)) {
+                      toast.error('Please fill in all required fields including logo and timing');
+                    setLoading(false);
+                      return;
+                    }
+
+                    // Validate website format (if provided)
+                    if (formData.website && !validateWebsite(formData.website)) {
+                      toast.error('Please enter a valid website URL');
                       setLoading(false);
                       return;
                     }
                     
                     if (selectedCountries.length === 0) {
                       toast.error('Please select at least one country');
+                      setLoading(false);
+                      return;
+                    }
+                    
+                    // Check if all countries have license files
+                    const missingLicenses = selectedCountries.filter(country => !locationData[country]?.licenseFile);
+                    if (missingLicenses.length > 0) {
+                      toast.error(`Please upload license documents for: ${missingLicenses.join(', ')}`);
                       setLoading(false);
                       return;
                     }
@@ -1879,7 +2321,8 @@ const FranchiserRegister: React.FC = () => {
                     const submissionData = await prepareFormData();
                     
                     // Submit to Convex
-                    const result = await createFranchiserWithDetails(submissionData as any);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await createFranchiserWithDetails(submissionData as any);
                     
                     toast.success('Brand registered successfully!');
                     router.push('/franchise/account');
