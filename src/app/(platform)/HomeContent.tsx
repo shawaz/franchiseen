@@ -6,18 +6,16 @@ import FranchiseCard from "@/components/app/franchise/FranchiseCard";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Franchise } from "./page";
-
-// Import franchise data
-import {
-  fundingFranchises as fundingData,
-  launchingFranchises as launchingData,
-  outletsFranchises as outletsData
-} from "@/data/franchiseData";
+import { useFranchises, useFranchisersByStatus } from "@/hooks/useFranchises";
 
 function HomeContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("fund");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Get franchise data from Convex
+  const allFranchises = useFranchises();
+  const approvedFranchises = useFranchisersByStatus("approved");
 
   // Update active tab based on URL parameter
   useEffect(() => {
@@ -87,12 +85,7 @@ function HomeContent() {
   // Render property listings based on active tab
   const renderTabContent = () => {
     // Show loading state if data is still loading
-    const isLoading =
-      (activeTab === "fund" && fundingData === undefined) ||
-      (activeTab === "launch" && launchingData === undefined) ||
-      (activeTab === "live" && outletsData === undefined);
-
-    if (isLoading) {
+    if (allFranchises === undefined || approvedFranchises === undefined) {
       return (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -100,20 +93,25 @@ function HomeContent() {
       );
     }
 
-    // Determine which franchises to display based on active tab
-    let currentProperties: Franchise[] = [];
-    switch (activeTab) {
-      case "fund":
-        currentProperties = fundingData;
-        break;
-      case "launch":
-        currentProperties = launchingData;
-        break;
-      case "live":
-        currentProperties = outletsData;
-        break;
-    }
+    // Convert Convex data to Franchise format
+    const convertToFranchise = (franchiser: any): Franchise => ({
+      _id: franchiser._id,
+      logo: franchiser.logoUrl,
+      title: franchiser.name,
+      location: "Dubai, UAE", // Default location, could be enhanced with location data
+      price: 15000, // Default price, could be enhanced with pricing data
+      images: franchiser.interiorImages,
+      squareFeet: 1200, // Default size
+      type: "fund" as const, // Default type
+      description: franchiser.description,
+      returnRate: 8.5,
+      investorsCount: 42,
+      fundingGoal: 500000,
+      fundingProgress: 250000,
+    });
 
+    // Use approved franchises for all tabs for now
+    const currentProperties = approvedFranchises.map(convertToFranchise);
     const filteredProperties = getFilteredProperties(currentProperties);
 
     return (
@@ -123,7 +121,7 @@ function HomeContent() {
             <FranchiseCard
               key={franchise._id.toString()}
               id={franchise._id.toString()}
-              type={activeTab as "fund"}
+              type={activeTab as "fund" | "launch" | "live"}
               logo={franchise.logo}
               title={franchise.title}
               location={franchise.location || "Dubai, UAE"}

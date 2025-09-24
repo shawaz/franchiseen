@@ -13,6 +13,11 @@ import { Upload, X, Image as ImageIcon, ArrowLeft, ArrowRight, Plus, Trash2, Upl
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
+import { useCreateFranchiserWithDetails } from '@/hooks/useFranchises';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { useSolana } from '@/components/solana/use-solana';
+import { PlacesAutocomplete } from '@/components/ui/places-autocomplete';
+// import { Id } from '../../../convex/_generated/dataModel';
 
 // Common product categories
 const PRODUCT_CATEGORIES = [
@@ -74,6 +79,8 @@ type FormData = {
   category: string;
   shortDescription: string;
   website: string;
+  email: string;
+  phone: string;
   socialMedia: {
     instagram: string;
     telegram: string;
@@ -121,8 +128,11 @@ const industries: Industry[] = [
   }
 ];
 
-const BrandRegister: React.FC = () => {
+const FranchiserRegister: React.FC = () => {
   const router = useRouter();
+  const createFranchiserWithDetails = useCreateFranchiserWithDetails();
+  const { uploadFile, uploadMultipleFiles } = useFileUpload();
+  const { account } = useSolana();
   
   const [formData, setFormData] = useState<FormData>({
     brandName: '',
@@ -131,6 +141,8 @@ const BrandRegister: React.FC = () => {
     category: '',
     shortDescription: '',
     website: '',
+    email: '',
+    phone: '',
     socialMedia: {
       instagram: '',
       telegram: '',
@@ -155,6 +167,16 @@ const BrandRegister: React.FC = () => {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState('');
+  
+  // State for location-specific data
+  const [locationData, setLocationData] = useState<Record<string, {
+    isNationwide: boolean;
+    cities: string[];
+    minArea: number;
+    franchiseFee: number;
+    setupCost: number;
+    workingCapital: number;
+  }>>({});
   
   // State for file upload drag and drop
   const [isDragging, setIsDragging] = useState(false);
@@ -250,6 +272,16 @@ const BrandRegister: React.FC = () => {
             // Handle photo removal
             return { ...product, photo: null };
           }
+          
+          // Calculate price when cost or margin changes
+          if (field === 'cost' || field === 'margin') {
+            const updatedProduct = { ...product, [field]: value };
+            const cost = field === 'cost' ? parseFloat(value as string) || 0 : parseFloat(product.cost) || 0;
+            const margin = field === 'margin' ? parseFloat(value as string) || 0 : parseFloat(product.margin) || 0;
+            const price = cost + (cost * margin / 100);
+            return { ...updatedProduct, price: price.toFixed(2) };
+          }
+          
           // Handle other field updates
           return { ...product, [field]: value };
         }
@@ -395,11 +427,118 @@ const BrandRegister: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  // Function to upload files to Convex storage
+  const uploadFileToConvex = async (file: File): Promise<string> => {
+    try {
+      return await uploadFile(file);
+    } catch (error) {
+      console.error("File upload error:", error);
+      throw new Error("Failed to upload file");
+    }
+  };
+
+  // Function to prepare form data for submission
+  const prepareFormData = async () => {
+    // Upload logo
+    const logoStorageId = formData.logoFile ? await uploadFileToConvex(formData.logoFile) : undefined;
+    
+    // Upload interior images
+    const interiorImageStorageIds = await uploadMultipleFiles(
+      interiorPhotos.map(photo => photo.file)
+    );
+    
+    // Upload product images
+    const productsWithImages = await Promise.all(
+      products.map(async (product) => ({
+        name: product.name,
+        description: product.description,
+        cost: parseFloat(product.cost) || 0,
+        price: parseFloat(product.price) || 0,
+        images: product.photo && product.photo.file ? [await uploadFileToConvex(product.photo.file)] : [],
+        category: product.category === 'none' ? '' : product.category,
+        status: 'active' as const,
+      }))
+    );
+
+    // Prepare locations data - create unique location for each country
+    const locationsData = selectedCountries.map((country, index) => {
+      const countryData = locationData[country] || {
+        isNationwide: true,
+        cities: [],
+        minArea: formData.minCarpetArea || 500,
+        franchiseFee: formData.franchiseFee || 25000,
+        setupCost: formData.setupCostPerSqft || 150,
+        workingCapital: formData.workingCapitalPerSqft || 100,
+      };
+      
+      return {
+        country,
+        isNationwide: countryData.isNationwide,
+        city: countryData.isNationwide ? undefined : countryData.cities.join(', '),
+        registrationCertificate: `cert-${country.toLowerCase()}-${Date.now()}-${index}`,
+        minArea: countryData.minArea,
+        franchiseFee: countryData.franchiseFee,
+        setupCost: countryData.setupCost,
+        workingCapital: countryData.workingCapital,
+        status: 'active' as const,
+      };
+    });
+
+    return {
+      franchiser: {
+        walletAddress: account?.address || '', // Use actual wallet address
+        logoUrl: logoStorageId,
+        name: formData.brandName,
+        slug: formData.brandUrl,
+        description: formData.shortDescription,
+        industry: formData.industry,
+        category: formData.category,
+        website: formData.website || undefined,
+        phone: formData.phone || undefined,
+        email: formData.email || undefined,
+        socialMedia: {
+          telegram: formData.socialMedia.telegram || undefined,
+          instagram: formData.socialMedia.instagram || undefined,
+          facebook: formData.socialMedia.facebook || undefined,
+          twitter: undefined,
+          linkedin: formData.socialMedia.linkedin || undefined,
+        },
+        interiorImages: interiorImageStorageIds,
+        status: 'pending' as const,
+      },
+      locations: locationsData,
+      products: productsWithImages,
+    };
+  };
+
   const nextStep = (): void => {
-    if (currentStep === 3 && selectedCountries.length === 0) {
+    // Validate step 1 - Basic Information
+    if (currentStep === 1) {
+      if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
+          !formData.industry || !formData.category || !formData.logoFile || 
+          !formData.email || !formData.phone) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+    }
+    
+    // Validate step 2 - Financial Information
+    if (currentStep === 2) {
+      if (!formData.minCarpetArea || !formData.franchiseFee || 
+          !formData.setupCostPerSqft || !formData.workingCapitalPerSqft) {
+        toast.error('Please fill in all financial information');
+        return;
+      }
+    }
+    
+    // Validate step 3 - Locations
+    if (currentStep === 3) {
+      if (selectedCountries.length === 0) {
         toast.error('Please select at least one country');
         return;
       }
+    }
+    
     if (currentStep < 4) {
       setCurrentStep(prev => prev + 1);
     }
@@ -614,6 +753,32 @@ const BrandRegister: React.FC = () => {
                     placeholder="yourwebsite.com"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Email and Phone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+1 (555) 123-4567"
+                  required
+                />
               </div>
               
               
@@ -934,36 +1099,35 @@ const BrandRegister: React.FC = () => {
         {currentStep === 3 && (
         <div className="space-y-6">
 
-            {/* Country Multi-select */}
+            {/* Country Multi-select with Google Places */}
             <div className="space-y-2">
                 <Label htmlFor="countries">Select Countries *</Label>
-                <div className="relative">
-                    <Input
-                    type="text"
+                <PlacesAutocomplete
                     value={countryInput}
-                    onChange={(e) => setCountryInput(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && countryInput.trim()) {
-                        e.preventDefault();
-                        const country = countryInput.trim();
+                    onChange={setCountryInput}
+                    onPlaceSelect={(place) => {
+                        const country = place.structured_formatting.main_text;
                         if (!selectedCountries.includes(country)) {
                             setSelectedCountries([...selectedCountries, country]);
+                            // Initialize location data for this country
+                            setLocationData(prev => ({
+                                ...prev,
+                                [country]: {
+                                    isNationwide: true,
+                                    cities: [],
+                                    minArea: formData.minCarpetArea || 500,
+                                    franchiseFee: formData.franchiseFee || 25000,
+                                    setupCost: formData.setupCostPerSqft || 150,
+                                    workingCapital: formData.workingCapitalPerSqft || 100,
+                                }
+                            }));
                         }
                         setCountryInput('');
-                        }
                     }}
-                    placeholder="Type a country name and press Enter"
-                    className="pr-10"
-                    />
-                    {countryInput && (
-                    <button
-                        onClick={() => setCountryInput('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                    )}
-                </div>
+                    placeholder="Search for a country..."
+                    types="country"
+                    className="w-full"
+                />
 
                 {/* Selected Countries List */}
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -979,6 +1143,12 @@ const BrandRegister: React.FC = () => {
                             setSelectedCountries(
                             selectedCountries.filter((c) => c !== country)
                             );
+                            // Remove location data for this country
+                            setLocationData(prev => {
+                                const newData = { ...prev };
+                                delete newData[country];
+                                return newData;
+                            });
                         }}
                         className="ml-1 text-stone-400 hover:text-stone-600"
                         >
@@ -1064,35 +1234,23 @@ const BrandRegister: React.FC = () => {
                     </div>
                 </div>
                 
-                {!isNationwide && (
+                        {!isNationwide && (
                     <>
-                        <div className="relative">
-                            <Input
-                                type="text"
-                                value={cityInput}
-                                onChange={(e) => setCityInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && cityInput.trim()) {
-                                        e.preventDefault();
-                                        const city = cityInput.trim();
-                                        if (!selectedCities.includes(city)) {
-                                            setSelectedCities([...selectedCities, city]);
-                                        }
-                                        setCityInput('');
-                                    }
-                                }}
-                                placeholder="Type a city name and press Enter"
-                                className="pr-10"
-                            />
-                            {cityInput && (
-                                <button
-                                    onClick={() => setCityInput('')}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            )}
-                        </div>
+                        <PlacesAutocomplete
+                            value={cityInput}
+                            onChange={setCityInput}
+                            onPlaceSelect={(place) => {
+                                const city = place.structured_formatting.main_text;
+                                if (!selectedCities.includes(city)) {
+                                    setSelectedCities([...selectedCities, city]);
+                                }
+                                setCityInput('');
+                            }}
+                            placeholder="Search for a city..."
+                            types="(cities)"
+                            componentRestrictions={{ country: selectedCountries[0] }}
+                            className="w-full"
+                        />
 
                         {/* Selected City List */}
                         {selectedCities.length > 0 && (
@@ -1692,17 +1850,49 @@ const BrandRegister: React.FC = () => {
               </Button>
             ) : (
               <Button
-                onClick={() => {
-                  setLoading(true);
-                  // Simulate payment processing
-                  setTimeout(() => {
-                    setLoading(false);
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    
+                    // Validate required fields
+                    if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
+                        !formData.industry || !formData.category || !formData.logoFile ||
+                        !formData.email || !formData.phone) {
+                      toast.error('Please fill in all required fields including logo, email, and phone');
+                      setLoading(false);
+                      return;
+                    }
+                    
+                    if (selectedCountries.length === 0) {
+                      toast.error('Please select at least one country');
+                      setLoading(false);
+                      return;
+                    }
+                    
+                    if (interiorPhotos.length < 3) {
+                      toast.error('Please upload at least 3 interior photos');
+                      setLoading(false);
+                      return;
+                    }
+                    
+                    // Prepare and submit form data
+                    const submissionData = await prepareFormData();
+                    
+                    // Submit to Convex
+                    const result = await createFranchiserWithDetails(submissionData as any);
+                    
                     toast.success('Brand registered successfully!');
-                    // Navigate to franchise account page
                     router.push('/franchise/account');
-                  }, 1000);
+                    
+                  } catch (error) {
+                    console.error('Error submitting form:', error);
+                    toast.error('Failed to register brand. Please try again.');
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
                 className="bg-green-600 hover:bg-green-700"
+                disabled={loading}
               >
                 {loading ? 'Processing...' : 'Confirm & Register'}
               </Button>
@@ -1716,4 +1906,4 @@ const BrandRegister: React.FC = () => {
   );
 };
 
-export default BrandRegister;
+export default FranchiserRegister;
