@@ -8,11 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
 import GoogleMapsLoader from '@/components/maps/GoogleMapsLoader';
+import { useFranchisersByLocation } from '@/hooks/useFranchisersByLocation';
+import { extractLocationInfo, normalizeCountryName, normalizeCityName } from '@/lib/locationUtils';
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import { Id } from '../../../../convex/_generated/dataModel';
+// import { useQuery } from "convex/react";
+// import { api } from "../../../../../convex/_generated/api";
 
 // Dynamically import the MapComponent with SSR disabled
 const MapComponent = dynamic(
@@ -27,14 +34,26 @@ const MapComponent = dynamic(
 interface Business {
   _id: string;
   name: string;
-  slug?: string;
+  slug: string;
   logoUrl?: string;
-  walletAddress?: string;
-  industry?: { name: string } | null;
-  category?: { name: string } | null;
-  costPerArea?: number;
-  currency?: string;
-  min_area?: number;
+  walletAddress: string;
+  industry: string;
+  category: string;
+  description: string;
+  website?: string;
+  status: string;
+  location: {
+    _id: string;
+    franchiserId: string;
+    country: string;
+    isNationwide: boolean;
+    city?: string;
+    minArea: number;
+    franchiseFee: number;
+    setupCost: number;
+    workingCapital: number;
+    status: string;
+  };
 }
 
 interface FormData {
@@ -60,107 +79,99 @@ interface FormData {
     selectedShares: number;
     totalShares: number;
     sharePrice: number;
+    franchiseFee: number;
+    setupCost: number;
+    workingCapital: number;
+    totalInvestment: number;
   };
 }
 
-const dummyBusinesses: Business[] = [
-  {
-    _id: '1',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-1.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '2',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-2.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '3',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-3.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '4',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-4.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '5',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-5.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '6',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-6.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '7',
-    name: 'Burger King',
-    slug: 'burger-king',
-    logoUrl: '/logo/logo-7.svg',
-    walletAddress: 'DummyWalletAddress123',
-    industry: { name: 'Fast Food' },
-    category: { name: 'Burgers' },
-    costPerArea: 100,
-    currency: 'USD',
-    min_area: 500
-  },
-  {
-    _id: '8',
-    name: 'Starbucks',
-    slug: 'starbucks',
-    logoUrl: '/logo/logo-8.svg',
-    walletAddress: 'DummyWalletAddress456',
-    industry: { name: 'Coffee' },
-    category: { name: 'Cafe' },
-    costPerArea: 150,
-    currency: 'USD',
-    min_area: 300
-  }
-];
+// Franchiser Logo Component
+const FranchiserLogo: React.FC<{
+  business: Business;
+  size?: 'sm' | 'md' | 'lg';
+}> = ({ business, size = 'md' }) => {
+  const logoUrl = useConvexImageUrl(business.logoUrl as Id<"_storage"> | undefined);
+  
+  const sizeClasses = {
+    sm: 'w-8 h-8',
+    md: 'w-12 h-12',
+    lg: 'w-16 h-16'
+  };
+
+  return logoUrl ? (
+    <div className={`${sizeClasses[size]} flex items-center justify-center`}>
+      <Image
+        src={logoUrl}
+        alt={business.name}
+        width={size === 'sm' ? 32 : size === 'md' ? 48 : 64}
+        height={size === 'sm' ? 32 : size === 'md' ? 48 : 64}
+        className="object-contain"
+      />
+    </div>
+  ) : (
+    <div className={`${sizeClasses[size]} flex items-center justify-center bg-stone-200 dark:bg-stone-700 rounded`}>
+      <Building className={`${size === 'sm' ? 'h-4 w-4' : size === 'md' ? 'h-6 w-6' : 'h-8 w-8'} text-stone-400`} />
+    </div>
+  );
+};
+
+// Franchiser Card Component
+  const FranchiserCard: React.FC<{
+    business: Business;
+    isSelected: boolean;
+    onSelect: () => void;
+  }> = ({ business, isSelected, onSelect }) => {
+    return (
+      <div
+        className={`p-3 sm:p-4 border cursor-pointer transition-colors ${
+          isSelected
+            ? 'border-stone-500 bg-stone-50 dark:border-stone-700 dark:bg-stone-700'
+            : 'hover:border-stone-300 dark:hover:border-stone-600'
+        }`}
+        onClick={onSelect}
+      >
+        {/* Mobile: Stack vertically, Desktop: Horizontal */}
+        <div className="flex flex-col sm:flex-row sm:items-center">
+          {/* Logo section */}
+          <div className="flex items-center mb-3 sm:mb-0 sm:mr-4">
+            <FranchiserLogo business={business} size="md" />
+          </div>
+          
+          {/* Content section */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between w-full">
+            <div className="flex-1">
+              <h4 className="font-medium text-sm sm:text-base">{business.name}</h4>
+              <p className="text-xs sm:text-sm text-stone-600 mt-1">
+                {business.industry} • {business.category}
+              </p>
+              {/* {business.website && (
+                <a
+                  href={business.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-stone-600 hover:text-stone-800 mt-1 inline-block"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Visit Website
+                </a>
+              )} */}
+            </div>
+            
+            {/* Investment info - responsive layout */}
+            <div className="flex flex-col sm:flex-col sm:text-right mt-2 sm:mt-0">
+              <p className="text-xs sm:text-sm font-medium">
+                Min Budget: ${(business.location.franchiseFee + business.location.setupCost + business.location.workingCapital).toLocaleString()}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">
+                Min Area: {business.location.minArea} sq ft
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
 const dummyUser = {
   _id: 'user123',
@@ -177,14 +188,25 @@ const FranchiseCreate: React.FC = () => {
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesService = useRef<google.maps.places.PlacesService | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('All');
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('Select Industry');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Select Category');
   const [mapCenter, setMapCenter] = useState({ lat: 25.2048, lng: 55.2708 }); // Default to Dubai coordinates
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+  const [locationInfo, setLocationInfo] = useState<{ country: string; city?: string } | null>(null);
+  const [manualLocationOverride] = useState<{ country: string; city?: string } | null>(null);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
-  const [conflictingLocation] = useState<boolean>(false);
   const usdtPerSol = 100; // Dummy exchange rate
+
+  // Get franchisers based on selected location
+  const effectiveLocationInfo = manualLocationOverride || locationInfo;
+  const { franchisers, isLoading: franchisersLoading } = useFranchisersByLocation({
+    country: effectiveLocationInfo?.country,
+    city: effectiveLocationInfo?.city,
+    industry: selectedIndustry === 'Select Industry' ? undefined : selectedIndustry,
+    enabled: !!effectiveLocationInfo?.country
+  });
 
   // Initialize Google Maps services
   useEffect(() => {
@@ -197,6 +219,7 @@ const FranchiseCreate: React.FC = () => {
       console.error('Google Maps API not loaded');
     }
   }, []);
+
 
   // Handle input changes and fetch predictions
   const handleInputChange = (value: string) => {
@@ -245,14 +268,6 @@ const FranchiseCreate: React.FC = () => {
         
         setSelectedLocation(location);
         setMapCenter(location);
-        
-        // Update form with selected place details
-        // setValue('location', {
-        //   address: place.formatted_address || '',
-        //   lat: place.geometry.location.lat(),
-        //   lng: place.geometry.location.lng()
-        // });
-        // setValue('locationDetails.buildingName', place.name || '');
       }
     });
   };
@@ -271,11 +286,20 @@ const FranchiseCreate: React.FC = () => {
     };
   }, []);
   
-  // Extract unique industries from businesses
-  const industries = ['All', ...Array.from(new Set(dummyBusinesses
-    .map(b => b.industry?.name)
+  // Extract unique industries from franchisers
+  const industries = ['Select Industry', ...Array.from(new Set(franchisers
+    .map(f => f.industry)
     .filter((name): name is string => !!name)
   ))];
+  
+  // Extract unique categories from franchisers
+  const categories = ['Select Category', ...Array.from(new Set(franchisers
+    .map(f => f.category)
+    .filter((name): name is string => !!name)
+  ))];
+  
+  console.log("Available industries:", industries);
+  console.log("Available categories:", categories);
   
   // Dummy function to simulate loading
   const simulateLoading = (ms: number = 1000) => {
@@ -286,16 +310,7 @@ const FranchiseCreate: React.FC = () => {
     }, ms));
   };
   
-  const selectedCurrency = 'usd';
 
-  const formatCurrencyAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: selectedCurrency.toUpperCase(),
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   const [formData, setFormData] = useState<FormData>({
     selectedBusiness: null,
@@ -319,46 +334,99 @@ const FranchiseCreate: React.FC = () => {
     investment: {
       selectedShares: 100,
       totalShares: 1000,
-      sharePrice: 1.00
+      sharePrice: 1.00,
+      franchiseFee: 0,
+      setupCost: 0,
+      workingCapital: 0,
+      totalInvestment: 0
     }
   });
 
-  const filteredBusinesses = dummyBusinesses.filter(business => {
-    const matchesSearch = business.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesIndustry = selectedIndustry === 'All' || business.industry?.name === selectedIndustry;
-    return matchesSearch && matchesIndustry;
-  });
+  // Auto-populate form data when franchiser is selected
+  useEffect(() => {
+    if (formData.selectedBusiness) {
+      const business = formData.selectedBusiness;
+      const totalInvestment = business.location.franchiseFee + business.location.setupCost + business.location.workingCapital;
+      const totalShares = Math.floor(totalInvestment) || 1000;
+      const sharePrice = totalShares > 0 ? totalInvestment / totalShares : 1.0;
+      
+      setFormData(prev => ({
+        ...prev,
+        locationDetails: {
+          ...prev.locationDetails,
+          sqft: business.location.minArea.toString(),
+          costPerArea: '0', // Will be calculated based on total investment
+        },
+        investment: {
+          ...prev.investment,
+          franchiseFee: business.location.franchiseFee,
+          setupCost: business.location.setupCost,
+          workingCapital: business.location.workingCapital,
+          totalInvestment,
+          totalShares,
+          sharePrice
+        }
+      }));
+    }
+  }, [formData.selectedBusiness]);
 
-  const calculateTotalInvestment = () => {
-    const area = parseFloat(formData.locationDetails.sqft) || 0;
-    const costPerArea = parseFloat(formData.locationDetails.costPerArea) || 0;
-    return area * costPerArea;
-  };
-
-  const calculateInvestmentBreakdown = () => {
-    const totalInvestment = calculateTotalInvestment();
-    const franchiseFee = totalInvestment * 0.15; // 15% of total investment
-    const setupCost = totalInvestment * 0.25;    // 25% of total investment
-    const workingCapital = totalInvestment * 0.60; // 60% of total investment
+  // Calculate investment based on carpet area
+  const calculateInvestmentByArea = useCallback(() => {
+    if (!formData.selectedBusiness) return { franchiseFee: 0, setupCost: 0, workingCapital: 0, totalInvestment: 0 };
+    
+    const selectedArea = parseFloat(formData.locationDetails.sqft) || 0;
+    const minArea = formData.selectedBusiness.location.minArea;
+    const baseFranchiseFee = formData.selectedBusiness.location.franchiseFee;
+    const baseSetupCost = formData.selectedBusiness.location.setupCost;
+    const baseWorkingCapital = formData.selectedBusiness.location.workingCapital;
+    
+    // Calculate ratio based on area (minimum 1.0 for min area)
+    const areaRatio = Math.max(1.0, selectedArea / minArea);
+    
+    // Franchise fee is fixed, only setup cost and working capital scale with area
+    const franchiseFee = baseFranchiseFee; // Fixed
+    const setupCost = Math.round(baseSetupCost * areaRatio);
+    const workingCapital = Math.round(baseWorkingCapital * areaRatio);
+    const totalInvestment = franchiseFee + setupCost + workingCapital;
     
     return {
-      total: totalInvestment,
       franchiseFee,
       setupCost,
       workingCapital,
-      formatted: {
-        total: formatCurrencyAmount(totalInvestment),
-        franchiseFee: formatCurrencyAmount(franchiseFee),
-        setupCost: formatCurrencyAmount(setupCost),
-        workingCapital: formatCurrencyAmount(workingCapital)
-      }
+      totalInvestment
     };
-  };
+  }, [formData.selectedBusiness, formData.locationDetails.sqft]);
 
-  const calculateTotalShares = () => {
-    const totalInvestment = calculateTotalInvestment();
-    return Math.floor(totalInvestment) || 1000; // Default to 1000 if calculation fails
-  };
+  // Update investment when carpet area changes
+  useEffect(() => {
+    if (formData.selectedBusiness && formData.locationDetails.sqft) {
+      const calculatedInvestment = calculateInvestmentByArea();
+      const totalShares = Math.floor(calculatedInvestment.totalInvestment) || 1000;
+      const sharePrice = totalShares > 0 ? calculatedInvestment.totalInvestment / totalShares : 1.0;
+      
+      setFormData(prev => ({
+        ...prev,
+        investment: {
+          ...prev.investment,
+          ...calculatedInvestment,
+          totalShares,
+          sharePrice
+        }
+      }));
+    }
+  }, [formData.locationDetails.sqft, formData.selectedBusiness, calculateInvestmentByArea]);
+
+  const filteredBusinesses = franchisers.filter(business => {
+    const matchesSearch = business.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         business.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesIndustry = selectedIndustry === 'Select Industry' || business.industry === selectedIndustry;
+    const matchesCategory = selectedCategory === 'Select Category' || business.category === selectedCategory;
+    return matchesSearch && matchesIndustry && matchesCategory;
+  });
+
+
+
+
 
 
   const updateLocationDetails = (field: string, value: string | boolean) => {
@@ -391,7 +459,7 @@ const FranchiseCreate: React.FC = () => {
   };
 
   const updateInvestment = (selectedShares: number) => {
-    const totalShares = calculateTotalShares();
+    const totalShares = formData.investment.totalShares;
     setFormData(prev => ({
       ...prev,
       investment: {
@@ -404,9 +472,9 @@ const FranchiseCreate: React.FC = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return formData.selectedBusiness !== null;
+        return selectedLocation !== null;
       case 2:
-        return formData.location !== null && !conflictingLocation;
+        return formData.selectedBusiness !== null;
       case 3:
         const { doorNumber, sqft, isOwned, landlordNumber, landlordEmail, userNumber, userEmail, franchiseSlug, buildingName } = formData.locationDetails;
         const basicFields = doorNumber && sqft && franchiseSlug && buildingName && formData.locationDetails.costPerArea;
@@ -423,7 +491,7 @@ const FranchiseCreate: React.FC = () => {
   };
 
   const nextStep = async () => {
-    if (currentStep === 2 && !selectedLocation) {
+    if (currentStep === 1 && !selectedLocation) {
       toast.error('Please select a location on the map');
       return;
     }
@@ -448,12 +516,12 @@ const FranchiseCreate: React.FC = () => {
       selectedBusiness: business,
       locationDetails: {
         ...prev.locationDetails,
-        costPerArea: business.costPerArea?.toString() || '100',
-        sqft: business.min_area ? business.min_area.toString() : prev.locationDetails.sqft
+        costPerArea: business.location.minArea?.toString() || '100',
+        sqft: business.location.minArea ? business.location.minArea.toString() : prev.locationDetails.sqft
       },
       investment: {
         ...prev.investment,
-        totalShares: business.costPerArea ? Math.floor(business.costPerArea * (parseInt(prev.locationDetails.sqft) || 0)) : 1000
+        totalShares: business.location.minArea ? Math.floor(business.location.minArea * (parseInt(prev.locationDetails.sqft) || 0)) : 1000
       }
     }));
   };
@@ -465,6 +533,14 @@ const FranchiseCreate: React.FC = () => {
       lng: location.lng,
       address: location.address 
     });
+    
+    // Extract country and city from the address
+    const extractedInfo = extractLocationInfo(location.address);
+    const normalizedInfo = {
+      country: normalizeCountryName(extractedInfo.country),
+      city: extractedInfo.city ? normalizeCityName(extractedInfo.city) : undefined
+    };
+    setLocationInfo(normalizedInfo);
     
     setFormData(prev => ({
       ...prev,
@@ -523,15 +599,20 @@ const FranchiseCreate: React.FC = () => {
 
   return (
 
-      <Card className="w-full max-w-4xl mx-auto my-12 py-6">
+      <Card className="w-full max-w-4xl mx-auto my-4 sm:my-12 py-4 sm:py-6">
         <CardContent>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Create Franchise</h2>
-          <div className="flex items-center justify-between gap-4">
-            {[1, 2, 3, 4].map((step) => (
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+          <h2 className="text-xl sm:text-2xl font-bold">Create Franchise</h2>
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {[
+              { step: 1 },
+              { step: 2 },
+              { step: 3 },
+              { step: 4 }
+            ].map(({ step }) => (
               <div key={step} className="flex flex-col items-center">
                 <div 
-                  className={`w-10 h-10  flex items-center justify-center ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-sm sm:text-base ${
                     currentStep >= step 
                       ? 'bg-yellow-600 dark:bg-yellow-700 text-white' 
                       : 'bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
@@ -539,13 +620,14 @@ const FranchiseCreate: React.FC = () => {
                 >
                   {step}
                 </div>
+                {/* <span className="text-xs mt-1 text-stone-600 dark:text-stone-400 hidden sm:block">{title}</span> */}
               </div>
             ))}
           </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="h-1 bg-stone-200 dark:bg-stone-800 mt-4">
             <div 
               className="h-full bg-yellow-600 dark:bg-yellow-700 transition-all duration-300"
@@ -558,86 +640,7 @@ const FranchiseCreate: React.FC = () => {
         <div className="mb-6 min-h-[400px]">
           {currentStep === 1 && (
             <div>
-              <div className="mb-4">
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2 gap-2">
-                    <div className="relative flex-1 items-center">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
-                      <Input
-                        placeholder="Search businesses..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border focus-visible:ring-2 focus-visible:ring-yellow-500"
-                      />
-                    </div>
-                    <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
-                      {industries.map((industry) => (
-                        <button
-                          key={industry}
-                          onClick={() => setSelectedIndustry(industry)}
-                          className={`px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
-                            selectedIndustry === industry
-                              ? 'bg-stone-700 text-white'
-                              : 'bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'
-                          }`}
-                        >
-                          {industry}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4 max-h-[450px] overflow-y-auto pr-2 -mr-2">
-                {filteredBusinesses.map((business) => (
-                  <div 
-                    key={business._id}
-                    className={`p-4 border cursor-pointer transition-colors ${
-                      formData.selectedBusiness?._id === business._id 
-                        ? 'border-stone-500 bg-stone-50 dark:border-stone-700 dark:bg-stone-700' 
-                        : 'hover:border-stone-300 dark:hover:border-stone-600'
-                    }`}
-                    onClick={() => selectBusiness(business)}
-                  >
-                    <div className="flex items-center">
-                      {business.logoUrl ? (
-                        <div className="w-18 h-18 flex  items-center justify-center mr-4">
-                          <Image 
-                            src={business.logoUrl} 
-                            alt={business.name}
-                            width={100}
-                            height={100}
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-18 h-18 flex items-center justify-center mr-4">
-                          <Building className="h-6 w-6 text-stone-400" />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 justify-between w-full">
-                        <div>
-                          <h4 className="font-medium">{business.name}</h4>
-                          <p className="text-sm text-stone-600 mt-2">
-                            {business.industry?.name} • {business.category?.name}
-                          </p>
 
-                        </div>
-                        <div >
-                          <p className="text-sm font-medium">
-                            ${business.costPerArea} / sq ft
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div>
-              <div>
                 <div className="flex gap-2">
                   <div className="relative flex-1" ref={inputRef}>
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
@@ -648,7 +651,7 @@ const FranchiseCreate: React.FC = () => {
                       onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                       onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-                      className="w-full pl-10 pr-10 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-10 py-2 border focus:ring-2 focus:ring-stone-500 focus:border-transparent"
                     />
                     {mapSearchQuery && (
                       <button
@@ -658,22 +661,22 @@ const FranchiseCreate: React.FC = () => {
                           setSuggestions([]);
                           setShowSuggestions(false);
                         }}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-stone-400 hover:text-stone-600"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     )}
                     {showSuggestions && suggestions.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-md shadow-lg">
                         <ul className="py-1 max-h-60 overflow-auto">
                           {suggestions.map((suggestion) => (
                             <li
                               key={suggestion.place_id}
-                              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                              className="px-4 py-2 text-sm text-stone-700 hover:bg-stone-100 cursor-pointer"
                               onClick={() => handleSelectSuggestion(suggestion.place_id, suggestion.description)}
                             >
                               {suggestion.structured_formatting.main_text} 
-                              <span className="text-gray-500">
+                              <span className="text-stone-500">
                                 {suggestion.structured_formatting.secondary_text}
                               </span>
                             </li>
@@ -697,8 +700,8 @@ const FranchiseCreate: React.FC = () => {
                     )}
                   </Button>
                 </div>
-              </div>
-              <div className="w-full h-96 bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden">
+
+              <div className="w-full h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden">
                 <GoogleMapsLoader>
                   <MapComponent
                     onLocationSelect={handleLocationSelect}
@@ -706,6 +709,138 @@ const FranchiseCreate: React.FC = () => {
                     selectedLocation={selectedLocation}
                   />
                 </GoogleMapsLoader>
+              </div>
+              {/* {selectedLocation && (
+                <div className="mt-4 space-y-2">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      <strong>Selected Location:</strong> {selectedLocation.address}
+                    </p>
+                  </div>
+                  {locationInfo && (
+                    <div className="p-3 bg-stone-50 dark:bg-stone-900/20 border border-stone-200 dark:border-stone-800 rounded-md">
+                      <p className="text-sm text-stone-700 dark:text-stone-300">
+                        <strong>Extracted:</strong> {locationInfo.country}{locationInfo.city && `, ${locationInfo.city}`}
+                      </p>
+                      {locationInfo.country === 'Unknown' && (
+                        <div className="mt-2">
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mb-2">
+                            Location parsing failed. Please manually select:
+                          </p>
+                          <div className="flex gap-2">
+                            <select
+                              value={manualLocationOverride?.country || ''}
+                              onChange={(e) => setManualLocationOverride(prev => ({ 
+                                country: e.target.value, 
+                                city: prev?.city 
+                              }))}
+                              className="text-xs px-2 py-1 border rounded"
+                            >
+                              <option value="">Select Country</option>
+                              <option value="India">India</option>
+                              <option value="UAE">UAE</option>
+                              <option value="US">US</option>
+                              <option value="UK">UK</option>
+                            </select>
+                            <select
+                              value={manualLocationOverride?.city || ''}
+                              onChange={(e) => setManualLocationOverride(prev => ({ 
+                                country: prev?.country || '', 
+                                city: e.target.value 
+                              }))}
+                              className="text-xs px-2 py-1 border rounded"
+                            >
+                              <option value="">Select City (Optional)</option>
+                              <option value="Bangalore">Bangalore</option>
+                              <option value="Mangalore">Mangalore</option>
+                              <option value="Dubai">Dubai</option>
+                              <option value="Abu Dhabi">Abu Dhabi</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )} */}
+            </div>
+          )}
+
+          {currentStep === 2 && (
+            <div>
+              <div className="mb-4 mt-4">
+                <div className="flex flex-col space-y-2">
+                  {/* Mobile: Stack vertically, Desktop: Horizontal */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 gap-2">
+                    <div className="relative w-full flex-1 items-center">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
+                      <Input
+                        placeholder="Search businesses..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border focus-visible:ring-2 focus-visible:ring-yellow-500"
+                      />
+                    </div>
+                    <div>
+                      <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Industry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {industries.map((industry) => (
+                            <SelectItem key={industry} value={industry}>
+                              {industry}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4 max-h-[450px] overflow-y-auto pr-2 -mr-2">
+                {franchisersLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+                    <p className="text-stone-600 dark:text-stone-400">Loading franchisers...</p>
+                  </div>
+                ) : filteredBusinesses.length > 0 ? (
+                  filteredBusinesses.map((business) => (
+                    <FranchiserCard 
+                      key={business._id}
+                      business={business}
+                      isSelected={formData.selectedBusiness?._id === business._id}
+                      onSelect={() => selectBusiness(business)}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Building className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+                    <p className="text-stone-600 dark:text-stone-400">
+                      {searchQuery || selectedIndustry !== 'All' 
+                        ? 'No franchisers found matching your search criteria' 
+                        : 'No franchisers available in this location yet'
+                      }
+                    </p>
+                    <p className="text-sm text-stone-500 dark:text-stone-500 mt-2">
+                      Try adjusting your search or selecting a different location
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -773,8 +908,9 @@ const FranchiseCreate: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="col-span-2">
                   <label className="block text-sm font-medium text-stone-700 mb-1">
                     Building Name
                   </label>
@@ -785,7 +921,7 @@ const FranchiseCreate: React.FC = () => {
                     placeholder="Building name"
                   />
                 </div>
-                <div>
+                <div className="col-span-1">
                     <label className="block text-sm font-medium text-stone-700 mb-1">
                       Door Number
                     </label>
@@ -796,9 +932,7 @@ const FranchiseCreate: React.FC = () => {
                       placeholder="e.g., 101"
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  <div className="col-span-1">
                     <label className="block text-sm font-medium text-stone-700 mb-1">
                       Carpet Area (sq ft)
                     </label>
@@ -808,59 +942,70 @@ const FranchiseCreate: React.FC = () => {
                       onChange={(e) => updateLocationDetails('sqft', e.target.value)}
                       className="w-full p-2 border "
                       placeholder="e.g., 1000"
+                      min={formData.selectedBusiness?.location.minArea || 0}
                     />
+                    {formData.selectedBusiness && (
+                      <div className="mt-1 text-xs text-stone-500">
+                        Min: {formData.selectedBusiness.location.minArea} sq ft
+                        {parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                          <span className="text-green-600 ml-2">
+                            (+{((parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea - 1) * 100).toFixed(0)}% larger)
+                          </span>
+                        )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">
-                      Cost per sq ft ({selectedCurrency.toUpperCase()})
-                    </label>
-                    <Input
-                      type="number"
-                      value={formData.locationDetails.costPerArea}
-                      onChange={(e) => updateLocationDetails('costPerArea', e.target.value)}
-                      className="w-full p-2 border "
-                      placeholder="e.g., 100"
-                    />
+                    )}
                   </div>
                 </div>
 
-                {/* Investment Breakdown */}
+                {/* Investment Breakdown - Based on selected franchiser */}
                 <div className="mt-6">
-                  <h4 className="text-sm font-medium text-stone-700 mb-3">Investment Breakdown</h4>
-                  <div className="bg-yellow-50 dark:bg-stone-700 p-4">
+                  <div className="bg-yellow-50 dark:bg-stone-800 p-4 border border-stone-200 dark:border-stone-700">
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-sm text-stone-600 dark:text-stone-400">Carpet Area</span>
                         <span className="text-sm font-medium">
-                          {formData.locationDetails.sqft || '0'} sq ft × {formData.locationDetails.costPerArea || '0'} {selectedCurrency.toUpperCase()}
+                          {formData.locationDetails.sqft || '0'} sq ft 
+                          {formData.selectedBusiness && parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                            <span className="text-green-600 ml-1">
+                              ({(parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea).toFixed(2)}x min area)
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className="border-t border-yellow-100 dark:border-stone-600 pt-2">
                         <div className="flex justify-between font-medium">
-                          <span className="text-stone-600 dark:text-stone-400">Total Investment</span>
-                          <span className="text-yellow-700 dark:text-yellow-400">{calculateInvestmentBreakdown().formatted.total}</span>
+                          <span className="text-stone-600 dark:text-stone-400">Total Investment Required</span>
+                          <span className="text-yellow-700 dark:text-yellow-400">
+                            ${formData.investment.totalInvestment.toLocaleString()}
+                          </span>
                         </div>
                       </div>
                       
                       <div className="mt-4 space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-stone-600 dark:text-stone-400">• Franchise Fee (15%)</span>
-                          <span>{calculateInvestmentBreakdown().formatted.franchiseFee}</span>
+                          <span className="text-stone-600 dark:text-stone-400">• Franchise Fee (One Time)</span>
+                          <span>${formData.investment.franchiseFee.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-stone-600 dark:text-stone-400">• Setup Cost (25%)</span>
-                          <span>{calculateInvestmentBreakdown().formatted.setupCost}</span>
+                          <span className="text-stone-600 dark:text-stone-400">
+                            • Setup Cost (Cost per sqft ${formData.selectedBusiness?.location.setupCost ? Math.round(formData.selectedBusiness.location.setupCost / formData.selectedBusiness.location.minArea) : 0})
+                          </span>
+                          <span>${formData.investment.setupCost.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-stone-600 dark:text-stone-400">• Working Capital (60%)</span>
-                          <span>{calculateInvestmentBreakdown().formatted.workingCapital}</span>
+                          <span className="text-stone-600 dark:text-stone-400">
+                            • Working Capital (Cost per sqft ${formData.selectedBusiness?.location.workingCapital ? Math.round(formData.selectedBusiness.location.workingCapital / formData.selectedBusiness.location.minArea) : 0})
+                          </span>
+                          <span>${formData.investment.workingCapital.toLocaleString()}</span>
                         </div>
                       </div>
                       
                       <div className="pt-2 mt-3 border-t border-yellow-100 dark:border-stone-600">
                         <div className="flex justify-between font-medium">
-                          <span className="text-stone-600 dark:text-stone-400">Total Investment</span>
-                          <span className="text-yellow-700 dark:text-yellow-400">{calculateInvestmentBreakdown().formatted.total}</span>
+                          <span className="text-stone-600 dark:text-stone-400">Total Investment Required</span>
+                          <span className="text-yellow-700 dark:text-yellow-400">
+                            ${formData.investment.totalInvestment.toLocaleString()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -874,51 +1019,105 @@ const FranchiseCreate: React.FC = () => {
 
           {currentStep === 4 && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Investment Details</h3>
               <div className="space-y-6">
+                {/* Selected Franchiser Information */}
+                {formData.selectedBusiness && (
+                  <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
+                    <div className="flex items-center mb-3">
+                      <div className="mr-3">
+                        <FranchiserLogo business={formData.selectedBusiness} size="md" />
+                      </div>
                 <div>
+                        <h4 className="font-semibold text-stone-900 dark:text-stone-100">
+                          {formData.selectedBusiness.name}
+                        </h4>
+                        <p className="text-sm text-stone-600 dark:text-stone-400">
+                          {formData.selectedBusiness.industry} • {formData.selectedBusiness.category}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Property Information */}
+                    <div className="mt-4 border-t pt-4">
                   <h4 className="font-medium mb-2">Property Information</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
-                      <p className="text-stone-500">Building</p>
-                      <p>{formData.locationDetails.buildingName}</p>
+                          <p className="text-stone-500">Carpet Area</p>
+                          <p className="font-medium">{formData.locationDetails.sqft} sq ft</p>
                     </div>
                     <div>
-                      <p className="text-stone-500">Area</p>
-                      <p>{formData.locationDetails.sqft} sq ft</p>
+                          <p className="text-stone-500">Door Number</p>
+                          <p className="font-medium">{formData.locationDetails.doorNumber}</p>
                     </div>
-                    <div>
-                      <p className="text-stone-500">Cost per sq ft</p>
-                      <p>${formData.locationDetails.costPerArea}</p>
+                        
+                        <div className="col-span-2">
+                          <p className="text-stone-500">Building</p>
+                          <p className="font-medium">{formData.locationDetails.buildingName}</p>
                     </div>
-                    <div>
-                      <p className="text-stone-500">Total Investment</p>
-                      <p className="font-medium">${calculateTotalInvestment().toLocaleString()}</p>
+                        <div className="col-span-4">
+                          <p className="text-stone-500">Location</p>
+                          <p className="font-medium">{selectedLocation?.address || 'Not selected'}</p>
                     </div>
                   </div>
                 </div>
+                    {/* Investment Breakdown */}
+                    <div className="mt-4 border-t pt-4">
+                      <h4 className="font-medium mb-2">Investment Breakdown</h4>
 
-                <div>
+                       <div className="space-y-2 text-sm">
+                         <div className="flex justify-between">
+                           <span className="text-stone-600 dark:text-stone-400">Franchise Fee (One Time)</span>
+                           <span className="font-medium">${formData.investment.franchiseFee.toLocaleString()}</span>
+                         </div>
+                         <div className="flex justify-between">
+                           <span className="text-stone-600 dark:text-stone-400">
+                             Setup Cost (Cost per sqft ${formData.selectedBusiness?.location.setupCost ? Math.round(formData.selectedBusiness.location.setupCost / formData.selectedBusiness.location.minArea) : 0})
+                           </span>
+                           <span className="font-medium">${formData.investment.setupCost.toLocaleString()}</span>
+                         </div>
+                         <div className="flex justify-between">
+                           <span className="text-stone-600 dark:text-stone-400">
+                             Working Capital (Cost per sqft ${formData.selectedBusiness?.location.workingCapital ? Math.round(formData.selectedBusiness.location.workingCapital / formData.selectedBusiness.location.minArea) : 0})
+                           </span>
+                           <span className="font-medium">${formData.investment.workingCapital.toLocaleString()}</span>
+                         </div>
+                        <div className="py-4 mt-6 border-t border-yellow-200 dark:border-yellow-700">
+                          <div className="flex justify-between font-semibold text-lg">
+                            <span className="text-stone-900 dark:text-stone-100">Total Investment Required</span>
+                            <span className="text-yellow-600 dark:text-yellow-400">${formData.investment.totalInvestment.toLocaleString()}</span>
+                          </div>
+                          {formData.selectedBusiness && parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                            <div className="text-xs text-stone-500 mt-1">
+                              Setup cost & working capital scaled by {(parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea).toFixed(2)}x due to larger area
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Share Investment Section */}
+                <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
+                  <h4 className="font-medium mb-2">Share Investment</h4>
                   <div className="space-y-4">
-
-                    <div className="pt-4 border-t">
+                    <div>
                       <div className="flex justify-between mb-4">
                         <div>
-                          <p className="text-sm font-medium">Your Investment</p>
-                          <p className="text-xs text-stone-500">Minimum 5% of total shares</p>
+                          <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Your Investment</p>
+                          <p className="text-xs text-stone-600 dark:text-stone-300">Minimum 5% of total shares</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{formData.investment.selectedShares.toLocaleString()} Shares</p>
-                          <p className="text-sm text-stone-500">
-                            {((formData.investment.selectedShares / calculateTotalShares()) * 100).toFixed(1)}% of total
+                          <p className="font-medium text-stone-900 dark:text-blue-100">{formData.investment.selectedShares.toLocaleString()} Shares</p>
+                          <p className="text-sm text-stone-600 dark:text-stone-300">
+                            {((formData.investment.selectedShares / formData.investment.totalShares) * 100).toFixed(1)}% of total
                           </p>
                         </div>
                       </div>
                       
                       <Slider
                         value={[formData.investment.selectedShares]}
-                        min={Math.ceil(calculateTotalShares() * 0.05)}
-                        max={calculateTotalShares()}
+                        min={Math.ceil(formData.investment.totalShares * 0.05)}
+                        max={formData.investment.totalShares}
                         step={1}
                         onValueChange={([value]) => updateInvestment(value)}
                         className="w-full mb-6"
@@ -932,7 +1131,7 @@ const FranchiseCreate: React.FC = () => {
                           <Input
                             value={formData.investment.sharePrice.toFixed(2)}
                             disabled
-                            className="w-full p-2 border  bg-stone-50"
+                            className="w-full p-2 border bg-stone-50"
                           />
                         </div>
                         <div>
@@ -943,40 +1142,48 @@ const FranchiseCreate: React.FC = () => {
                             type="number"
                             value={formData.investment.selectedShares}
                             onChange={(e) => updateInvestment(Number(e.target.value))}
-                            min={Math.ceil(calculateTotalShares() * 0.05)}
-                            max={calculateTotalShares()}
-                            className="w-full p-2 border "
+                            min={Math.ceil(formData.investment.totalShares * 0.05)}
+                            max={formData.investment.totalShares}
+                            className="w-full p-2 border"
                           />
                         </div>
-                        
+                      </div>
+                    </div>
                       </div>
                     </div>
 
-                    <div className="bg-stone-100 dark:bg-stone-900 p-4">
+                {/* Payment Summary */}
+                <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
                       <h4 className="font-medium mb-2">Payment Summary</h4>
+                  <div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-stone-600">Shares</span>
-                          <span className="text-sm">{formData.investment.selectedShares.toLocaleString()}</span>
+                        <span className="text-sm text-stone-600 dark:text-stone-400">Shares Purchasing</span>
+                        <span className="text-sm font-medium">{formData.investment.selectedShares.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-stone-600">Price per Share</span>
-                          <span className="text-sm">1.00 USDT</span>
+                        <span className="text-sm text-stone-600 dark:text-stone-400">Price per Share</span>
+                        <span className="text-sm font-medium">{formData.investment.sharePrice.toFixed(2)} USDT</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-stone-600">Service Fee (2%)</span>
-                          <span className="text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-stone-600 dark:text-stone-400">Subtotal</span>
+                        <span className="text-sm font-medium">{(formData.investment.selectedShares * formData.investment.sharePrice).toFixed(2)} USDT</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-stone-600 dark:text-stone-400">Service Fee (2%)</span>
+                        <span className="text-sm font-medium">
                             {(formData.investment.selectedShares * formData.investment.sharePrice * 0.02).toFixed(2)} USDT
                           </span>
                         </div>
-                        <div className="pt-2 border-t mt-2">
-                          <div className="flex justify-between font-medium">
-                            <span>Total</span>
-                            <span>{(formData.investment.selectedShares * formData.investment.sharePrice * 1.02).toFixed(2)} USDT</span>
+                      <div className="pt-4 mt-4 border-t border-green-200 dark:border-green-700 mt-2">
+                        <div className="flex justify-between font-semibold text-lg">
+                          <span className="text-green-900 dark:text-green-100">Total Payment</span>
+                          <span className="text-green-600 dark:text-green-400">
+                            {(formData.investment.selectedShares * formData.investment.sharePrice * 1.02).toFixed(2)} USDT
+                          </span>
                           </div>
-                          <div className="text-xs text-stone-500 text-right">
+                        <div className="text-xs text-green-600 dark:text-green-400 text-right mt-1">
                             ≈ {(formData.investment.selectedShares * formData.investment.sharePrice * 1.02 / usdtPerSol).toFixed(4)} SOL
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -988,25 +1195,25 @@ const FranchiseCreate: React.FC = () => {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between pt-4 border-t">
+        <div className="flex flex-col sm:flex-row justify-between pt-4 border-t gap-4">
           <div>
             {currentStep > 1 && (
               <Button
                 onClick={prevStep}
                 variant="outline"
-                className="mr-2"
+                className="w-full sm:w-auto mr-0 sm:mr-2"
                 disabled={loading}
               >
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back
               </Button>
             )}
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             {currentStep < 4 ? (
               <Button
                 onClick={nextStep}
                 disabled={!canProceed() || loading}
-                className="bg-yellow-600 hover:bg-yellow-700"
+                className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700"
               >
                 {loading ? 'Loading...' : 'Continue'} <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
@@ -1023,7 +1230,7 @@ const FranchiseCreate: React.FC = () => {
                   }, 1000);
                 }}
                 disabled={!canProceed() || loading}
-                className="bg-green-600 hover:bg-green-700"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
               >
                 {loading ? 'Processing...' : 'Confirm & Pay'}
               </Button>

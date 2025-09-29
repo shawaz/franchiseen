@@ -20,6 +20,17 @@ export const getFranchiserByWallet = query({
   },
 });
 
+// Query to get all franchisers by wallet address
+export const getAllFranchisersByWallet = query({
+  args: { walletAddress: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("franchiser")
+      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
+      .collect();
+  },
+});
+
 // Query to get franchiser by slug
 export const getFranchiserBySlug = query({
   args: { slug: v.string() },
@@ -293,5 +304,193 @@ export const searchFranchisers = query({
         )
       )
       .collect();
+  },
+});
+
+// Query to get all franchiser locations (for debugging)
+export const getAllFranchiserLocations = query({
+  args: {},
+  handler: async (ctx) => {
+    const locations = await ctx.db
+      .query("franchiserLocations")
+      .collect();
+    
+    console.log("All franchiser locations in database:", locations);
+    return locations;
+  },
+});
+
+// Query to get all franchisers for debugging
+export const getAllFranchisersDebug = query({
+  args: {},
+  handler: async (ctx) => {
+    const franchisers = await ctx.db
+      .query("franchiser")
+      .collect();
+    
+    console.log("All franchisers in database:", franchisers);
+    return franchisers;
+  },
+});
+
+// Simple test query to get any franchiser
+export const getAnyFranchiser = query({
+  args: {},
+  handler: async (ctx) => {
+    const franchiser = await ctx.db
+      .query("franchiser")
+      .first();
+    
+    console.log("Any franchiser found:", franchiser);
+    return franchiser;
+  },
+});
+
+// Query to get franchisers by location
+export const getFranchisersByLocation = query({
+  args: { 
+    country: v.string(),
+    city: v.optional(v.string()),
+    industry: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    console.log("=== FRANCHISER SEARCH DEBUG ===");
+    console.log("Searching for franchisers with:", { country: args.country, city: args.city, industry: args.industry });
+    
+    // First, let's see ALL locations in the database
+    const allLocations = await ctx.db
+      .query("franchiserLocations")
+      .collect();
+    
+    console.log("ALL locations in database:", allLocations);
+    
+    // Get all franchiser locations that match the country
+    let locations = await ctx.db
+      .query("franchiserLocations")
+      .filter((q) => 
+        q.eq(q.field("country"), args.country)
+      )
+      .collect();
+
+    console.log("Locations matching country:", locations.length);
+    console.log("Matching locations:", locations);
+    
+    // If no results and searching for UAE, try alternative country names
+    if (locations.length === 0 && args.country === "UAE") {
+      console.log("No results for UAE, trying alternative country names...");
+      
+      const alternativeCountries = ["United Arab Emirates", "UAE", "AE"];
+      for (const altCountry of alternativeCountries) {
+        const altLocations = await ctx.db
+          .query("franchiserLocations")
+          .filter((q) => 
+            q.eq(q.field("country"), altCountry)
+          )
+          .collect();
+        
+        console.log(`Trying country "${altCountry}": found ${altLocations.length} locations`);
+        if (altLocations.length > 0) {
+          locations = altLocations;
+          console.log("Using alternative country results:", locations);
+          break;
+        }
+      }
+    }
+
+    // Filter by status
+    const activeLocations = locations.filter(loc => loc.status === "active");
+    console.log("Active locations:", activeLocations.length);
+    console.log("Active locations details:", activeLocations);
+
+    // Filter by city if specified
+    let filteredLocations = activeLocations;
+    if (args.city) {
+      filteredLocations = activeLocations.filter(loc => 
+        loc.city === args.city || loc.isNationwide
+      );
+      console.log("After city filter:", filteredLocations.length);
+      console.log("City filtered locations:", filteredLocations);
+    }
+
+    // Get franchiser details for each location
+    const franchisers = await Promise.all(
+      filteredLocations.map(async (location) => {
+        console.log("Getting franchiser for location:", location._id, "franchiserId:", location.franchiserId);
+        const franchiser = await ctx.db.get(location.franchiserId);
+        console.log("Franchiser found:", franchiser);
+        
+        if (!franchiser) {
+          console.log("No franchiser found for ID:", location.franchiserId);
+          return null;
+        }
+        
+        if (franchiser.status !== "approved") {
+          console.log("Franchiser not approved, status:", franchiser.status);
+          return null;
+        }
+        
+        // Get industry and category names from master data
+        let industryName = franchiser.industry;
+        let categoryName = franchiser.category;
+        
+        // Try to get industry name if it's an ID (Convex IDs start with 'j' or 'k')
+        if (franchiser.industry && (franchiser.industry.startsWith('j') || franchiser.industry.startsWith('k'))) {
+          try {
+            const industry = await ctx.db.get(franchiser.industry as any);
+            if (industry && 'name' in industry) {
+              industryName = (industry as any).name;
+              console.log("Resolved industry:", industryName);
+            }
+          } catch (e) {
+            console.log("Could not fetch industry:", e);
+          }
+        }
+        
+        // Try to get category name if it's an ID (Convex IDs start with 'j' or 'k')
+        if (franchiser.category && (franchiser.category.startsWith('j') || franchiser.category.startsWith('k'))) {
+          try {
+            const category = await ctx.db.get(franchiser.category as any);
+            if (category && 'name' in category) {
+              categoryName = (category as any).name;
+              console.log("Resolved category:", categoryName);
+            }
+          } catch (e) {
+            console.log("Could not fetch category:", e);
+          }
+        }
+        
+        // Filter by industry if specified (compare with both ID and name)
+        if (args.industry && franchiser.industry !== args.industry && industryName !== args.industry) {
+          console.log("Industry mismatch:", franchiser.industry, "or", industryName, "vs", args.industry);
+          return null;
+        }
+        
+        console.log("Franchiser passed all filters:", franchiser.name);
+        return {
+          ...franchiser,
+          industry: industryName,
+          category: categoryName,
+          location: location,
+        };
+      })
+    );
+
+    console.log("Franchisers after filtering:", franchisers);
+
+    // Filter out null values and return unique franchisers
+    const uniqueFranchisers = franchisers
+      .filter((franchiser): franchiser is NonNullable<typeof franchiser> => franchiser !== null)
+      .reduce((acc, franchiser) => {
+        if (!acc.find(f => f._id === franchiser._id)) {
+          acc.push(franchiser);
+        }
+        return acc;
+      }, [] as NonNullable<typeof franchisers[0]>[]);
+
+    console.log("Final unique franchisers:", uniqueFranchisers.length);
+    console.log("Final franchisers:", uniqueFranchisers);
+    console.log("=== END FRANCHISER SEARCH DEBUG ===");
+    
+    return uniqueFranchisers;
   },
 });

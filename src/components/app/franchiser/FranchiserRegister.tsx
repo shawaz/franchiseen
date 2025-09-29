@@ -324,7 +324,7 @@ const FranchiserRegister: React.FC = () => {
   ]);
   
   // Handle interior photos upload
-  const handleInteriorFiles = (files: File[]) => {
+  const handleInteriorFiles = async (files: File[]) => {
     const validFiles = files.filter(file => {
       const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
       const maxSize = 5 * 1024 * 1024; // 5MB
@@ -342,32 +342,64 @@ const FranchiserRegister: React.FC = () => {
       return true;
     });
     
-    const newPhotos = validFiles.map((file, index) => {
+    const newPhotos = await Promise.all(validFiles.map(async (file, index) => {
       // Create new file with brand URL as filename reference
       const fileExtension = file.name.split('.').pop();
       const newFileName = `${formData.brandUrl || 'brand'}-interior-${index + 1}.${fileExtension}`;
       const renamedFile = new File([file], newFileName, { type: file.type });
       
+      // Create preview URL using FileReader as base64 (more reliable)
+      const previewUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            resolve(e.target.result as string);
+          } else {
+            reject(new Error('Failed to read file'));
+          }
+        };
+        reader.onerror = () => reject(new Error('FileReader error'));
+        reader.readAsDataURL(file);
+      });
+      
+      console.log('Created preview URL using FileReader:', {
+        originalFile: file,
+        renamedFile: renamedFile,
+        previewUrl: previewUrl.substring(0, 50) + '...',
+        fileType: file.type,
+        fileSize: file.size,
+        isDataUrl: previewUrl.startsWith('data:')
+      });
+      
       return {
-      id: Math.random().toString(36).substring(7),
+        id: Math.random().toString(36).substring(7),
         file: renamedFile,
-        preview: URL.createObjectURL(file) // Use original file for preview
+        preview: previewUrl
       };
-    });
+    }));
     
     setInteriorPhotos(prev => {
       const updated = [...prev, ...newPhotos];
       // Limit to 10 photos max
+      console.log('Interior photos updated:', updated);
       return updated.slice(0, 10);
     });
   };
 
-  // Clean up object URLs when component unmounts
+  // Clean up when component unmounts (data URLs don't need explicit cleanup)
   useEffect(() => {
     return () => {
-      interiorPhotos.forEach(photo => URL.revokeObjectURL(photo.preview));
+      // Data URLs are automatically garbage collected, no cleanup needed
+      console.log('Component unmounting, cleaning up interior photos');
     };
-  }, [interiorPhotos]);
+  }, []);
+
+  // Remove interior photo
+  const removeInteriorPhoto = (id: string) => {
+    setInteriorPhotos(prev => {
+      return prev.filter(photo => photo.id !== id);
+    });
+  };
 
   // Add a new product
   const addProduct = () => {
@@ -419,7 +451,7 @@ const FranchiserRegister: React.FC = () => {
   };
 
   // Handle product photo upload
-  const handleProductPhoto = (productId: string, file: File) => {
+  const handleProductPhoto = async (productId: string, file: File) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     const maxSize = 5 * 1024 * 1024; // 5MB
     
@@ -433,14 +465,23 @@ const FranchiserRegister: React.FC = () => {
       return;
     }
     
+    // Create preview URL using FileReader as base64 (consistent with interior photos)
+    const previewUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          resolve(e.target.result as string);
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('FileReader error'));
+      reader.readAsDataURL(file);
+    });
+    
     setProducts(prev =>
       prev.map(product => {
         if (product.id === productId) {
-          // Clean up previous photo if exists
-          if (product.photo) {
-            URL.revokeObjectURL(product.photo.preview);
-          }
-          
           // Create new file with brand URL as filename reference, product name, and category
           const fileExtension = file.name.split('.').pop();
           const productName = product.name ? product.name.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'product';
@@ -452,7 +493,7 @@ const FranchiserRegister: React.FC = () => {
             ...product,
             photo: {
               file: renamedFile,
-              preview: URL.createObjectURL(file) // Use original file for preview
+              preview: previewUrl
             }
           };
         }
@@ -505,30 +546,14 @@ const FranchiserRegister: React.FC = () => {
     }
   }, [formData.brandUrl, products.length]);
 
-  // Clean up object URLs when component unmounts
+  // Clean up when component unmounts (data URLs don't need explicit cleanup)
   useEffect(() => {
     return () => {
-      interiorPhotos.forEach(photo => URL.revokeObjectURL(photo.preview));
-      
-      // Clean up product photos
-      products.forEach(product => {
-        if (product.photo) {
-          URL.revokeObjectURL(product.photo.preview);
-        }
-      });
+      // Data URLs are automatically garbage collected, no cleanup needed
+      console.log('Component unmounting, cleaning up photos');
     };
-  }, [interiorPhotos, products]);
+  }, []);
 
-  // Remove an interior photo
-  const removeInteriorPhoto = (id: string) => {
-    setInteriorPhotos(prev => {
-      const photoToRemove = prev.find(photo => photo.id === id);
-      if (photoToRemove) {
-        URL.revokeObjectURL(photoToRemove.preview);
-      }
-      return prev.filter(photo => photo.id !== id);
-    });
-  };
 
   // Handle license file upload for a country
   const handleLicenseUpload = (country: string, file: File) => {
@@ -648,6 +673,12 @@ const FranchiserRegister: React.FC = () => {
     if (!categories || !formData.industry) return [];
     return categories.filter(cat => cat.industryId === formData.industry);
   }, [categories, formData.industry]);
+
+  // Get available product categories based on selected category
+  const availableProductCategories = useMemo(() => {
+    if (!productCategories || !formData.category) return [];
+    return productCategories.filter(pc => pc.categoryId === formData.category);
+  }, [productCategories, formData.category]);
 
   // Format website URL to ensure it has https://
   const formatWebsiteUrl = (url: string): string => {
@@ -2017,17 +2048,19 @@ const FranchiserRegister: React.FC = () => {
                 
                 <div 
                   className="border-2 border-dashed border-stone-300 dark:border-stone-700 rounded-lg p-8 text-center cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/50 transition-colors"
+                  onClick={() => document.getElementById('interior-photos')?.click()}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setIsDragging(true);
                   }}
                   onDragLeave={() => setIsDragging(false)}
-                  onDrop={(e) => {
+                  onDrop={async (e) => {
                     e.preventDefault();
                     setIsDragging(false);
                     // Handle file drop
                     const files = Array.from(e.dataTransfer.files);
-                    handleInteriorFiles(files);
+                    console.log('Files dropped:', files);
+                    await handleInteriorFiles(files);
                   }}
                 >
                   <div className="flex flex-col items-center justify-center space-y-2">
@@ -2045,9 +2078,10 @@ const FranchiserRegister: React.FC = () => {
                     className="hidden"
                     accept="image/png, image/jpeg, image/jpg"
                     multiple
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const files = Array.from(e.target.files || []);
-                      handleInteriorFiles(files);
+                      console.log('Files selected:', files);
+                      await handleInteriorFiles(files);
                     }}
                   />
                 </div>
@@ -2068,14 +2102,26 @@ const FranchiserRegister: React.FC = () => {
                     </p>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {interiorPhotos.map((photo) => (
+                    {interiorPhotos.map((photo) => {
+                      console.log('Rendering interior photos:', interiorPhotos);
+                      return (
                       <div key={photo.id} className="relative group">
                         <Image
                           src={photo.preview}
                           alt="Interior preview"
-                          width={500}
-                          height={500}
+                          width={300}
+                          height={128}
                           className="w-full h-32 object-cover rounded-lg"
+                          onError={(e) => {
+                            console.error('Image load error:', {
+                              error: e,
+                              src: photo.preview,
+                              photo: photo,
+                              currentTarget: e.currentTarget,
+                              isValidUrl: photo.preview.startsWith('blob:')
+                            });
+                          }}
+                          onLoad={() => console.log('Image loaded successfully:', photo.preview)}
                         />
                         <button 
                           type="button"
@@ -2085,7 +2131,8 @@ const FranchiserRegister: React.FC = () => {
                           <X className="w-4 h-4" />
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                     
                     {interiorPhotos.length < 10 && (
                       <label 
@@ -2133,16 +2180,15 @@ const FranchiserRegister: React.FC = () => {
                                 <>
                                   <Image
                                     src={product.photo.preview}
-                                    width={400}
-                                    height={400}
                                     alt="Product preview"
+                                    width={300}
+                                    height={300}
                                     className="w-full h-full object-cover"
                                   />
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      URL.revokeObjectURL(product.photo!.preview);
                                       updateProduct(product.id, 'photo', null);
                                     }}
                                     className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
@@ -2163,10 +2209,10 @@ const FranchiserRegister: React.FC = () => {
                                 type="file"
                                 className="hidden"
                                 accept="image/png, image/jpeg, image/jpg"
-                                onChange={(e) => {
+                                onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    handleProductPhoto(product.id, file);
+                                    await handleProductPhoto(product.id, file);
                                   }
                                 }}
                               />
@@ -2204,9 +2250,6 @@ const FranchiserRegister: React.FC = () => {
                                 className="text-red-500 hover:bg-red-50 hover:text-red-600"
                                 onClick={() => {
                                   if (window.confirm('Are you sure you want to remove this product?')) {
-                                    if (product.photo) {
-                                      URL.revokeObjectURL(product.photo.preview);
-                                    }
                                     removeProduct(product.id);
                                   }
                                 }}
@@ -2242,7 +2285,7 @@ const FranchiserRegister: React.FC = () => {
                                           <SelectItem value="none" className="text-sm">None</SelectItem>
                                         </div>
                                         <div className="px-2">
-                                          {productCategories?.map((productCategory) => (
+                                          {availableProductCategories?.map((productCategory) => (
                                             <div key={productCategory._id} className="col-span-1">
                                               <SelectItem value={productCategory._id} className="text-sm truncate">
                                                 {productCategory.icon && <span className="mr-2">{productCategory.icon}</span>}

@@ -13,6 +13,10 @@ export function useFranchiserByWallet(walletAddress: string) {
   return useQuery(api.franchises.getFranchiserByWallet, { walletAddress });
 }
 
+export function useAllFranchisersByWallet(walletAddress: string) {
+  return useQuery(api.franchises.getAllFranchisersByWallet, { walletAddress });
+}
+
 export function useFranchiserLocations(franchiserId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return useQuery(api.franchises.getFranchiserLocations, { franchiserId } as any);

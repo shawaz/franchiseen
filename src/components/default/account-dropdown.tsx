@@ -12,15 +12,71 @@ import Link from "next/link";
 import Image from "next/image";
 import { useWalletUi } from '@wallet-ui/react';
 import { useRouter } from 'next/navigation';
+import { useAllFranchisersByWallet } from '@/hooks/useFranchises';
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import { Id } from '../../../convex/_generated/dataModel';
 
 interface AccountDropdownProps {
   balance?: number;
 }
 
+interface FranchiserDropdownItemProps {
+  franchiser: {
+    _id: string;
+    name: string;
+    slug: string;
+    logoUrl?: string;
+    status: 'draft' | 'pending' | 'approved' | 'rejected';
+  };
+}
+
+const FranchiserDropdownItem = ({ franchiser }: FranchiserDropdownItemProps) => {
+  const logoUrl = useConvexImageUrl(franchiser.logoUrl as Id<"_storage"> | undefined);
+  
+  return (
+    <Link
+      href={`/${franchiser.slug}/account`}
+      className="flex items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
+    >
+      <div className="relative h-8 w-8 flex-shrink-0 z-0">
+        {logoUrl ? (
+          <Image
+            src={logoUrl}
+            alt={franchiser.name}
+            width={32}
+            height={32}
+            loading="lazy"
+            className="object-cover rounded z-0"
+          />
+        ) : (
+          <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/20 rounded flex items-center justify-center">
+            <Store className="w-4 h-4 text-yellow-600" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-medium truncate">
+          {franchiser.name}
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+          {franchiser.status === 'approved' ? 'Franchiser' : 'Pending Approval'}
+        </p>
+      </div>
+    </Link>
+  );
+};
+
 const AccountDropdown = ({ balance }: AccountDropdownProps) => {
   const [mounted, setMounted] = useState(false);
-  const { disconnect } = useWalletUi();
+  const { disconnect, account } = useWalletUi();
   const router = useRouter();
+  
+  // Get user's franchiser data
+  const franchisers = useAllFranchisersByWallet(account?.address || '');
+  
+  // Debug logging
+  console.log('Account dropdown - account:', account?.address);
+  console.log('Account dropdown - franchisers:', franchisers);
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
@@ -75,7 +131,19 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
               </div>
             </div>
           </Link>  
-          <Link
+          
+          {/* User's Registered Brands */}
+          {franchisers && franchisers.length > 0 ? (
+            franchisers.map((franchiser) => (
+              <FranchiserDropdownItem key={franchiser._id} franchiser={franchiser} />
+            ))
+          ) : account?.address ? (
+            <div className="px-5 py-2 text-xs text-gray-500">
+              No brands registered for this wallet
+            </div>
+          ) : null}
+          
+          {/* <Link
             href= "/franchise/account"
             className="flex items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
           >
@@ -143,7 +211,7 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
                 POS
               </p>
             </div>
-          </Link>
+          </Link> */}
           {/* Settings Menu */}
           <div className="border-t">
             <Link href="/register">
