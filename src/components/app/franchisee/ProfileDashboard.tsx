@@ -56,7 +56,6 @@ export default function ProfileDashboard() {
   const totalShares = sharesData?.reduce((sum, share) => sum + share.sharesPurchased, 0) || 0;
   const totalEarnings = 0; // This would need to be calculated from actual earnings data
   const thisMonthEarnings = 0; // This would need to be calculated from actual earnings data
-  const uniqueFranchises = franchiseSharesMap.size;
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: PieChart },
@@ -149,7 +148,7 @@ export default function ProfileDashboard() {
                   <h3 className="text-lg font-semibold mb-4">Recent Earnings</h3>
                   <div className="space-y-3">
                     {franchiseSharesMap.size > 0 ? (
-                      Array.from(franchiseSharesMap.entries()).slice(0, 3).map(([franchiseSlug, data], index) => (
+                      Array.from(franchiseSharesMap.entries()).slice(0, 3).map(([franchiseSlug, data]) => (
                         <div key={franchiseSlug} className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-sm">{franchiseSlug}</p>
@@ -170,7 +169,7 @@ export default function ProfileDashboard() {
                   <h3 className="text-lg font-semibold mb-4">Active Contracts</h3>
                   <div className="space-y-3">
                     {franchiseSharesMap.size > 0 ? (
-                      Array.from(franchiseSharesMap.entries()).slice(0, 3).map(([franchiseSlug, data], index) => (
+                      Array.from(franchiseSharesMap.entries()).slice(0, 3).map(([franchiseSlug, data]) => (
                         <div key={franchiseSlug} className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-sm">{franchiseSlug}</p>

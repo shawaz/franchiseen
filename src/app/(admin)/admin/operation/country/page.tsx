@@ -1,8 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Users, Building2, TrendingUp } from "lucide-react";
+import { Plus, MapPin, Building2, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 

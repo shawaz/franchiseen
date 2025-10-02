@@ -13,9 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
-  generateAndStoreCompanyWallet, 
   getStoredCompanyWallet, 
-  clearStoredCompanyWallet,
   type CompanyWallet as CompanyWalletType 
 } from '@/lib/companyWalletUtils';
 

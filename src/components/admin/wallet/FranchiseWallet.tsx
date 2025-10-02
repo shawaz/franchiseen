@@ -5,23 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   DollarSign, 
   Search, 
-  Filter, 
   Download, 
   Eye, 
   MoreHorizontal,
-  Wallet,
   TrendingUp,
   TrendingDown,
   Clock,
   Copy,
   ExternalLink,
   Building2,
-  Users,
-  Target,
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
@@ -65,7 +60,6 @@ export default function FranchiseWallet() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [industryFilter, setIndustryFilter] = useState('all');
 
   useEffect(() => {
     fetchFranchiseWallets();
@@ -73,7 +67,7 @@ export default function FranchiseWallet() {
 
   useEffect(() => {
     filterWallets();
-  }, [wallets, searchTerm, statusFilter, industryFilter]);
+  }, [wallets, searchTerm, statusFilter]);
 
   const fetchFranchiseWallets = async () => {
     setLoading(true);
@@ -204,11 +198,6 @@ export default function FranchiseWallet() {
       filtered = filtered.filter(wallet => wallet.status === statusFilter);
     }
 
-    // Filter by industry
-    if (industryFilter !== 'all') {
-      filtered = filtered.filter(wallet => wallet.franchise.industry === industryFilter);
-    }
-
     setFilteredWallets(filtered);
   };
 
@@ -266,11 +255,6 @@ export default function FranchiseWallet() {
 
   const exportWallets = () => {
     toast.success('Exporting franchise wallet data...');
-  };
-
-  const getUniqueIndustries = () => {
-    const industries = [...new Set(wallets.map(wallet => wallet.franchise.industry))];
-    return industries;
   };
 
   return (

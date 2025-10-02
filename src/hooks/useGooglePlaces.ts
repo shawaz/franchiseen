@@ -76,14 +76,9 @@ export function useGooglePlaces({ input, types = 'country', componentRestriction
               setError('Search request denied. Please check API configuration.');
               setPredictions([]);
             } else {
-              // Handle other errors, but never set ZERO_RESULTS as an error
-              if (status !== 'ZERO_RESULTS') {
-                console.error('Google Places API error:', status);
-                setError(`API Error: ${status}`);
-              } else {
-                console.log('ZERO_RESULTS detected, not setting as error');
-                setError(null);
-              }
+              // Handle other errors
+              console.error('Google Places API error:', status);
+              setError(`API Error: ${status}`);
               setPredictions([]);
             }
             setLoading(false);

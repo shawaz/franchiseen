@@ -19,11 +19,8 @@ import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useFranchiseWallet } from '@/hooks/useFranchiseWallet';
 import { useSolana } from '@/components/solana/use-solana';
 import { useWalletUiSigner } from '@/components/solana/use-wallet-ui-signer';
-import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
-import { Keypair } from '@solana/web3.js';
 import { Address } from 'gill';
 
 // Dynamically import the MapComponent with SSR disabled
@@ -236,7 +233,6 @@ const FranchiseCreateInner: React.FC = () => {
   const [usdtPerSol, setUsdtPerSol] = useState(0); // Real-time exchange rate from CoinGecko
   const [priceLoading, setPriceLoading] = useState(false);
   const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
-  const [franchiseWalletAddress, setFranchiseWalletAddress] = useState<string | null>(null);
 
   // Solana hooks
   const { account, client } = useSolana();
@@ -1569,17 +1565,6 @@ const FranchiseCreateInner: React.FC = () => {
                       },
                     });
 
-                    // Create franchise PDA after successful franchise creation
-                    const { generateFranchisePDA, storeFranchisePDA } = await import('@/lib/franchisePDA');
-                    const franchisePDA = generateFranchisePDA(
-                        franchiseId as string,
-                        formData.investment.totalShares,
-                        formData.investment.sharePrice
-                    );
-                    console.log('Created franchise PDA:', franchisePDA.pda);
-                    storeFranchisePDA(franchisePDA);
-                    setFranchiseWalletAddress(franchisePDA.pda); // Use PDA as address for now
-
                     // Update platform fee transaction with actual franchise ID
                     const platformFeeKey = `platform_fee_${Date.now()}_pending`;
                     const existingPlatformFee = localStorage.getItem(platformFeeKey);
@@ -1727,11 +1712,10 @@ const FranchiseCreateInner: React.FC = () => {
 
 const FranchiseCreate: React.FC = () => {
   return (
-    <WalletErrorBoundary>
+
       <GoogleMapsLoader>
         <FranchiseCreateInner />
       </GoogleMapsLoader>
-    </WalletErrorBoundary>
   );
 };
 

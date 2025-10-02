@@ -2,7 +2,7 @@
 import { createFranchisePDA, generateFranchisePDA } from './franchisePDA';
 
 // Test function to verify PDA creation
-export function testFranchisePDA() {
+export async function testFranchisePDA() {
   try {
     console.log('Testing franchise PDA creation...');
     
@@ -12,13 +12,13 @@ export function testFranchisePDA() {
     const sharePrice = 1;
     
     // Test PDA creation
-    const { pda, bump } = createFranchisePDA(franchiseId);
+    const { pda, bump } = await createFranchisePDA(franchiseId);
     console.log('✅ PDA created successfully:');
     console.log('  PDA:', pda.toString());
     console.log('  Bump:', bump);
     
     // Test PDA generation
-    const franchisePDA = generateFranchisePDA(franchiseId, totalShares, sharePrice);
+    const franchisePDA = await generateFranchisePDA(franchiseId, totalShares, sharePrice);
     console.log('✅ Franchise PDA generated successfully:');
     console.log('  Franchise ID:', franchisePDA.franchiseId);
     console.log('  PDA:', franchisePDA.pda);
@@ -33,14 +33,14 @@ export function testFranchisePDA() {
 }
 
 // Test with invalid program ID
-export function testInvalidProgramID() {
+export async function testInvalidProgramID() {
   try {
     console.log('Testing with invalid program ID...');
     
     const franchiseId = 'nike-02';
     const invalidProgramId = 'invalid-program-id';
     
-    const { pda, bump } = createFranchisePDA(franchiseId, invalidProgramId);
+    const { pda, bump } = await createFranchisePDA(franchiseId, invalidProgramId);
     console.log('✅ PDA created with fallback program ID:');
     console.log('  PDA:', pda.toString());
     console.log('  Bump:', bump);

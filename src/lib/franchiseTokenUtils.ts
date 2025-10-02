@@ -1,4 +1,4 @@
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 
 // Franchise Token/NFT utilities for share management
 export interface FranchiseToken {

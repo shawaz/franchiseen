@@ -40,9 +40,7 @@ interface IncomeSummary {
 
 export default function IncomeTable() {
   const [incomeRecords, setIncomeRecords] = useState<IncomeRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const [isAddingRecord, setIsAddingRecord] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<string | null>(null);
   const [newRecord, setNewRecord] = useState<Partial<IncomeRecord>>({
     type: 'platform_fee',
     amount: 0,
@@ -137,15 +135,6 @@ export default function IncomeTable() {
     });
     setIsAddingRecord(false);
     toast.success('Income record added successfully');
-  };
-
-  const updateIncomeRecord = (id: string, updates: Partial<IncomeRecord>) => {
-    const updatedRecords = incomeRecords.map(record =>
-      record.id === id ? { ...record, ...updates } : record
-    );
-    saveIncomeRecords(updatedRecords);
-    setEditingRecord(null);
-    toast.success('Income record updated successfully');
   };
 
   const deleteIncomeRecord = (id: string) => {
@@ -411,7 +400,7 @@ export default function IncomeTable() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setEditingRecord(record.id)}
+                        onClick={() => {}}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>

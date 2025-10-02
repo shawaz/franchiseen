@@ -7,7 +7,6 @@ import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 // import { useWallet } from "@solana/wallet-adapter-react";
-import { Transaction } from "@solana/web3.js";
 import { Address } from 'gill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,7 +28,7 @@ import Image from 'next/image';
 // import FranchisePOSWallet from '../FranchisePOSWallet';
 // import { useFranchiseWallet } from '@/hooks/useFranchiseWallet';
 import FranchiseWallet from '../FranchiseWallet';
-import FranchiseStageIndicator, { FranchiseStageProgress } from '../FranchiseStageIndicator';
+import  { FranchiseStageProgress } from '../FranchiseStageIndicator';
 import { useSolana } from '@/components/solana/use-solana';
 import { useWalletUiSigner } from '@/components/solana/use-wallet-ui-signer';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
@@ -72,7 +71,7 @@ const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' 
   }
 };
 
-function FranchiseStoreInner({ franchiseId, franchiserId }: FranchiseStoreProps = {}) {
+function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const [franchise, setFranchise] = useState({
     name: "Loading...",
@@ -256,17 +255,17 @@ function FranchiseStoreInner({ franchiseId, franchiserId }: FranchiseStoreProps 
   }, [isBuySharesOpen, maxSharesToBuy]);
 
   // Get franchise PDA address for payments
-  const getFranchisePDAAddress = async () => {
-    if (!franchiseData?._id) return null;
-    try {
-      const { getFranchisePDA } = await import('@/lib/franchisePDA');
-      const pda = getFranchisePDA(franchiseData?._id);
-      return pda?.pda || null;
-    } catch (error) {
-      console.error('Error getting franchise PDA:', error);
-      return null;
-    }
-  };
+  // const getFranchisePDAAddress = async () => {
+  //   if (!franchiseData?._id) return null;
+  //   try {
+  //     const { getFranchisePDA } = await import('@/lib/franchisePDA');
+  //     const pda = getFranchisePDA(franchiseData?._id);
+  //     return pda?.pda || null;
+  //   } catch (error) {
+  //     console.error('Error getting franchise PDA:', error);
+  //     return null;
+  //   }
+  // };
 
   // Handle Solana payment
   const handleSolanaPayment = async (amountInSOL: number, destinationAddress: string) => {

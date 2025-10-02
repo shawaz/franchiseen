@@ -1,4 +1,3 @@
-import { Keypair, PublicKey } from '@solana/web3.js';
 import { createNewWallet, storeWallet } from './solanaWalletUtils';
 import { getFranchisePDA, isFundingComplete } from './franchisePDA';
 

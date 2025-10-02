@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import { createHash } from 'crypto';
 import { getProgramId, isValidSolanaPublicKey } from './solanaConfig';
 
 // Franchise PDA utilities
@@ -16,17 +15,17 @@ export interface FranchisePDA {
 }
 
 // Create a franchise PDA
-export function createFranchisePDA(
+export async function createFranchisePDA(
   franchiseId: string,
   programId?: string
-): { pda: PublicKey; bump: number } {
+): Promise<{ pda: PublicKey; bump: number }> {
   // Create a seed from franchise ID
   const seed = Buffer.from(franchiseId, 'utf8');
   
   // Get program ID with validation
   let finalProgramId: string;
-  
-  if (programId && isValidSolanaPublicKey(programId)) {
+
+  if (programId && await isValidSolanaPublicKey(programId)) {
     finalProgramId = programId;
   } else {
     // Use system program as fallback (always valid)
@@ -55,13 +54,13 @@ export function createFranchisePDA(
 }
 
 // Generate franchise PDA data
-export function generateFranchisePDA(
+export async function generateFranchisePDA(
   franchiseId: string,
   totalShares: number,
   sharePrice: number,
   programId?: string
-): FranchisePDA {
-  const { pda, bump } = createFranchisePDA(franchiseId, programId);
+): Promise<FranchisePDA> {
+  const { pda, bump } = await createFranchisePDA(franchiseId, programId);
   
   return {
     franchiseId,
@@ -145,14 +144,14 @@ export function getAllFranchisePDAs(): FranchisePDA[] {
 }
 
 // Create franchise PDA with Solana program instruction
-export function createFranchisePDAInstruction(
+export async function createFranchisePDAInstruction(
   franchiseId: string,
   totalShares: number,
   sharePrice: number,
   programId?: string
 ) {
-  const { pda, bump } = createFranchisePDA(franchiseId, programId);
-  const finalProgramId = programId && isValidSolanaPublicKey(programId) 
+  const { pda, bump } = await createFranchisePDA(franchiseId, programId);
+  const finalProgramId = programId && await isValidSolanaPublicKey(programId) 
     ? programId 
     : getProgramId('SYSTEM_PROGRAM');
   
@@ -174,14 +173,14 @@ export function createFranchisePDAInstruction(
 }
 
 // Buy shares instruction for franchise PDA
-export function buySharesInstruction(
+export async function buySharesInstruction(
   franchiseId: string,
   sharesToBuy: number,
   buyerPublicKey: string,
   programId?: string
 ) {
-  const { pda } = createFranchisePDA(franchiseId, programId);
-  const finalProgramId = programId && isValidSolanaPublicKey(programId) 
+  const { pda } = await createFranchisePDA(franchiseId, programId);
+  const finalProgramId = programId && await isValidSolanaPublicKey(programId) 
     ? programId 
     : getProgramId('SYSTEM_PROGRAM');
   

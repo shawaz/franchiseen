@@ -1,6 +1,5 @@
 // UI component types
-import type { FranchiseStage, FranchiseStatus, InvestmentStatus } from "./database";
-import type { FranchiseFundraisingData, InvestmentProgress } from "./investment";
+import type { FranchiseStage } from "./database";
 
 // Tab types for franchise cards
 export type FranchiseTabType = "fund" | "launch" | "live";
@@ -64,6 +63,12 @@ export interface FranchiseDisplayData {
   stage?: FranchiseStage;
   type: FranchiseTabType;
   
+  // Location and timing
+  location?: string;
+  availableFrom?: string;
+  minimumInvestment?: number;
+  yearBuilt?: number;
+  
   // Investment display data
   fundingGoal?: number;
   fundingProgress?: number;
@@ -78,6 +83,7 @@ export interface FranchiseDisplayData {
   currentBalance?: number;
   totalBudget?: number;
   activeOutlets?: number;
+  projectedAnnualYield?: number;
 }
 
 // Wallet component props

@@ -26,7 +26,7 @@ export function useWalletUiSigner() {
             name: 'Fallback Wallet',
             url: 'https://fallback.wallet'
           }
-        } as UiWalletAccount,
+        } as unknown as UiWalletAccount,
         clusterId: 'solana:devnet' as string
       }
     }
@@ -59,7 +59,7 @@ export function useWalletUiSigner() {
       icon: null,
       name: 'No Account',
       standard: 'wallet-standard' as const
-    } as UiWalletAccount
+    } as unknown as UiWalletAccount
     
     return { safeAccount, clusterId }
   }, [account, cluster, hasValidAccount])
@@ -67,7 +67,7 @@ export function useWalletUiSigner() {
   // Always call the hook - React hooks must be called unconditionally
   const rawSigner = useWalletAccountTransactionSendingSigner(
     safeValues.safeAccount, 
-    safeValues.clusterId
+    safeValues.clusterId as `solana:${string}`
   );
 
   // Check if the signer is valid and handle WalletStandardError

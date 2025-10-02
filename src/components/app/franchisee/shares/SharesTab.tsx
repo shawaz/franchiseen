@@ -8,16 +8,6 @@ import { useSolana } from '@/components/solana/use-solana';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
-// Helper function to validate URLs
-const isValidUrl = (url: string): boolean => {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 interface FranchiseShare {
   id: string;
   brandLogo: string;

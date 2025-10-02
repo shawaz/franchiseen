@@ -1,5 +1,5 @@
 // Investment-related types
-import type { Investment, FranchiseShare, Invoice, InvestmentId, FranchiseShareId, InvoiceId } from "./database";
+import type { Investment, FranchiseShare } from "./database";
 
 // Investment data structure
 export interface InvestmentData {

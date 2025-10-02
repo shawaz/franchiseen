@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +48,7 @@ interface BrandWalletData {
 }
 
 export default function BrandWallet() {
-  const [filteredWallets, setFilteredWallets] = useState<BrandWalletData[]>([]);
+  const [filteredWallets] = useState<BrandWalletData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [industryFilter, setIndustryFilter] = useState('all');
@@ -82,38 +82,6 @@ export default function BrandWallet() {
     transactionCount: 0, // Will be fetched from Solana RPC in future
     lastActivity: new Date(franchiser.updatedAt).toISOString(), // Use updatedAt as last activity
   }));
-
-  useEffect(() => {
-    filterWallets();
-  }, [franchisers, searchTerm, statusFilter, industryFilter]);
-
-  const filterWallets = () => {
-    let filtered = walletsWithBalance;
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(wallet => 
-        wallet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.brandWalletAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.ownerWalletAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getIndustryName(wallet.industry).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getCategoryName(wallet.category).toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(wallet => wallet.status === statusFilter);
-    }
-
-    // Filter by industry
-    if (industryFilter !== 'all') {
-      filtered = filtered.filter(wallet => getIndustryName(wallet.industry) === industryFilter);
-    }
-
-    setFilteredWallets(filtered);
-  };
 
   const refreshData = async () => {
     setIsRefreshing(true);

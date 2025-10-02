@@ -99,7 +99,6 @@ export function FranchiseStageProgress({ currentStage, className = '' }: { curre
           const Icon = stage.icon;
           const isCompleted = index < currentIndex;
           const isCurrent = index === currentIndex;
-          const isUpcoming = index > currentIndex;
 
           return (
             <div key={stage.key} className="flex items-center">

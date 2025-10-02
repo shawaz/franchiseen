@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, XCircle, MapPin, Clock, AlertCircle, AlertCircleIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, AlertCircle, AlertCircleIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';

@@ -5,11 +5,8 @@ import type {
   Investment, 
   FranchiseLocation, 
   FranchiseProduct,
-  FranchiseId,
   FranchiserId,
-  InvestmentId,
   FranchiseLocationId,
-  FranchiseProductId
 } from "./database";
 import type { InvestmentData, InvestmentProgress } from "./investment";
 

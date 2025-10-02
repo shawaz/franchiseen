@@ -67,7 +67,7 @@ const libraries: ("places")[] = ["places"];
 
 const PropertyMapComponent: React.FC<PropertyMapComponentProps> = ({ properties }) => {
   const [selectedProperty, setSelectedProperty] = React.useState<Property | null>(null);
-  const [_, setMap] = React.useState<google.maps.Map | null>(null);
+  const [map, setMap] = React.useState<google.maps.Map | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',

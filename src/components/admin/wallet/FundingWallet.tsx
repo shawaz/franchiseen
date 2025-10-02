@@ -5,11 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   TrendingUp, 
   Search, 
-  Filter, 
   Download, 
   Eye, 
   MoreHorizontal,
@@ -64,8 +62,7 @@ export default function FundingWallet() {
   // Fetch real data from Convex
   const franchises = useQuery(api.franchiseManagement.getFranchises, { limit: 100 }) || [];
   const investments = useQuery(api.investments.getAllInvestments) || [];
-  const franchisers = useQuery(api.franchises.getAllFranchisers) || [];
-  const loading = franchises === undefined || investments === undefined || franchisers === undefined;
+  const loading = franchises === undefined || investments === undefined;
 
   // Get industry and category names
   const { industries, categories } = useMasterData();
@@ -93,9 +90,6 @@ export default function FundingWallet() {
     const franchiseInvestments = investments.filter((inv) => inv.franchiseId === franchise._id);
     const totalInvested = franchiseInvestments.reduce((sum, inv) => sum + (inv.totalInvestment || 0), 0);
     const totalSharesPurchased = franchiseInvestments.reduce((sum, inv) => sum + (inv.sharesIssued || 0), 0);
-    
-    // Get investment details from the franchise
-    const investment = franchise.investment || {};
     
     // Calculate funding status
     let status: 'funding' | 'completed' | 'failed' | 'paused' = 'funding';
@@ -136,7 +130,7 @@ export default function FundingWallet() {
 
   useEffect(() => {
     filterPdas();
-  }, [franchises, investments, franchisers, searchTerm, statusFilter, industryFilter, industries, categories]);
+  }, [franchises, investments, searchTerm, statusFilter, industryFilter, industries, categories]);
 
   const refreshData = async () => {
     try {

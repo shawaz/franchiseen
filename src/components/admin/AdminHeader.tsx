@@ -192,7 +192,6 @@ function AdminHeader() {
               {/* Desktop Navigation Menu */}
             <div className="hidden md:flex items-center space-x-1">
               {navigationItems.map((item) => {
-                const Icon = item.icon;
                 return (
                   <DropdownMenu key={item.name}>
                     <DropdownMenuTrigger asChild>

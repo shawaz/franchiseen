@@ -198,7 +198,7 @@ const FranchiseWallet: React.FC<WalletProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-4 gap-2">
+          {/* <div className="grid grid-cols-4 gap-2">
             <button
               onClick={handleRefresh}
               className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex items-center justify-center gap-1 "
@@ -232,7 +232,7 @@ const FranchiseWallet: React.FC<WalletProps> = ({
             >
               <span className="text-xs font-medium">DEBUG</span>
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

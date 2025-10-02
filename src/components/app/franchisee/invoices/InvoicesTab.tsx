@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { FileText, Search, Download, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { Card } from '@/components/ui/card';
 import Image from 'next/image';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
@@ -9,14 +8,14 @@ import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
 // Helper function to validate URLs
-const isValidUrl = (url: string): boolean => {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
+// const isValidUrl = (url: string): boolean => {
+//   try {
+//     new URL(url);
+//     return true;
+//   } catch {
+//     return false;
+//   }
+// };
 
 interface Invoice {
   id: string;
@@ -146,11 +145,6 @@ export default function InvoicesTab() {
       </div>
     );
   };
-
-  // Calculate totals
-  const totalSpent = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
-  const totalFees = invoices.reduce((sum, invoice) => sum + invoice.platformFee, 0);
-  const totalShares = invoices.reduce((sum, invoice) => sum + (invoice.type === 'purchase' ? invoice.shares : 0), 0);
 
   // Show loading state
   if (invoicesData === undefined) {

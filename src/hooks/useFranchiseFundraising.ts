@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useFranchiseWallet } from './useFranchiseWallet';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from '../../convex/_generated/dataModel';
 
 interface FranchiseFundraisingData {
   totalInvestment: number;
@@ -19,13 +19,11 @@ interface FranchiseFundraisingData {
 
 interface UseFranchiseFundraisingProps {
   franchiseId?: string; // Can be either franchise slug or Convex document ID
-  franchiserId?: string;
   initialData?: Partial<FranchiseFundraisingData>;
 }
 
 export function useFranchiseFundraising({ 
   franchiseId, 
-  franchiserId, 
   initialData 
 }: UseFranchiseFundraisingProps = {}) {
   
@@ -40,16 +38,18 @@ export function useFranchiseFundraising({
     isConvexId 
       ? api.franchiseManagement.getFranchiseFundraisingDataById
       : api.franchiseManagement.getFranchiseFundraisingData,
-    franchiseId 
-      ? (isConvexId 
-          ? { franchiseId: franchiseId as string }
-          : { franchiseSlug: franchiseId }
+    franchiseId
+      ? (
+          isConvexId
+            // Convex expects franchiseId to be of type Id<"franchises">, not string
+            // So we cast to unknown first, then to Id<"franchises">
+            ? { franchiseId: franchiseId as unknown as Id<"franchises"> }
+            : { franchiseSlug: franchiseId }
         )
       : "skip"
   );
   
   console.log('useFranchiseFundraising - convexFundraisingData:', convexFundraisingData);
-  
   const [fundraisingData, setFundraisingData] = useState<FranchiseFundraisingData>({
     totalInvestment: 0,
     invested: 0,
@@ -69,16 +69,9 @@ export function useFranchiseFundraising({
   
   // Use ref to store initial data to avoid circular dependency
   const initialDataRef = useRef(initialData);
-  
-  // Use ref to store the latest loadFundraisingData function
-  const loadFundraisingDataRef = useRef<() => Promise<void>>();
 
-  // Get wallet data for balance
-  const { wallet } = useFranchiseWallet({
-    franchiseId,
-    franchiserId,
-    useDeterministic: true
-  });
+  // Use ref to store the latest loadFundraisingData function
+  const loadFundraisingDataRef = useRef<() => Promise<void>>(undefined);
 
   // Purchase shares mutation
   const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
@@ -104,7 +97,7 @@ export function useFranchiseFundraising({
         setupCost: convexFundraisingData.setupCost,
         workingCapital: convexFundraisingData.workingCapital,
         progressPercentage: convexFundraisingData.progressPercentage,
-        stage: convexFundraisingData.stage as 'funding' | 'launching' | 'live'
+        stage: convexFundraisingData.stage as 'funding' | 'launching' | 'ongoing' | 'closed'
       });
     }
   }, [convexFundraisingData, franchiseId]);
@@ -191,7 +184,7 @@ export function useFranchiseFundraising({
     try {
       // Record the purchase in Convex using franchise ID
       await purchaseShares({
-        franchiseId: franchiseId as string,
+        franchiseId: franchiseId as Id<"franchises">,
         investorId,
         sharesPurchased,
         sharePrice,

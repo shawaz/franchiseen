@@ -6,9 +6,6 @@ import React from 'react'
 import { ClusterUiChecker } from '@/features/cluster/ui/cluster-ui-checker'
 
 import { AccountUiChecker } from '@/features/account/ui/account-ui-checker'
-import Header from '../app/Header'
-import FooterMobile from '../app/FooterMobile'
-import Footer from '../app/Footer'
 
 export function AppLayout({
   children,

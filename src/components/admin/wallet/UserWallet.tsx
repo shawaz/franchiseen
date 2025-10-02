@@ -5,11 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
-  Users, 
   Search, 
-  Filter, 
   Download, 
   Eye, 
   MoreHorizontal,
@@ -19,7 +16,7 @@ import {
   Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DropdownMenuContent, DropdownMenu, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenuContent, DropdownMenu, DropdownMenuTrigger, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 interface UserWallet {
   id: string;

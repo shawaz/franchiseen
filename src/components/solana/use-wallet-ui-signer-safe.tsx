@@ -46,25 +46,32 @@ export function useWalletUiSignerSafe() {
 
   // Call the hook with error boundary
   let rawSigner: { signAndSendTransactions: (...args: unknown[]) => Promise<unknown> } | null = null;
-  const signerError: Error | null = null;
 
-  // Use a custom hook that wraps the original with error handling
-  const useWalletAccountTransactionSendingSignerSafe = () => {
-    try {
-      if (!safeValues.safeAccount) {
-        return null;
+  // Fix: Ensure clusterId is a string in the format `solana:${string}`
+  const clusterId =
+    typeof safeValues.clusterId === 'string' && safeValues.clusterId.startsWith('solana:')
+      ? safeValues.clusterId
+      : `solana:${safeValues.clusterId}`;
+
+  // Always call the hook unconditionally
+  const signerResult = useWalletAccountTransactionSendingSigner(
+    safeValues.safeAccount || {
+      address: '11111111111111111111111111111111' as string,
+      publicKey: null,
+      chains: ['solana:devnet'],
+      features: ['solana:signAndSendTransaction'],
+      label: 'Fallback Account',
+      icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iI0Y5RkFGQiIvPgo8cGF0aCBkPSJNOCAxMkgxNlYyMEg4VjEyWiIgZmlsbD0iIzk0QTNBRiIvPgo8L3N2Zz4K',
+      appMetadata: {
+        name: 'Fallback Wallet',
+        url: 'https://fallback.wallet'
       }
-      return useWalletAccountTransactionSendingSigner(
-        safeValues.safeAccount, 
-        safeValues.clusterId
-      );
-    } catch (error) {
-      console.warn('WalletStandardError caught in useWalletAccountTransactionSendingSigner:', error);
-      return null;
-    }
-  };
+    } as unknown as UiWalletAccount,
+    clusterId as `solana:${string}`
+  );
 
-  rawSigner = useWalletAccountTransactionSendingSignerSafe();
+  // Assign the result to rawSigner
+  rawSigner = signerResult as unknown as { signAndSendTransactions: (...args: unknown[]) => Promise<unknown> } | null;
 
   // Check if the signer is valid and handle WalletStandardError
   const signer = useMemo(() => {

@@ -71,7 +71,7 @@ function WalletSignerInner({ children }: Props) {
             name: 'Fallback Wallet',
             url: 'https://fallback.wallet'
           }
-        } as UiWalletAccount,
+        } as unknown as UiWalletAccount,
         clusterId: 'solana:devnet' as string
       }
     }
@@ -84,8 +84,19 @@ function WalletSignerInner({ children }: Props) {
 
   // Call the hook
   const rawSigner = useWalletAccountTransactionSendingSigner(
-    safeValues.safeAccount, 
-    safeValues.clusterId
+    safeValues.safeAccount || {
+      address: '11111111111111111111111111111111' as string,
+      publicKey: null,
+      chains: ['solana:devnet'],
+      features: ['solana:signAndSendTransaction'],
+      label: 'Fallback Account',
+      icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iI0Y5RkFGQiIvPgo8cGF0aCBkPSJNOCAxMkgxNlYyMEg4VjEyWiIgZmlsbD0iIzk0QTNBRiIvPgo8L3N2Zz4K',
+      appMetadata: {
+        name: 'Fallback Wallet',
+        url: 'https://fallback.wallet'
+      }
+    } as unknown as UiWalletAccount,
+    safeValues.clusterId as `solana:${string}`
   );
 
   // Check if the signer is valid
@@ -145,6 +156,10 @@ function WalletSignerInner({ children }: Props) {
         console.warn('Wallet signer unavailable - transactions not actually signed', errorMessage)
         return txs
       },
+      signAndSendTransactions: async (...args: unknown[]) => {
+        console.warn('Wallet signer unavailable - transactions not actually signed', errorMessage)
+        return args
+      },
       // Add error property for debugging
       error: hookError,
       isMock: true
@@ -153,7 +168,14 @@ function WalletSignerInner({ children }: Props) {
     return <>{children(mockSigner, hookError, false)}</>;
   }
 
-  return <>{children(signer, null, false)}</>;
+  // Wrap the real signer to match the expected interface
+  const wrappedSigner = {
+    signAndSendTransactions: (...args: unknown[]) => {
+      return signer.signAndSendTransactions(args[0] as Parameters<typeof signer.signAndSendTransactions>[0], args[1] as Parameters<typeof signer.signAndSendTransactions>[1]);
+    }
+  };
+
+  return <>{children(wrappedSigner, null, false)}</>;
 }
 
 export default WalletSignerWrapper;

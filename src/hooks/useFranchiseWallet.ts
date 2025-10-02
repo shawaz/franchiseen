@@ -35,7 +35,7 @@ export function useFranchiseWallet({
   const [error, setError] = useState<string | null>(null);
   
   // Use ref to store the latest initializeWallet function
-  const initializeWalletRef = useRef<() => Promise<void>>();
+  const initializeWalletRef = useRef<(() => Promise<void>) | null>(null);
 
   // Create or retrieve wallet
   const initializeWallet = useCallback(async () => {

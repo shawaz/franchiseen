@@ -32,7 +32,6 @@ const AI_PAGE = () => {
 
   // Mutations
   const sendMessage = useMutation(api.aiChat.sendMessage);
-  const clearChat = useMutation(api.aiChat.clearChatHistory);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

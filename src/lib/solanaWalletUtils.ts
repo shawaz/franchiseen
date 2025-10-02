@@ -1,4 +1,4 @@
-import { Keypair, PublicKey, Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Keypair, PublicKey, Connection, LAMPORTS_PER_SOL, Transaction, SystemProgram } from '@solana/web3.js';
 import { clusterApiUrl } from '@solana/web3.js';
 
 // Create a new Solana wallet without seedphrase
@@ -50,14 +50,17 @@ export async function transferSOL(
   try {
     const connection = new Connection(clusterApiUrl(network), 'confirmed');
     
-    const transaction = await connection.transfer(
-      fromKeypair.publicKey,
-      new PublicKey(toPublicKey),
-      amount * LAMPORTS_PER_SOL
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: fromKeypair.publicKey,
+        toPubkey: new PublicKey(toPublicKey),
+        lamports: amount * LAMPORTS_PER_SOL,
+      })
     );
     
-    await connection.confirmTransaction(transaction, 'confirmed');
-    return transaction;
+    const signature = await connection.sendTransaction(transaction, [fromKeypair]);
+    await connection.confirmTransaction(signature, 'confirmed');
+    return signature;
   } catch (error) {
     console.error('Error transferring SOL:', error);
     return null;

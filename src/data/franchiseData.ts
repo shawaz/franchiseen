@@ -5,6 +5,8 @@ export const fundingFranchises: Franchise[] = [
     _id: "funding-1",
     logo: "/logo/logo-1.svg",
     title: "Codelude",
+    industry: "Technology",
+    category: "Software Development",
     location: "Downtown, Dubai, UAE",
     price: 15000,
     images: ["/franchise/retail-1.png"],
@@ -19,6 +21,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-2",
+    industry: "Technology",
+    category: "Software Development",
     logo: "/logo/logo-2.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -35,6 +39,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-3",
+    industry: "Food & Beverage",
+    category: "Restaurant",
     logo: "/logo/logo-3.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -51,6 +57,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-4",
+    industry: "Retail",
+    category: "Fashion",
     logo: "/logo/logo-4.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -67,6 +75,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-5",
+    industry: "Health & Fitness",
+    category: "Gym",
     logo: "/logo/logo-5.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -83,6 +93,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-6",
+    industry: "Education",
+    category: "Training Center",
     logo: "/logo/logo-6.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -99,6 +111,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-7",
+    industry: "Beauty & Wellness",
+    category: "Spa",
     logo: "/logo/logo-7.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -115,6 +129,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-8",
+    industry: "Automotive",
+    category: "Service Center",
     logo: "/logo/logo-8.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -131,6 +147,8 @@ export const fundingFranchises: Franchise[] = [
   },
   {
     _id: "funding-9",
+    industry: "Home Services",
+    category: "Cleaning Services",
     logo: "/logo/logo-9.svg",
     title: "Codelude",
     location: "Downtown, Dubai, UAE",
@@ -154,6 +172,8 @@ export const launchingFranchises: Franchise[] = [
     _id: "launching-1",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
+    industry: "Real Estate",
+    category: "Luxury Properties",
     location: "DIFC",
     price: 520000,
     images: ["/franchise/retail-1.png"],
@@ -166,6 +186,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-2",
+    industry: "Real Estate",
+    category: "Luxury Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -180,6 +202,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-3",
+    industry: "Real Estate",
+    category: "Commercial Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -194,6 +218,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-4",
+    industry: "Real Estate",
+    category: "Residential Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -208,6 +234,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-5",
+    industry: "Real Estate",
+    category: "Mixed Use Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -222,6 +250,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-6",
+    industry: "Real Estate",
+    category: "Office Buildings",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -236,6 +266,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-7",
+    industry: "Real Estate",
+    category: "Retail Spaces",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -250,6 +282,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-8",
+    industry: "Real Estate",
+    category: "Warehouse Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -264,6 +298,8 @@ export const launchingFranchises: Franchise[] = [
   },
   {
     _id: "launching-9",
+    industry: "Real Estate",
+    category: "Hospitality Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Penthouse Franchise",
     location: "DIFC",
@@ -282,6 +318,8 @@ export const launchingFranchises: Franchise[] = [
 export const outletsFranchises: Franchise[] = [
   {
     _id: "outlets-1",
+    industry: "Hospitality",
+    category: "Luxury Hotels",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -295,6 +333,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-2",
+    industry: "Hospitality",
+    category: "Business Hotels",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -308,6 +348,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-3",
+    industry: "Hospitality",
+    category: "Resort Properties",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -321,6 +363,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-4",
+    industry: "Hospitality",
+    category: "Boutique Hotels",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -334,6 +378,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-5",
+    industry: "Hospitality",
+    category: "Extended Stay Hotels",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -347,6 +393,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-6",
+    industry: "Hospitality",
+    category: "Budget Hotels",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -360,6 +408,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-7",
+    industry: "Hospitality",
+    category: "Serviced Apartments",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -373,6 +423,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-8",
+    industry: "Hospitality",
+    category: "Vacation Rentals",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",
@@ -386,6 +438,8 @@ export const outletsFranchises: Franchise[] = [
   },
   {
     _id: "outlets-9",
+    industry: "Hospitality",
+    category: "Conference Centers",
     logo: "/logo/logo-4.svg",
     title: "Luxury Hotel Suites Franchise",
     location: "Downtown Dubai",

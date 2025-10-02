@@ -97,10 +97,9 @@ export function isValidSolanaAddress(address: string): boolean {
 /**
  * Encrypt wallet data for secure storage
  * @param wallet The wallet to encrypt
- * @param password The encryption password
  * @returns Encrypted wallet data
  */
-export function encryptCompanyWallet(wallet: CompanyWallet, password: string): string {
+export function encryptCompanyWallet(wallet: CompanyWallet): string {
   // In a production environment, use a proper encryption library like crypto-js
   // For now, we'll use a simple base64 encoding (NOT SECURE for production)
   const walletData = {
@@ -117,10 +116,9 @@ export function encryptCompanyWallet(wallet: CompanyWallet, password: string): s
 /**
  * Decrypt wallet data
  * @param encryptedData The encrypted wallet data
- * @param password The decryption password
  * @returns Decrypted wallet data
  */
-export function decryptCompanyWallet(encryptedData: string, password: string): Partial<CompanyWallet> {
+export function decryptCompanyWallet(encryptedData: string): Partial<CompanyWallet> {
   try {
     // In a production environment, use proper decryption
     const decryptedData = JSON.parse(atob(encryptedData));
@@ -141,7 +139,7 @@ export async function generateAndStoreCompanyWallet(config: CompanyWalletConfig 
   
   // Store wallet in localStorage (in production, use secure storage)
   try {
-    const encryptedWallet = encryptCompanyWallet(wallet, 'company-wallet-password');
+    const encryptedWallet = encryptCompanyWallet(wallet);
     localStorage.setItem('company-wallet', encryptedWallet);
     console.log('Company wallet generated and stored successfully');
   } catch (error) {
@@ -163,7 +161,7 @@ export function getStoredCompanyWallet(): Partial<CompanyWallet> | null {
       return null;
     }
     
-    return decryptCompanyWallet(storedWallet, 'company-wallet-password');
+    return decryptCompanyWallet(storedWallet);
   } catch (error) {
     console.error('Error retrieving stored company wallet:', error);
     return null;
