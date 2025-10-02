@@ -162,6 +162,22 @@ export const getAllCategories = query({
   },
 });
 
+export const getCategoryById = query({
+  args: { categoryId: v.id("categories") },
+  handler: async (ctx, { categoryId }) => {
+    return await ctx.db.get(categoryId);
+  },
+});
+
+export const getCategoriesByIds = query({
+  args: { categoryIds: v.array(v.id("categories")) },
+  handler: async (ctx, { categoryIds }) => {
+    return await Promise.all(
+      categoryIds.map(id => ctx.db.get(id))
+    );
+  },
+});
+
 // ===== PRODUCT CATEGORIES =====
 
 export const createProductCategory = mutation({

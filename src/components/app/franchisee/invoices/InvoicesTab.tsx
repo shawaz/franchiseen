@@ -1,7 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileText, Search, Download, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import Image from 'next/image';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../../convex/_generated/api';
+import { useSolana } from '@/components/solana/use-solana';
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import { Id } from '../../../../../convex/_generated/dataModel';
+
+// Helper function to validate URLs
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 interface Invoice {
   id: string;
@@ -21,61 +36,74 @@ interface Invoice {
   transactionHash?: string;
 }
 
+// Franchise Logo Component
+const FranchiseLogo: React.FC<{ franchise: { name: string; brandLogo: string } }> = ({ franchise }) => {
+  const logoUrl = useConvexImageUrl(franchise.brandLogo as Id<"_storage">);
+  
+  return (
+    <div className="h-10 w-10 rounded-md">
+      {logoUrl ? (
+        <Image
+          src={logoUrl}
+          alt={franchise.name}
+          width={40}
+          height={40}
+          className="h-10 w-10 rounded-md object-contain"
+          unoptimized
+        />
+      ) : (
+        <div className="h-10 w-10 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center">
+          <FileText className="h-5 w-5 text-stone-400" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function InvoicesTab() {
-  // Mock data - in a real app, this would come from an API
-  const invoices: Invoice[] = [
-    {
-      id: 'INV-2024-001',
-      date: '2024-09-15',
-      type: 'purchase',
+  const { account } = useSolana();
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Get invoices data from Convex
+  const invoicesData = useQuery(api.franchiseManagement.getInvoicesByInvestor, { 
+    investorId: account?.address || 'no-wallet' // Use actual wallet address
+  });
+
+  // Transform the data for display
+  const allInvoices: Invoice[] = invoicesData?.map((invoice) => {
+    const sharesItem = invoice.items.find(item => item.description.includes('shares'));
+    const shares = sharesItem?.quantity || 0;
+    const pricePerShare = sharesItem ? sharesItem.unitPrice : 0;
+    const subtotal = shares * pricePerShare;
+    const platformFee = invoice.items.find(item => item.description.includes('Service fee'))?.total || 0;
+    
+    return {
+      id: invoice.invoiceNumber,
+      date: new Date(invoice.createdAt).toISOString().split('T')[0],
+      type: 'purchase' as const,
       franchise: {
-        id: '1',
-        name: 'Hubcv - 01',
-        brandLogo: '/logo/logo-4.svg',
+        id: invoice.franchise?._id || 'unknown',
+        name: invoice.franchise?.businessName || 'Unknown Franchise',
+        brandLogo: invoice.franchise?.franchiser?.logoUrl || '/logo/logo-4.svg',
       },
-      shares: 100,
-      pricePerShare: 10,
-      subtotal: 1000,
-      platformFee: 50, // 5% platform fee
-      total: 1050,
-      status: 'paid',
-      transactionHash: '0x123...456',
-    },
-    {
-      id: 'INV-2024-002',
-      date: '2024-09-10',
-      type: 'purchase',
-      franchise: {
-        id: '2',
-        name: 'Hubcv - 02',
-        brandLogo: '/logo/logo-4.svg',
-      },
-      shares: 50,
-      pricePerShare: 15,
-      subtotal: 750,
-      platformFee: 37.5, // 5% platform fee
-      total: 787.5,
-      status: 'paid',
-      transactionHash: '0x789...012',
-    },
-    {
-      id: 'INV-2024-003',
-      date: '2024-09-05',
-      type: 'transfer',
-      franchise: {
-        id: '1',
-        name: 'Hubcv - 01',
-        brandLogo: '/logo/logo-4.svg',
-      },
-      shares: 20,
-      pricePerShare: 10,
-      subtotal: 200,
-      platformFee: 10, // 5% platform fee for transfers
-      total: 210,
-      status: 'paid',
-      transactionHash: '0x345...678',
-    },
-  ];
+      shares,
+      pricePerShare,
+      subtotal,
+      platformFee,
+      total: invoice.amount,
+      status: invoice.status === 'paid' ? 'paid' : 
+              invoice.status === 'sent' ? 'pending' : 'failed',
+      transactionHash: invoice.transactionHash,
+    };
+  }) || [];
+
+  // Filter invoices based on search query
+  const invoices = allInvoices.filter(invoice => 
+    invoice.franchise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (invoice.transactionHash && invoice.transactionHash.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
@@ -124,6 +152,34 @@ export default function InvoicesTab() {
   const totalFees = invoices.reduce((sum, invoice) => sum + invoice.platformFee, 0);
   const totalShares = invoices.reduce((sum, invoice) => sum + (invoice.type === 'purchase' ? invoice.shares : 0), 0);
 
+  // Show loading state
+  if (invoicesData === undefined) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-bold text-stone-900 dark:text-white">INVOICES</h3>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show no wallet connected state
+  if (!account?.address) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-bold text-stone-900 dark:text-white">INVOICES</h3>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-gray-500">Please connect your wallet to view your invoices</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header and Search */}
@@ -134,13 +190,15 @@ export default function InvoicesTab() {
           <input
             type="text"
             placeholder="Search invoices..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-600 text-sm focus:ring-amber-500 focus:border-amber-500 dark:bg-stone-800 dark:text-white"
           />
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
           <p className="text-sm text-stone-600 dark:text-stone-300">Total Spent</p>
           <p className="text-2xl font-bold">${totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
@@ -156,12 +214,23 @@ export default function InvoicesTab() {
           <p className="text-2xl font-bold">{totalShares.toLocaleString()}</p>
           <p className="text-xs text-stone-500 dark:text-stone-400">Across all franchises</p>
         </Card>
-      </div>
+      </div> */}
 
       {/* Invoices Table */}
-      <div className="border border-stone-200 dark:border-stone-700 overflow-hidden rounded-lg">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
+      {invoices.length === 0 ? (
+        <div className="text-center py-8">
+          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">
+            {searchQuery ? 'No invoices found matching your search' : 'No invoices found'}
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            {searchQuery ? 'Try adjusting your search terms' : 'Your invoice history will appear here'}
+          </p>
+        </div>
+      ) : (
+        <div className="border border-stone-200 dark:border-stone-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
             <thead className="bg-stone-50 dark:bg-stone-800">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-stone-500 dark:text-stone-300 uppercase tracking-wider">
@@ -213,13 +282,7 @@ export default function InvoicesTab() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <Image
-                          className="h-10 w-10 rounded-md" 
-                          src={invoice.franchise.brandLogo} 
-                          alt={invoice.franchise.name} 
-                          width={40}
-                          height={40}
-                        />
+                        <FranchiseLogo franchise={invoice.franchise} />
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-stone-900 dark:text-white">
@@ -305,7 +368,8 @@ export default function InvoicesTab() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

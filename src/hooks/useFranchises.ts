@@ -39,6 +39,22 @@ export function useSearchFranchises(searchTerm: string) {
   return useQuery(api.franchises.searchFranchisers, { searchTerm });
 }
 
+// Get franchises with stage data
+export function useFranchisesWithStages() {
+  return useQuery(api.franchiseManagement.getFranchises, { limit: 50 });
+}
+
+export function useFranchisesByStage(stage: "funding" | "launching" | "ongoing" | "closed") {
+  return useQuery(api.franchiseManagement.getFranchisesByStage, { stage, limit: 50 });
+}
+
+// Get fundraising data for a specific franchise
+export function useFranchiseFundraisingData(franchiseSlug: string) {
+  return useQuery(api.franchiseManagement.getFranchiseFundraisingData, 
+    franchiseSlug ? { franchiseSlug } : "skip"
+  );
+}
+
 // Mutations
 export function useCreateFranchiser() {
   return useMutation(api.franchises.createFranchiser);

@@ -15,9 +15,10 @@ import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
 import { useCreateFranchiserWithDetails } from '@/hooks/useFranchises';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { useSolana } from '@/components/solana/use-solana';
 import { PlacesAutocomplete } from '@/components/ui/places-autocomplete';
 import { useMasterData } from '@/hooks/useMasterData';
+import { generateBrandWallet } from '@/lib/brandWalletUtils';
+import { useWalletUi } from '@wallet-ui/react';
 
 // Country code mapping for Google Places API
 const COUNTRY_CODE_MAP: Record<string, string> = {
@@ -202,9 +203,9 @@ type FormData = {
 
 const FranchiserRegister: React.FC = () => {
   const router = useRouter();
+  const { account } = useWalletUi();
   const createFranchiserWithDetails = useCreateFranchiserWithDetails();
   const { uploadFile, uploadMultipleFiles } = useFileUpload();
-  const { account } = useSolana();
   
   // Load master data from Convex
   const { industries, categories, productCategories, isLoading: masterDataLoading } = useMasterData();
@@ -701,8 +702,41 @@ const FranchiserRegister: React.FC = () => {
     }
   };
 
+  // Function to generate brand wallet and get owner wallet
+  const generateWalletForBrand = async () => {
+    try {
+      // Check if user has connected wallet
+      if (!account?.address) {
+        throw new Error('Please connect your wallet to register a brand');
+      }
+
+      // Generate a separate wallet for the brand (for brand operations)
+      const brandWallet = generateBrandWallet();
+      
+      // Use the connected user's wallet as the brand owner
+      const ownerWalletAddress = account.address;
+      
+      // For security, we should encrypt the secret key before storing
+      // For now, we'll store it as-is (in production, use proper encryption)
+      const encryptedSecretKey = brandWallet.secretKey; // TODO: Implement proper encryption
+      
+      return {
+        ownerWalletAddress, // User's wallet (who owns/manages the brand)
+        brandWalletAddress: brandWallet.publicKey, // Brand's wallet (for operations)
+        secretKey: brandWallet.secretKey,
+        encryptedSecretKey,
+      };
+    } catch (error) {
+      console.error('Error generating brand wallet:', error);
+      throw new Error('Failed to generate brand wallet');
+    }
+  };
+
   // Function to prepare form data for submission
   const prepareFormData = async () => {
+    // Generate brand wallet automatically
+    const brandWallet = await generateWalletForBrand();
+    
     // Upload logo with brand URL as filename
     const logoStorageId = formData.logoFile ? await uploadFileToConvex(formData.logoFile) : undefined;
     
@@ -761,7 +795,9 @@ const FranchiserRegister: React.FC = () => {
 
     return {
       franchiser: {
-        walletAddress: account?.address || '', // Use actual wallet address
+        ownerWalletAddress: brandWallet.ownerWalletAddress, // User's wallet (brand owner)
+        brandWalletAddress: brandWallet.brandWalletAddress, // Generated brand wallet address
+        brandWalletSecretKey: brandWallet.encryptedSecretKey, // Store encrypted secret key
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         logoUrl: logoStorageId as any, // Cast to match Convex ID type
         name: formData.brandName,
@@ -855,7 +891,7 @@ const FranchiserRegister: React.FC = () => {
             {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex flex-col items-center">
                 <div 
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  className={`w-10 h-10 flex items-center justify-center ${
                     currentStep >= step 
                       ? 'bg-yellow-600 dark:bg-yellow-800 text-white' 
                       : 'bg-stone-200 dark:bg-stone-800 dark:text-stone-200 text-stone-600'
@@ -863,6 +899,12 @@ const FranchiserRegister: React.FC = () => {
                 >
                   {step}
                 </div>
+                {/* <div className="text-xs mt-1 text-center">
+                  {step === 1 && 'Basic Info'}
+                  {step === 2 && 'Financial'}
+                  {step === 3 && 'Locations'}
+                  {step === 4 && 'Products'}
+                </div> */}
               </div>
             ))}
           </div>
@@ -2376,6 +2418,7 @@ const FranchiserRegister: React.FC = () => {
               </div>
             </div>
           )}
+
         </div>
 
         {/* Navigation Buttons */}
@@ -2404,7 +2447,7 @@ const FranchiserRegister: React.FC = () => {
               <Button
                 onClick={async () => {
                   try {
-                  setLoading(true);
+                    setLoading(true);
                     
                     // Validate required fields
                     if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 

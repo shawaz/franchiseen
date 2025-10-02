@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { ArrowUpDown, Copy, MoveDownLeft, MoveUpRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFranchiseWallet } from '@/hooks/useFranchiseWallet';
+import { getStoredWallet } from '@/lib/solanaWalletUtils';
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 
 interface WalletProps {
   onAddMoney?: () => void;
@@ -12,23 +17,67 @@ interface WalletProps {
     name?: string;
     logoUrl?: string;
   };
+  franchiseId?: string;
 }
 
 // Demo data
-const DEMO_BALANCE = 12.75;
-const DEMO_WALLET = 'HjZ5j...8Xy9z';
 const DEMO_RATE = 150.50; // SOL to USD rate
 
 const FranchiseWallet: React.FC<WalletProps> = ({
   onAddMoney,
   className = '',
   business = {
-    name: 'Citymilana - 01',
+    name: 'Loading...',
     logoUrl: '/avatar/avatar-m-5.png'
   },
+  franchiseId,
 }) => {
-  const [balance] = useState<number>(DEMO_BALANCE);
-  const [loading] = useState<boolean>(false);
+  const [walletAddress, setWalletAddress] = useState<string>('HjZ5j...8Xy9z');
+  const [balance, setBalance] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [franchiseInfo, setFranchiseInfo] = useState(business);
+
+  // Load franchise data from Convex
+  const franchiseData = useQuery(
+    api.franchiseManagement.getFranchiseBySlug,
+    franchiseId ? { franchiseSlug: franchiseId } : "skip"
+  );
+
+  // Get proper image URL using Convex hook
+  const logoUrl = useConvexImageUrl(franchiseData?.franchiser?.logoUrl);
+
+  // Use franchise wallet hook if franchiseId is provided
+  const { wallet, refreshBalance, requestAirdropToWallet } = useFranchiseWallet({
+    franchiseId,
+    useDeterministic: true
+  });
+
+  // Update franchise info when data loads
+  useEffect(() => {
+    if (franchiseData) {
+      setFranchiseInfo({
+        name: franchiseData.franchiseSlug || "Unknown Franchise",
+        logoUrl: logoUrl || "/avatar/avatar-m-5.png"
+      });
+    }
+  }, [franchiseData, logoUrl]);
+
+  // Update local state when wallet data changes
+  useEffect(() => {
+    if (wallet) {
+      setWalletAddress(wallet.publicKey);
+      setBalance(wallet.balance);
+      setLoading(wallet.isLoading);
+    } else if (franchiseId) {
+      // Try to get stored wallet
+      const storedWallet = getStoredWallet(franchiseId);
+      if (storedWallet) {
+        setWalletAddress(storedWallet.publicKey);
+        // Fetch balance for stored wallet
+        refreshBalance();
+      }
+    }
+  }, [wallet, franchiseId, refreshBalance]);
   
   const formatSol = (value: number) => {
     return value.toFixed(2) + ' SOL';
@@ -39,7 +88,7 @@ const FranchiseWallet: React.FC<WalletProps> = ({
   };
 
   const copyWalletAddress = () => {
-    navigator.clipboard.writeText(DEMO_WALLET);
+    navigator.clipboard.writeText(walletAddress);
     toast.success('Wallet address copied to clipboard!');
   };
 
@@ -48,7 +97,31 @@ const FranchiseWallet: React.FC<WalletProps> = ({
   };
 
   const handleRefresh = () => {
-    toast.success('Balance refreshed!');
+    if (franchiseId) {
+      refreshBalance();
+    } else {
+      toast.success('Balance refreshed!');
+    }
+  };
+
+  const handleAirdrop = () => {
+    if (franchiseId) {
+      requestAirdropToWallet(1);
+    } else {
+      toast.info('Airdrop only available for franchise wallets');
+    }
+  };
+
+  // Debug function to check wallet status
+  const debugWallet = () => {
+    console.log('Debug wallet info:', {
+      franchiseId,
+      wallet,
+      walletAddress,
+      balance,
+      loading
+    });
+    toast.info('Check console for wallet debug info');
   };
 
   return (
@@ -58,27 +131,28 @@ const FranchiseWallet: React.FC<WalletProps> = ({
         <div className="flex items-center gap-3">
           {/* Brand Logo */}
           <div className="w-10 h-10 rounded overflow-hidden bg-white/20 flex items-center justify-center">
-            {business?.logoUrl ? (
+            {franchiseInfo?.logoUrl ? (
               <Image
-                src={business.logoUrl}
+                src={franchiseInfo.logoUrl}
                 alt="Brand Logo"
                 width={40}
                 height={40}
                 className="w-full h-full object-cover"
+                unoptimized
               />
             ) : (
               <div className="text-gray-700 dark:text-white font-semibold text-sm">
-                {business?.name?.charAt(0) || 'B'}
+                {franchiseInfo?.name?.charAt(0) || 'B'}
               </div>
             )}
           </div>
           <div>
             <h3 className="font-semibold text-md text-gray-900 dark:text-white">
-              {business?.name || 'Demo Brand'}
+              {franchiseInfo?.name || 'Demo Brand'}
             </h3>
             <div className="flex items-center gap-2">
               <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
-                {DEMO_WALLET}
+                {walletAddress.length > 20 ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-6)}` : walletAddress}
               </p>
               <button
                 onClick={copyWalletAddress}
@@ -124,29 +198,39 @@ const FranchiseWallet: React.FC<WalletProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             <button
               onClick={handleRefresh}
-              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex items-center justify-center gap-4 "
+              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex items-center justify-center gap-1 "
+              disabled={loading}
             >
               <MoveDownLeft className="h-4 w-4" />
-              <span className="text-xs font-medium">INCOME</span>
+              <span className="text-xs font-medium">REFRESH</span>
             </button>
 
             <button
-              onClick={onAddMoney}
-              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-4 "
+              onClick={franchiseId ? handleAirdrop : onAddMoney}
+              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-1 "
+              disabled={loading}
             >
               <MoveUpRight className="h-4 w-4" />
-              <span className="text-xs font-medium">EXPENSE</span>
+              <span className="text-xs font-medium">{franchiseId ? 'AIRDROP' : 'EXPENSE'}</span>
             </button>
 
             <button
               onClick={handleSendSOL}
-              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-4 "
+              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-1 "
+              disabled={loading}
             >
               <ArrowUpDown className="h-4 w-4" />
               <span className="text-xs font-medium">TRANSFER</span>
+            </button>
+
+            <button
+              onClick={debugWallet}
+              className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-1 "
+            >
+              <span className="text-xs font-medium">DEBUG</span>
             </button>
           </div>
         </div>

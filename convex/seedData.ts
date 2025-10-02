@@ -1,4 +1,5 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
 // Sample data for seeding the database
 export const seedCountries = mutation({
@@ -132,13 +133,33 @@ export const seedCategories = mutation({
 export const seedProductCategories = mutation({
   args: {},
   handler: async (ctx) => {
-    // Get categories to link product categories
+    // Get all categories to link product categories
     const categories = await ctx.db.query("categories").collect();
+    const industries = await ctx.db.query("industries").collect();
+
+    // Find specific categories
     const fastFoodCategory = categories.find(c => c.name === "Fast Food");
     const coffeeCategory = categories.find(c => c.name === "Coffee & Tea");
+    const fineDiningCategory = categories.find(c => c.name === "Fine Dining");
+    const bakeryCategory = categories.find(c => c.name === "Bakery & Pastry");
+    const iceCreamCategory = categories.find(c => c.name === "Ice Cream & Desserts");
     const fashionCategory = categories.find(c => c.name === "Fashion & Apparel");
     const electronicsCategory = categories.find(c => c.name === "Electronics");
+    const homeGardenCategory = categories.find(c => c.name === "Home & Garden");
+    const sportsCategory = categories.find(c => c.name === "Sports & Outdoors");
+    const booksCategory = categories.find(c => c.name === "Books & Media");
     const gymCategory = categories.find(c => c.name === "Gyms & Fitness");
+    const yogaCategory = categories.find(c => c.name === "Yoga & Pilates");
+    const spaCategory = categories.find(c => c.name === "Spas & Wellness");
+    const sportsTrainingCategory = categories.find(c => c.name === "Sports Training");
+    const languageCategory = categories.find(c => c.name === "Language Schools");
+    const tutoringCategory = categories.find(c => c.name === "Tutoring Centers");
+    const trainingCategory = categories.find(c => c.name === "Professional Training");
+    const artsCategory = categories.find(c => c.name === "Arts & Crafts");
+    const hairCategory = categories.find(c => c.name === "Hair Salons");
+    const nailCategory = categories.find(c => c.name === "Nail Salons");
+    const skincareCategory = categories.find(c => c.name === "Skincare Clinics");
+    const massageCategory = categories.find(c => c.name === "Massage Therapy");
 
     if (!fastFoodCategory || !coffeeCategory || !fashionCategory || !electronicsCategory || !gymCategory) {
       throw new Error("Required categories not found. Please seed categories first.");
@@ -151,12 +172,35 @@ export const seedProductCategories = mutation({
       { name: "Fried Chicken", categoryId: fastFoodCategory._id, industryId: fastFoodCategory.industryId, description: "Chicken and poultry", icon: "🍗", sortOrder: 3 },
       { name: "Mexican Food", categoryId: fastFoodCategory._id, industryId: fastFoodCategory.industryId, description: "Tacos, burritos, and wraps", icon: "🌮", sortOrder: 4 },
       { name: "Asian Food", categoryId: fastFoodCategory._id, industryId: fastFoodCategory.industryId, description: "Chinese, Japanese, Thai cuisine", icon: "🍜", sortOrder: 5 },
+      { name: "Sandwiches", categoryId: fastFoodCategory._id, industryId: fastFoodCategory.industryId, description: "Subs, wraps, and deli sandwiches", icon: "🥪", sortOrder: 6 },
+      { name: "Salads", categoryId: fastFoodCategory._id, industryId: fastFoodCategory.industryId, description: "Fresh salads and healthy options", icon: "🥗", sortOrder: 7 },
 
       // Coffee & Tea product categories
       { name: "Coffee Drinks", categoryId: coffeeCategory._id, industryId: coffeeCategory.industryId, description: "Espresso, latte, cappuccino", icon: "☕", sortOrder: 1 },
       { name: "Tea Varieties", categoryId: coffeeCategory._id, industryId: coffeeCategory.industryId, description: "Green, black, herbal teas", icon: "🍵", sortOrder: 2 },
       { name: "Cold Beverages", categoryId: coffeeCategory._id, industryId: coffeeCategory.industryId, description: "Iced coffee, smoothies", icon: "🧊", sortOrder: 3 },
       { name: "Pastries & Snacks", categoryId: coffeeCategory._id, industryId: coffeeCategory.industryId, description: "Muffins, croissants, cookies", icon: "🥐", sortOrder: 4 },
+      { name: "Breakfast Items", categoryId: coffeeCategory._id, industryId: coffeeCategory.industryId, description: "Bagels, breakfast sandwiches", icon: "🥯", sortOrder: 5 },
+      { name: "Specialty Drinks", categoryId: coffeeCategory._id, industryId: coffeeCategory.industryId, description: "Frappes, seasonal drinks", icon: "🌟", sortOrder: 6 },
+
+      // Fine Dining product categories
+      { name: "Appetizers", categoryId: fineDiningCategory?._id, industryId: fineDiningCategory?.industryId, description: "Starters and appetizers", icon: "🥂", sortOrder: 1 },
+      { name: "Main Courses", categoryId: fineDiningCategory?._id, industryId: fineDiningCategory?.industryId, description: "Entrees and main dishes", icon: "🍽️", sortOrder: 2 },
+      { name: "Desserts", categoryId: fineDiningCategory?._id, industryId: fineDiningCategory?.industryId, description: "Fine dining desserts", icon: "🍰", sortOrder: 3 },
+      { name: "Wine & Beverages", categoryId: fineDiningCategory?._id, industryId: fineDiningCategory?.industryId, description: "Wine pairings and cocktails", icon: "🍷", sortOrder: 4 },
+
+      // Bakery & Pastry product categories
+      { name: "Bread", categoryId: bakeryCategory?._id, industryId: bakeryCategory?.industryId, description: "Fresh bread and rolls", icon: "🥖", sortOrder: 1 },
+      { name: "Cakes", categoryId: bakeryCategory?._id, industryId: bakeryCategory?.industryId, description: "Birthday and celebration cakes", icon: "🎂", sortOrder: 2 },
+      { name: "Pastries", categoryId: bakeryCategory?._id, industryId: bakeryCategory?.industryId, description: "Croissants, danishes, tarts", icon: "🥐", sortOrder: 3 },
+      { name: "Cookies & Biscuits", categoryId: bakeryCategory?._id, industryId: bakeryCategory?.industryId, description: "Sweet treats and cookies", icon: "🍪", sortOrder: 4 },
+      { name: "Donuts", categoryId: bakeryCategory?._id, industryId: bakeryCategory?.industryId, description: "Fresh donuts and glazed treats", icon: "🍩", sortOrder: 5 },
+
+      // Ice Cream & Desserts product categories
+      { name: "Ice Cream", categoryId: iceCreamCategory?._id, industryId: iceCreamCategory?.industryId, description: "Ice cream flavors and scoops", icon: "🍦", sortOrder: 1 },
+      { name: "Frozen Yogurt", categoryId: iceCreamCategory?._id, industryId: iceCreamCategory?.industryId, description: "Frozen yogurt and toppings", icon: "🍨", sortOrder: 2 },
+      { name: "Milkshakes", categoryId: iceCreamCategory?._id, industryId: iceCreamCategory?.industryId, description: "Thick shakes and smoothies", icon: "🥤", sortOrder: 3 },
+      { name: "Sundaes", categoryId: iceCreamCategory?._id, industryId: iceCreamCategory?.industryId, description: "Ice cream sundaes and parfaits", icon: "🍧", sortOrder: 4 },
 
       // Fashion & Apparel product categories
       { name: "Men's Clothing", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Shirts, pants, suits", icon: "👔", sortOrder: 1 },
@@ -164,6 +208,9 @@ export const seedProductCategories = mutation({
       { name: "Accessories", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Bags, jewelry, watches", icon: "👜", sortOrder: 3 },
       { name: "Shoes", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Sneakers, heels, boots", icon: "👠", sortOrder: 4 },
       { name: "Children's Wear", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Kids clothing and accessories", icon: "👶", sortOrder: 5 },
+      { name: "Activewear", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Athletic and workout clothing", icon: "🏃", sortOrder: 6 },
+      { name: "Underwear & Lingerie", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Intimate apparel", icon: "👙", sortOrder: 7 },
+      { name: "Outerwear", categoryId: fashionCategory._id, industryId: fashionCategory.industryId, description: "Jackets, coats, and outerwear", icon: "🧥", sortOrder: 8 },
 
       // Electronics product categories
       { name: "Smartphones", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Mobile phones and accessories", icon: "📱", sortOrder: 1 },
@@ -171,6 +218,31 @@ export const seedProductCategories = mutation({
       { name: "Audio Equipment", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Headphones, speakers", icon: "🎧", sortOrder: 3 },
       { name: "Gaming", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Gaming consoles and accessories", icon: "🎮", sortOrder: 4 },
       { name: "Home Appliances", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Kitchen and home electronics", icon: "🏠", sortOrder: 5 },
+      { name: "Cameras", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Digital cameras and photography", icon: "📷", sortOrder: 6 },
+      { name: "Wearables", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Smartwatches and fitness trackers", icon: "⌚", sortOrder: 7 },
+      { name: "TV & Home Theater", categoryId: electronicsCategory._id, industryId: electronicsCategory.industryId, description: "Televisions and entertainment", icon: "📺", sortOrder: 8 },
+
+      // Home & Garden product categories
+      { name: "Furniture", categoryId: homeGardenCategory?._id, industryId: homeGardenCategory?.industryId, description: "Home and office furniture", icon: "🪑", sortOrder: 1 },
+      { name: "Home Decor", categoryId: homeGardenCategory?._id, industryId: homeGardenCategory?.industryId, description: "Decorative items and accessories", icon: "🖼️", sortOrder: 2 },
+      { name: "Garden Tools", categoryId: homeGardenCategory?._id, industryId: homeGardenCategory?.industryId, description: "Gardening equipment and tools", icon: "🌱", sortOrder: 3 },
+      { name: "Plants & Seeds", categoryId: homeGardenCategory?._id, industryId: homeGardenCategory?.industryId, description: "Indoor and outdoor plants", icon: "🌿", sortOrder: 4 },
+      { name: "Kitchenware", categoryId: homeGardenCategory?._id, industryId: homeGardenCategory?.industryId, description: "Cooking and kitchen accessories", icon: "🍳", sortOrder: 5 },
+      { name: "Bedding", categoryId: homeGardenCategory?._id, industryId: homeGardenCategory?.industryId, description: "Sheets, pillows, and comforters", icon: "🛏️", sortOrder: 6 },
+
+      // Sports & Outdoors product categories
+      { name: "Athletic Equipment", categoryId: sportsCategory?._id, industryId: sportsCategory?.industryId, description: "Sports gear and equipment", icon: "⚽", sortOrder: 1 },
+      { name: "Outdoor Gear", categoryId: sportsCategory?._id, industryId: sportsCategory?.industryId, description: "Camping and hiking equipment", icon: "🎒", sortOrder: 2 },
+      { name: "Water Sports", categoryId: sportsCategory?._id, industryId: sportsCategory?.industryId, description: "Swimming and water activities", icon: "🏊", sortOrder: 3 },
+      { name: "Winter Sports", categoryId: sportsCategory?._id, industryId: sportsCategory?.industryId, description: "Skiing and snowboarding gear", icon: "⛷️", sortOrder: 4 },
+      { name: "Team Sports", categoryId: sportsCategory?._id, industryId: sportsCategory?.industryId, description: "Basketball, football, soccer gear", icon: "🏀", sortOrder: 5 },
+
+      // Books & Media product categories
+      { name: "Books", categoryId: booksCategory?._id, industryId: booksCategory?.industryId, description: "Fiction, non-fiction, textbooks", icon: "📚", sortOrder: 1 },
+      { name: "Movies & TV", categoryId: booksCategory?._id, industryId: booksCategory?.industryId, description: "DVDs, Blu-rays, streaming", icon: "🎬", sortOrder: 2 },
+      { name: "Music", categoryId: booksCategory?._id, industryId: booksCategory?.industryId, description: "CDs, vinyl, digital music", icon: "🎵", sortOrder: 3 },
+      { name: "Magazines", categoryId: booksCategory?._id, industryId: booksCategory?.industryId, description: "Periodicals and magazines", icon: "📰", sortOrder: 4 },
+      { name: "Educational Materials", categoryId: booksCategory?._id, industryId: booksCategory?.industryId, description: "Learning resources and tools", icon: "📖", sortOrder: 5 },
 
       // Gyms & Fitness product categories
       { name: "Cardio Equipment", categoryId: gymCategory._id, industryId: gymCategory.industryId, description: "Treadmills, bikes, ellipticals", icon: "🏃", sortOrder: 1 },
@@ -178,19 +250,131 @@ export const seedProductCategories = mutation({
       { name: "Functional Fitness", categoryId: gymCategory._id, industryId: gymCategory.industryId, description: "Kettlebells, TRX, functional equipment", icon: "⚡", sortOrder: 3 },
       { name: "Yoga & Pilates", categoryId: gymCategory._id, industryId: gymCategory.industryId, description: "Mats, blocks, props", icon: "🧘", sortOrder: 4 },
       { name: "Supplements", categoryId: gymCategory._id, industryId: gymCategory.industryId, description: "Protein, vitamins, nutrition", icon: "💊", sortOrder: 5 },
+      { name: "Fitness Apparel", categoryId: gymCategory._id, industryId: gymCategory.industryId, description: "Workout clothes and gear", icon: "👕", sortOrder: 6 },
+      { name: "Recovery Tools", categoryId: gymCategory._id, industryId: gymCategory.industryId, description: "Foam rollers, massage tools", icon: "🛠️", sortOrder: 7 },
+
+      // Yoga & Pilates product categories
+      { name: "Yoga Mats", categoryId: yogaCategory?._id, industryId: yogaCategory?.industryId, description: "Yoga mats and accessories", icon: "🧘", sortOrder: 1 },
+      { name: "Pilates Equipment", categoryId: yogaCategory?._id, industryId: yogaCategory?.industryId, description: "Pilates reformers and props", icon: "🤸", sortOrder: 2 },
+      { name: "Meditation Tools", categoryId: yogaCategory?._id, industryId: yogaCategory?.industryId, description: "Cushions, blocks, meditation aids", icon: "🕯️", sortOrder: 3 },
+      { name: "Yoga Clothing", categoryId: yogaCategory?._id, industryId: yogaCategory?.industryId, description: "Yoga pants, tops, and activewear", icon: "👖", sortOrder: 4 },
+
+      // Spas & Wellness product categories
+      { name: "Skincare Products", categoryId: spaCategory?._id, industryId: spaCategory?.industryId, description: "Facial and body care products", icon: "✨", sortOrder: 1 },
+      { name: "Massage Oils", categoryId: spaCategory?._id, industryId: spaCategory?.industryId, description: "Essential oils and massage products", icon: "🫒", sortOrder: 2 },
+      { name: "Wellness Supplements", categoryId: spaCategory?._id, industryId: spaCategory?.industryId, description: "Vitamins and wellness products", icon: "💊", sortOrder: 3 },
+      { name: "Spa Accessories", categoryId: spaCategory?._id, industryId: spaCategory?.industryId, description: "Towels, robes, spa equipment", icon: "🛁", sortOrder: 4 },
+
+      // Sports Training product categories
+      { name: "Training Equipment", categoryId: sportsTrainingCategory?._id, industryId: sportsTrainingCategory?.industryId, description: "Sports training gear", icon: "🏃", sortOrder: 1 },
+      { name: "Protective Gear", categoryId: sportsTrainingCategory?._id, industryId: sportsTrainingCategory?.industryId, description: "Helmets, pads, safety equipment", icon: "🛡️", sortOrder: 2 },
+      { name: "Performance Nutrition", categoryId: sportsTrainingCategory?._id, industryId: sportsTrainingCategory?.industryId, description: "Sports nutrition and supplements", icon: "🥤", sortOrder: 3 },
+      { name: "Recovery Equipment", categoryId: sportsTrainingCategory?._id, industryId: sportsTrainingCategory?.industryId, description: "Recovery and rehabilitation tools", icon: "🩹", sortOrder: 4 },
+
+      // Language Schools product categories
+      { name: "Language Books", categoryId: languageCategory?._id, industryId: languageCategory?.industryId, description: "Textbooks and learning materials", icon: "📚", sortOrder: 1 },
+      { name: "Audio Materials", categoryId: languageCategory?._id, industryId: languageCategory?.industryId, description: "CDs, audio courses, podcasts", icon: "🎧", sortOrder: 2 },
+      { name: "Digital Resources", categoryId: languageCategory?._id, industryId: languageCategory?.industryId, description: "Apps, online courses, software", icon: "💻", sortOrder: 3 },
+      { name: "Cultural Materials", categoryId: languageCategory?._id, industryId: languageCategory?.industryId, description: "Cultural books and resources", icon: "🌍", sortOrder: 4 },
+
+      // Tutoring Centers product categories
+      { name: "Educational Books", categoryId: tutoringCategory?._id, industryId: tutoringCategory?.industryId, description: "Textbooks and study guides", icon: "📖", sortOrder: 1 },
+      { name: "Study Materials", categoryId: tutoringCategory?._id, industryId: tutoringCategory?.industryId, description: "Workbooks, practice tests", icon: "📝", sortOrder: 2 },
+      { name: "Digital Learning", categoryId: tutoringCategory?._id, industryId: tutoringCategory?.industryId, description: "Online platforms and software", icon: "💻", sortOrder: 3 },
+      { name: "Art Supplies", categoryId: tutoringCategory?._id, industryId: tutoringCategory?.industryId, description: "Pens, pencils, art materials", icon: "✏️", sortOrder: 4 },
+
+      // Professional Training product categories
+      { name: "Training Materials", categoryId: trainingCategory?._id, industryId: trainingCategory?.industryId, description: "Professional development resources", icon: "📋", sortOrder: 1 },
+      { name: "Certification Prep", categoryId: trainingCategory?._id, industryId: trainingCategory?.industryId, description: "Exam prep and certification materials", icon: "🎓", sortOrder: 2 },
+      { name: "Software Training", categoryId: trainingCategory?._id, industryId: trainingCategory?.industryId, description: "Software and technical training", icon: "💻", sortOrder: 3 },
+      { name: "Leadership Materials", categoryId: trainingCategory?._id, industryId: trainingCategory?.industryId, description: "Management and leadership resources", icon: "👔", sortOrder: 4 },
+
+      // Arts & Crafts product categories
+      { name: "Art Supplies", categoryId: artsCategory?._id, industryId: artsCategory?.industryId, description: "Paints, brushes, canvases", icon: "🎨", sortOrder: 1 },
+      { name: "Craft Materials", categoryId: artsCategory?._id, industryId: artsCategory?.industryId, description: "Paper, glue, craft supplies", icon: "✂️", sortOrder: 2 },
+      { name: "Jewelry Making", categoryId: artsCategory?._id, industryId: artsCategory?.industryId, description: "Beads, wire, jewelry tools", icon: "💎", sortOrder: 3 },
+      { name: "Pottery Supplies", categoryId: artsCategory?._id, industryId: artsCategory?.industryId, description: "Clay, pottery tools, kilns", icon: "🏺", sortOrder: 4 },
+
+      // Hair Salons product categories
+      { name: "Hair Products", categoryId: hairCategory?._id, industryId: hairCategory?.industryId, description: "Shampoo, conditioner, styling products", icon: "🧴", sortOrder: 1 },
+      { name: "Hair Tools", categoryId: hairCategory?._id, industryId: hairCategory?.industryId, description: "Brushes, combs, styling tools", icon: "💇", sortOrder: 2 },
+      { name: "Hair Accessories", categoryId: hairCategory?._id, industryId: hairCategory?.industryId, description: "Clips, bands, decorative items", icon: "🎀", sortOrder: 3 },
+      { name: "Hair Color", categoryId: hairCategory?._id, industryId: hairCategory?.industryId, description: "Dyes, highlights, color treatments", icon: "🌈", sortOrder: 4 },
+
+      // Nail Salons product categories
+      { name: "Nail Polish", categoryId: nailCategory?._id, industryId: nailCategory?.industryId, description: "Nail polish and nail art", icon: "💅", sortOrder: 1 },
+      { name: "Nail Tools", categoryId: nailCategory?._id, industryId: nailCategory?.industryId, description: "Files, clippers, manicure tools", icon: "✂️", sortOrder: 2 },
+      { name: "Nail Art", categoryId: nailCategory?._id, industryId: nailCategory?.industryId, description: "Decals, stickers, nail art supplies", icon: "✨", sortOrder: 3 },
+      { name: "Nail Care", categoryId: nailCategory?._id, industryId: nailCategory?.industryId, description: "Cuticle oil, hand cream, treatments", icon: "🧴", sortOrder: 4 },
+
+      // Skincare Clinics product categories
+      { name: "Facial Products", categoryId: skincareCategory?._id, industryId: skincareCategory?.industryId, description: "Cleansers, toners, moisturizers", icon: "🧼", sortOrder: 1 },
+      { name: "Anti-Aging", categoryId: skincareCategory?._id, industryId: skincareCategory?.industryId, description: "Serums, creams, treatments", icon: "⏰", sortOrder: 2 },
+      { name: "Sun Protection", categoryId: skincareCategory?._id, industryId: skincareCategory?.industryId, description: "Sunscreen, SPF products", icon: "☀️", sortOrder: 3 },
+      { name: "Professional Treatments", categoryId: skincareCategory?._id, industryId: skincareCategory?.industryId, description: "Peels, masks, clinical products", icon: "🔬", sortOrder: 4 },
+
+      // Massage Therapy product categories
+      { name: "Massage Oils", categoryId: massageCategory?._id, industryId: massageCategory?.industryId, description: "Essential oils and massage oils", icon: "🫒", sortOrder: 1 },
+      { name: "Massage Tools", categoryId: massageCategory?._id, industryId: massageCategory?.industryId, description: "Stones, rollers, massage tools", icon: "🪨", sortOrder: 2 },
+      { name: "Aromatherapy", categoryId: massageCategory?._id, industryId: massageCategory?.industryId, description: "Essential oils and aromatherapy", icon: "🕯️", sortOrder: 3 },
+      { name: "Therapeutic Products", categoryId: massageCategory?._id, industryId: massageCategory?.industryId, description: "Pain relief and therapeutic items", icon: "💆", sortOrder: 4 },
     ];
 
     const results = [];
     for (const productCategory of productCategories) {
-      const id = await ctx.db.insert("productCategories", {
-        ...productCategory,
-        isActive: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      results.push(id);
+      // Only insert if both category and industry exist
+      if (productCategory.categoryId && productCategory.industryId) {
+        const id = await ctx.db.insert("productCategories", {
+          name: productCategory.name,
+          categoryId: productCategory.categoryId,
+          industryId: productCategory.industryId,
+          description: productCategory.description,
+          icon: productCategory.icon,
+          sortOrder: productCategory.sortOrder,
+          isActive: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        results.push(id);
+      }
     }
     return results;
+  },
+});
+
+// Query functions for product categories
+export const getProductCategoriesByIndustry = query({
+  args: { industryId: v.id("industries") },
+  handler: async (ctx, { industryId }) => {
+    return await ctx.db
+      .query("productCategories")
+      .withIndex("by_industry", (q) => q.eq("industryId", industryId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
+  },
+});
+
+export const getProductCategoriesByCategory = query({
+  args: { categoryId: v.id("categories") },
+  handler: async (ctx, { categoryId }) => {
+    return await ctx.db
+      .query("productCategories")
+      .withIndex("by_category", (q) => q.eq("categoryId", categoryId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
+  },
+});
+
+export const getAllProductCategories = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("productCategories")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
   },
 });
 
@@ -322,5 +506,51 @@ export const seedAllData = mutation({
       console.error("Error seeding data:", error);
       throw error;
     }
+  },
+});
+
+// Seed super admin user
+export const seedSuperAdmin = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const superAdminWallet = "AWKkqeEFHsC8LqPcYAf1ivWkAwji2zZmiPWvpXacCNtn";
+    
+    // Check if super admin already exists
+    const existingAdmin = await ctx.db
+      .query("adminUsers")
+      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", superAdminWallet))
+      .first();
+    
+    if (existingAdmin) {
+      console.log("Super admin already exists");
+      return existingAdmin._id;
+    }
+
+    // Create super admin user
+    const adminUserId = await ctx.db.insert("adminUsers", {
+      walletAddress: superAdminWallet,
+      email: "admin@franchiseen.com",
+      name: "Super Admin",
+      role: "super_admin",
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Add to team with all departments
+    await ctx.db.insert("adminTeam", {
+      userId: adminUserId,
+      name: "Super Admin",
+      email: "admin@franchiseen.com",
+      role: "super_admin",
+      departments: ["management", "operations", "finance", "people", "marketing", "sales", "support", "software"],
+      permissions: ["all"],
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    console.log("Super admin created successfully");
+    return adminUserId;
   },
 });

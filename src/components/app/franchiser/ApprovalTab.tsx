@@ -10,6 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle2, XCircle, MapPin, Clock, AlertCircle, AlertCircleIcon } from 'lucide-react';
 import Image from 'next/image';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useParams } from 'next/navigation';
+import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
 
 export type FranchiseStatus = 
   | 'property_approval' 
@@ -58,217 +62,62 @@ export interface FranchiseApplication {
 }
 
 // Dummy franchise applications data
-const dummyApplications: FranchiseApplication[] = [
-  {
-    id: 'app1',
-    name: 'Burger King',
-    location: '123 Main St, New York, NY',
-    phone: '(555) 123-4567',
-    email: 'bk@example.com',
-    status: 'property_approval',
-    image: '/images/franchises/burger-king.jpg',
-    appliedDate: '2023-06-15',
-    franchiseeName: 'John Smith',
-    website: 'burgerking.com',
-    revenue: 1200000,
-    profit: 180000,
-    investment: {
-      total: 1500000,
-      amountInvested: 750000,
-      investmentPercentage: 50,
-      sharesTotal: 20000,
-      sharesPurchased: 10000,
-      carpetArea: 1500
-    },
-    realEstate: {
-      contactName: 'John Doe',
-      contactEmail: 'john@realestate.com',
-      contactPhone: '+1 (555) 987-6543',
-      location: '123 Main St, New York, NY',
-      status: 'pending_verification'
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan-1.pdf',
-      financialStatement: 'https://example.com/financial-1.pdf',
-      kyc: 'https://example.com/kyc-1.pdf',
-    }
-  },
-  {
-    id: 'app2',
-    name: 'McDonald\'s',
-    location: '456 Oak Ave, Los Angeles, CA',
-    phone: '(555) 987-6543',
-    email: 'mcd@example.com',
-    status: 'brand_approval',
-    image: '/images/franchises/mcdonalds.jpg',
-    appliedDate: '2023-06-20',
-    franchiseeName: 'Sarah Johnson',
-    website: 'mcdonalds.com',
-    revenue: 1800000,
-    profit: 250000,
-    investment: {
-      total: 2000000,
-      amountInvested: 1500000,
-      investmentPercentage: 75,
-      sharesTotal: 25000,
-      sharesPurchased: 18750,
-      carpetArea: 1800
-    },
-    realEstate: {
-      contactName: 'Jane Smith',
-      contactEmail: 'jane@realestate.com',
-      contactPhone: '+1 (555) 876-5432',
-      location: '456 Oak Ave, Los Angeles, CA',
-      status: 'verified'
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan-2.pdf',
-      financialStatement: 'https://example.com/financial-2.pdf',
-      kyc: 'https://example.com/kyc-2.pdf',
-    }
-  },
-  {
-    id: 'app3',
-    name: 'Starbucks',
-    location: '789 Pine St, Seattle, WA',
-    phone: '(555) 456-7890',
-    email: 'sbux@example.com',
-    status: 'funding',
-    image: '/images/franchises/starbucks.jpg',
-    appliedDate: '2023-07-01',
-    franchiseeName: 'Michael Chen',
-    website: 'starbucks.com',
-    revenue: 1500000,
-    profit: 220000,
-    investment: {
-      total: 1000000,
-      amountInvested: 900000,
-      investmentPercentage: 90,
-      sharesTotal: 15000,
-      sharesPurchased: 13500,
-      carpetArea: 2000
-    },
-    realEstate: {
-      contactName: 'Sarah Wilson',
-      contactEmail: 'sarah@realestate.com',
-      contactPhone: '+1 (555) 654-3210',
-      location: '789 Pine St, Seattle, WA',
-      status: 'verified'
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan-3.pdf',
-      financialStatement: 'https://example.com/financial-3.pdf',
-      kyc: 'https://example.com/kyc-3.pdf',
-    }
-  },
-  {
-    id: 'app5',
-    name: 'Pizza Hut',
-    location: '202 Maple Dr, Houston, TX',
-    phone: '(555) 234-5678',
-    email: 'pizzahut@example.com',
-    status: 'live',
-    image: '/images/franchises/pizza-hut.jpg',
-    appliedDate: '2023-05-15',
-    franchiseeName: 'Emily Rodriguez',
-    website: 'pizzahut.com',
-    revenue: 2000000,
-    profit: 300000,
-    investment: {
-      total: 1800000,
-      amountInvested: 2250000,
-      investmentPercentage: 125,
-      sharesTotal: 22000,
-      sharesPurchased: 27500,
-      carpetArea: 2500
-    },
-    realEstate: {
-      contactName: 'David Brown',
-      contactEmail: 'david@realestate.com',
-      contactPhone: '+1 (555) 543-2109',
-      location: '202 Maple Dr, Houston, TX',
-      status: 'verified'
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan-5.pdf',
-      financialStatement: 'https://example.com/financial-5.pdf',
-      kyc: 'https://example.com/kyc-5.pdf',
-    }
-  },
-  {
-    id: 'app6',
-    name: 'KFC',
-    location: '303 Oak Ln, Miami, FL',
-    phone: '(555) 876-5432',
-    email: 'kfc@example.com',
-    status: 'closed',
-    image: '/images/franchises/kfc.jpg',
-    appliedDate: '2023-04-01',
-    franchiseeName: 'Robert Taylor',
-    website: 'kfc.com',
-    revenue: 2500000,
-    profit: 375000,
-    investment: {
-      total: 2200000,
-      amountInvested: 2200000,
-      investmentPercentage: 100,
-      sharesTotal: 25000,
-      sharesPurchased: 25000,
-      carpetArea: 3000
-    },
-    realEstate: {
-      contactName: 'Lisa Taylor',
-      contactEmail: 'lisa@realestate.com',
-      contactPhone: '+1 (555) 432-1098',
-      location: '753 Beach Blvd, Miami, FL',
-      status: 'verified'
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan-6.pdf',
-      financialStatement: 'https://example.com/financial-6.pdf',
-      kyc: 'https://example.com/kyc-6.pdf',
-    }
-  },
-  {
-    id: 'app7',
-    name: 'Pine Valley',
-    location: '864 Forest Ln, Seattle, WA',
-    phone: '+1 (555) 789-0123',
-    email: 'pine@example.com',
-    status: 'rejected',
-    image: '/franchise/retail-7.png',
-    appliedDate: '2024-07-20',
-    investment: {
-      total: 550000,
-      amountInvested: 27500,
-      investmentPercentage: 5,
-      sharesTotal: 10000,
-      sharesPurchased: 500,
-      carpetArea: 1200
-    },
-    realEstate: {
-      contactName: 'Robert Wilson',
-      contactEmail: 'robert@realestate.com',
-      contactPhone: '+1 (555) 321-0987',
-      location: '864 Forest Ln, Seattle, WA',
-      status: 'rejected'
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan-7.pdf',
-      financialStatement: 'https://example.com/financial-7.pdf',
-      kyc: 'https://example.com/kyc-7.pdf',
-    }
-  }
-];
 
 export function ApprovalTab() {
-  const [applications] = useState<FranchiseApplication[]>(dummyApplications);
+  const params = useParams();
+  const brandSlug = params.brandSlug as string;
+  
+  // Get franchiser data to get the franchiser ID
+  const { franchiseData } = useFranchiseBySlug(brandSlug);
+  const franchiserId = franchiseData?.franchiser._id;
+  
+  // Get franchises for this brand
+  const franchisesData = useQuery(api.franchiseManagement.getFranchisesByFranchiser, 
+    franchiserId ? { franchiserId } : "skip"
+  );
+
   const [selectedApp, setSelectedApp] = useState<FranchiseApplication | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [investmentAmount, setInvestmentAmount] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Transform franchise data to application format
+  const applications: FranchiseApplication[] = franchisesData?.map((franchise) => ({
+    id: franchise._id,
+    name: franchise.franchiseSlug,
+    location: franchise.address,
+    phone: franchise.franchiseeContact.phone,
+    email: franchise.franchiseeContact.email,
+    status: franchise.status === 'pending' ? 'property_approval' : 
+            franchise.status === 'approved' ? 'brand_approval' :
+            franchise.status === 'active' ? 'live' : 'closed',
+    image: '/franchise/retail-1.png',
+    appliedDate: new Date(franchise.createdAt).toISOString().split('T')[0],
+    investment: {
+      total: 0, // Will be populated from investment data if needed
+      amountInvested: 0,
+      investmentPercentage: 100,
+      sharesTotal: 0,
+      sharesPurchased: 0,
+      carpetArea: franchise.sqft,
+    },
+    franchiseeName: franchise.franchiseeContact.name,
+    realEstate: {
+      contactName: franchise.landlordContact?.name || 'N/A',
+      contactEmail: franchise.landlordContact?.email || 'N/A',
+      contactPhone: franchise.landlordContact?.phone || 'N/A',
+      location: franchise.address,
+      status: franchise.status === 'pending' ? 'pending_verification' : 
+              franchise.status === 'approved' ? 'verified' : 'verified',
+    },
+    documents: {
+      businessPlan: 'https://example.com/business-plan.pdf',
+      financialStatement: 'https://example.com/financial.pdf',
+      kyc: 'https://example.com/kyc.pdf',
+    },
+  })) || [];
 
   const filteredApplications = applications.filter(app => {
     if (statusFilter === 'all') return true;
@@ -318,11 +167,11 @@ export function ApprovalTab() {
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
         <div>
           <h2 className="text-2xl font-bold">Franchise Applications</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          {/* <p className="text-sm text-gray-500 mt-1">
             {statusFilter === 'all' 
               ? 'Showing all applications' 
               : `Showing ${statusFilter.replace('_', ' ')} applications`}
-          </p>
+          </p> */}
         </div>
         <div className="flex items-center space-x-2">
           <div className="text-sm text-gray-500">Filter by status:</div>
@@ -409,10 +258,10 @@ export function ApprovalTab() {
                       </div>
                       <div>
                         <p className="font-medium">{app.name}</p>
-                        <div className="flex items-center text-sm text-stone-500">
+                        {/* <div className="flex items-center text-sm text-stone-500">
                           <MapPin className="mr-1 h-3 w-3" />
-                          <span>{app.location}</span>
-                        </div>
+                          <span>{app.realEstate.status}</span>
+                        </div> */}
                       </div>
                     </div>
                   </TableCell>

@@ -1,9 +1,16 @@
 "use client";
 
 import React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
+import { toast } from "sonner";
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+// import { useWallet } from "@solana/wallet-adapter-react";
+import { Transaction } from "@solana/web3.js";
+import { Address } from 'gill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,68 +26,354 @@ import {
   Globe, 
 } from 'lucide-react';
 import Image from 'next/image';
-import FranchisePOSWallet from '../FranchisePOSWallet';
+// import FranchisePOSWallet from '../FranchisePOSWallet';
+// import { useFranchiseWallet } from '@/hooks/useFranchiseWallet';
+import FranchiseWallet from '../FranchiseWallet';
+import FranchiseStageIndicator, { FranchiseStageProgress } from '../FranchiseStageIndicator';
+import { useSolana } from '@/components/solana/use-solana';
+import { useWalletUiSigner } from '@/components/solana/use-wallet-ui-signer';
+import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
+import type { 
+  Product, 
+  Franchisee, 
+  BudgetItem, 
+  MonthlyRevenue, 
+  FranchiseStoreProps,
+  TabId 
+} from "@/types/ui";
 
+// Helper function to add income records to the income table
+const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' | 'subscription', amount: number, source: string, description: string, transactionHash?: string) => {
+  try {
+    const incomeRecord = {
+      id: `income_${Date.now()}`,
+      type,
+      amount,
+      description,
+      source,
+      timestamp: new Date().toISOString(),
+      status: 'completed' as const,
+      transactionHash
+    };
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-}
+    // Get existing income records
+    const existingRecords = localStorage.getItem('company_income_records');
+    const records = existingRecords ? JSON.parse(existingRecords) : [];
+    
+    // Add new record
+    records.unshift(incomeRecord);
+    
+    // Save back to localStorage
+    localStorage.setItem('company_income_records', JSON.stringify(records));
+    
+    console.log('✅ Added income record:', incomeRecord);
+  } catch (error) {
+    console.error('Error adding income record:', error);
+  }
+};
 
-interface Franchisee {
-  id: string;
-  fullName: string;
-  walletId: string;
-  avatar: string;
-  totalShares: number;
-  totalInvested: number;
-  isOfferActive: boolean;
-  joinDate: string;
-}
-
-interface BudgetItem {
-  id: string;
-  category: string;
-  type: 'one-time' | 'recurring';
-  planned: number;
-  actual: number;
-  status: 'on-track' | 'over-budget' | 'under-budget' | 'not-started';
-}
-
-interface MonthlyRevenue {
-  month: string;
-  estimated: number;
-  actual: number;
-  status: 'on-track' | 'below-target' | 'above-target';
-}
-
-type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' ;
-
-export default function FranchiseStore() {
+function FranchiseStoreInner({ franchiseId, franchiserId }: FranchiseStoreProps = {}) {
   const [activeTab, setActiveTab] = useState<TabId>('products');
-  const [franchise] = useState({
-    name: "Hubcv - 01",
-    brandLogo: "/logo/logo-4.svg", // Update with your logo path
+  const [franchise, setFranchise] = useState({
+    name: "Loading...",
+    brandLogo: "/logo/logo-4.svg",
+    brandWalletAddress: undefined as string | undefined,
     location: {
-      area: "Downtown",
-      city: "New York",
-      country: "USA"
+      area: "Loading...",
+      city: "Loading...",
+      country: "Loading..."
     }
   });
+
+  // Use franchise PDA instead of wallet for funding stage
+  const [franchisePDA, setFranchisePDA] = useState<{
+    pda: string;
+    totalRaised: number;
+    sharesIssued: number;
+    totalShares: number;
+  } | null>(null);
+
+  // Solana wallet hooks
+  const { account, client } = useSolana();
+  const signer = useWalletUiSigner();
+  
+  // Load franchise data from Convex
+  const franchiseData = useQuery(
+    api.franchiseManagement.getFranchiseBySlug,
+    franchiseId ? { franchiseSlug: franchiseId } : "skip"
+  );
+  
+  // Get proper image URL using Convex hook
+  const logoUrl = useConvexImageUrl(franchiseData?.franchiser?.logoUrl);
+
+  // Update franchise state when data loads
+  useEffect(() => {
+    if (franchiseData) {
+      console.log('FranchiseStore - franchiseData loaded:', franchiseData);
+      console.log('FranchiseStore - franchiser data:', franchiseData.franchiser);
+      console.log('FranchiseStore - brandWalletAddress:', franchiseData.franchiser?.brandWalletAddress);
+      console.log('FranchiseStore - investment data:', franchiseData.investment);
+      console.log('FranchiseStore - franchise ID:', franchiseData._id);
+      
+      setFranchise({
+        name: franchiseData.franchiseSlug || "Unknown Franchise",
+        brandLogo: logoUrl || "/logo/logo-4.svg",
+        brandWalletAddress: franchiseData.franchiser?.brandWalletAddress,
+        location: {
+          area: franchiseData.location?.city || "Unknown Area",
+          city: franchiseData.location?.city || "Unknown City",
+          country: franchiseData.location?.country || "Unknown Country"
+        }
+      });
+    }
+  }, [franchiseData, logoUrl]);
+
+  // Helper function to get franchise PDA
+  const getFranchisePDA = async (franchiseId: string) => {
+    const { getFranchisePDA: getPDA } = await import('@/lib/franchisePDA');
+    return getPDA(franchiseId);
+  };
+
+  // Use the same hook as FranchiseCard for consistency
+  const convexFundraisingData = useQuery(
+    api.franchiseManagement.getFranchiseFundraisingData,
+    franchiseId ? { franchiseSlug: franchiseId } : "skip"
+  );
+
+  console.log('FranchiseStore - franchiseId:', franchiseId);
+  console.log('FranchiseStore - convexFundraisingData:', convexFundraisingData);
+
+  // Create fundraising data object similar to what useFranchiseFundraising returns
+  const fundraisingData = convexFundraisingData ? {
+    totalInvestment: convexFundraisingData.totalInvestment,
+    invested: convexFundraisingData.totalInvested || convexFundraisingData.invested,
+    totalShares: convexFundraisingData.totalShares,
+    sharesIssued: convexFundraisingData.sharesIssued,
+    sharesRemaining: convexFundraisingData.sharesRemaining,
+    pricePerShare: convexFundraisingData.sharePrice,
+    franchiseFee: convexFundraisingData.franchiseFee,
+    setupCost: convexFundraisingData.setupCost,
+    workingCapital: convexFundraisingData.workingCapital,
+    progressPercentage: convexFundraisingData.progressPercentage,
+    stage: convexFundraisingData.stage
+  } : {
+    totalInvestment: franchiseData?.investment?.totalInvestment || 100000,
+    invested: franchiseData?.investment?.totalInvested || 0,
+    totalShares: franchiseData?.investment?.sharesIssued || 100000,
+    sharesIssued: 0,
+    sharesRemaining: franchiseData?.investment?.sharesIssued || 100000,
+    pricePerShare: franchiseData?.investment?.sharePrice || 1,
+    franchiseFee: franchiseData?.investment?.franchiseFee || 20000,
+    setupCost: franchiseData?.investment?.setupCost || 50000,
+    workingCapital: franchiseData?.investment?.workingCapital || 30000,
+    progressPercentage: 0,
+    stage: 'funding' as const
+  };
+
+  // Purchase shares mutation for addInvestment function
+  const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
+  
+  const addInvestment = async (sharesPurchased: number, sharePrice: number, totalAmount: number, investorId: string, transactionHash?: string) => {
+    if (!franchiseData?._id) {
+      throw new Error('Franchise ID is required');
+    }
+
+    try {
+      await purchaseShares({
+        franchiseId: franchiseData._id,
+        investorId,
+        sharesPurchased,
+        sharePrice,
+        totalAmount,
+        transactionHash
+      });
+    } catch (error) {
+      console.error('Error purchasing shares:', error);
+      throw error;
+    }
+  };
+
+  // Update PDA with real fundraising data after fundraisingData is available
+  useEffect(() => {
+    const updatePDA = async () => {
+      if (franchiseData?._id && fundraisingData) {
+        const { getFranchisePDA } = await import('@/lib/franchisePDA');
+        const pda = getFranchisePDA(franchiseData._id);
+        if (pda) {
+          // Update PDA with real fundraising data
+          const updatedPDA = {
+            ...pda,
+            totalRaised: fundraisingData.invested || 0,
+            sharesIssued: fundraisingData.totalShares - fundraisingData.sharesRemaining || 0,
+          };
+          setFranchisePDA(updatedPDA);
+        }
+      }
+    };
+    updatePDA();
+  }, [franchiseId, fundraisingData?.invested, fundraisingData?.sharesRemaining, fundraisingData?.totalShares]);
+
+  // Wallet integration - Real implementation
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Real wallet functions
+  const connect = async () => {
+    if (account?.address) {
+      toast.success("Wallet connected");
+      return true;
+    } else {
+      toast.error("Please connect your wallet first");
+      return false;
+    }
+  };
+  
+  // const signTransaction = async (transaction: Transaction) => {
+  //   if (!signer) {
+  //     throw new Error('Wallet not connected');
+  //   }
+  //   // Use the real wallet signer
+  //   return signer.signTransaction(transaction);
+  // };
   
   // Shares slider state
   const [sharesToBuy, setSharesToBuy] = useState(1);
-  const totalShares = 10000; // Example total shares available
-  const sharePrice = 1; // $1 per share
   const [selectedCategory, setSelectedCategory] = useState<string>('All Items');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isBuySharesOpen, setIsBuySharesOpen] = useState(false);
-  const platformFeePercentage = 5; // 5% platform fee
+  const platformFeePercentage = 2; // 2% platform fee
   const solToUsdRate = 150; // Current SOL to USD rate (example)
+  
+  // Get real data from fundraising data
+  const totalShares = fundraisingData.totalShares || 100000;
+  const sharePrice = fundraisingData.pricePerShare || 1;
+  const maxSharesToBuy = Math.min(fundraisingData.sharesRemaining || totalShares, totalShares);
+  
+  // Reset shares to buy when modal opens or when max shares change
+  useEffect(() => {
+    if (isBuySharesOpen) {
+      setSharesToBuy(Math.min(1, maxSharesToBuy));
+    }
+  }, [isBuySharesOpen, maxSharesToBuy]);
+
+  // Get franchise PDA address for payments
+  const getFranchisePDAAddress = async () => {
+    if (!franchiseData?._id) return null;
+    try {
+      const { getFranchisePDA } = await import('@/lib/franchisePDA');
+      const pda = getFranchisePDA(franchiseData?._id);
+      return pda?.pda || null;
+    } catch (error) {
+      console.error('Error getting franchise PDA:', error);
+      return null;
+    }
+  };
+
+  // Handle Solana payment
+  const handleSolanaPayment = async (amountInSOL: number, destinationAddress: string) => {
+    if (!account?.address || !signer) {
+      throw new Error('Wallet not connected or does not support signing');
+    }
+
+    // Check if signer has the required methods
+    if (!('signAndSendTransactions' in signer)) {
+      throw new Error('Wallet signer does not support transaction signing');
+    }
+
+    try {
+      // Create a real Solana transaction
+      const { createTransaction, getBase58Decoder, signAndSendTransactionMessageWithSigners } = await import('gill');
+      const { getTransferSolInstruction } = await import('gill/programs');
+      
+      // Get the latest blockhash using the existing client
+      const { value: latestBlockhash } = await client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send();
+      
+      // Create the transaction
+      const transaction = createTransaction({
+        feePayer: signer,
+        version: 0,
+        latestBlockhash,
+        instructions: [
+          getTransferSolInstruction({
+            amount: Math.round(amountInSOL * 1000000000), // Convert to lamports
+            destination: destinationAddress as Address,
+            source: signer,
+          }),
+        ],
+      });
+
+      console.log(`Real payment: ${amountInSOL} SOL to ${destinationAddress}`);
+      console.log('Transaction created:', transaction);
+      console.log('Signer type:', typeof signer);
+      console.log('Signer methods:', Object.keys(signer));
+      
+      // Sign and send the transaction
+      const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+      const signature = getBase58Decoder().decode(signatureBytes);
+      
+      console.log(`Transaction signature: ${signature}`);
+      
+      return signature;
+    } catch (error) {
+      console.error('Error processing Solana payment:', error);
+      throw error;
+    }
+  };
+
+  // Handle Solana payment with split transfers (subtotal to brand, platform fee to company)
+  const handleSolanaPaymentSplit = async (
+    subtotalInSOL: number, 
+    platformFeeInSOL: number, 
+    brandWalletAddress: string, 
+    companyWalletAddress: string
+  ) => {
+    if (!account?.address || !signer) {
+      throw new Error('Wallet not connected or does not support signing');
+    }
+
+    // Check if signer has the required methods
+    if (!('signAndSendTransactions' in signer)) {
+      const errorMsg = (signer as { error?: { message?: string } })?.error?.message || 'Wallet signer does not support transaction signing';
+      throw new Error(`Wallet error: ${errorMsg}`);
+    }
+
+    // Check if signer is a mock signer (indicates wallet connection issues)
+    if ((signer as { isMock?: boolean })?.isMock) {
+      throw new Error('Wallet connection issue detected. Please reconnect your wallet.');
+    }
+
+    try {
+      // For now, let's use the working single transfer approach and transfer to brand wallet only
+      // TODO: Implement proper split transfer once we understand the gill library better
+      const totalAmountInSOL = subtotalInSOL + platformFeeInSOL;
+      
+      console.log('Split payment (fallback to single transfer):', {
+        subtotalSOL: subtotalInSOL,
+        platformFeeSOL: platformFeeInSOL,
+        totalSOL: totalAmountInSOL,
+        brandWallet: brandWalletAddress,
+        companyWallet: companyWalletAddress
+      });
+      
+      // Use the working single transfer method for now
+      const signature = await handleSolanaPayment(totalAmountInSOL, brandWalletAddress);
+      
+      console.log(`Split payment completed (single transfer): ${signature}`);
+      console.log('Note: Platform fee will need to be handled separately until split transfer is fixed');
+      
+      return signature;
+    } catch (error) {
+      console.error('Error processing split Solana payment:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        subtotalInSOL,
+        platformFeeInSOL,
+        brandWalletAddress,
+        companyWalletAddress
+      });
+      throw error;
+    }
+  };
   
 
   const [budgetItems] = useState<BudgetItem[]>([
@@ -467,14 +760,18 @@ export default function FranchiseStore() {
     },
   ];
 
-  // Funding data - this would typically come from your backend
+  // Use real fundraising data instead of hardcoded values
   const fundingData = {
-    totalInvestment: 100000, // $100,000
-    invested: 75000,        // $75,000
-    totalShares: 100000,    // 100,000 shares at $1 each
-    sharesRemaining: 25000, // 25,000 shares remaining
-    pricePerShare: 1        // $1 per share
+    totalInvestment: fundraisingData.totalInvestment,
+    invested: fundraisingData.invested,
+    totalShares: fundraisingData.totalShares,
+    sharesRemaining: fundraisingData.sharesRemaining,
+    pricePerShare: fundraisingData.pricePerShare
   };
+
+  // Debug logging to see what data we're getting
+  console.log('FranchiseStore - fundraisingData:', fundraisingData);
+  console.log('FranchiseStore - fundingData:', fundingData);
 
   // Budget Table Component
   const BudgetTable = () => {
@@ -544,7 +841,14 @@ export default function FranchiseStore() {
 
   return (
     <div className="space-y-6 py-12">
-      <FranchisePOSWallet />
+      
+      <FranchiseWallet 
+          franchiseId={franchiseId}
+          business={{
+            name: franchise.name,
+            logoUrl: franchise.brandLogo
+          }}
+        />
       
       {/* Funding Component */}
       <Card className="p-6">
@@ -563,19 +867,19 @@ export default function FranchiseStore() {
           {/* Progress Bar */}
             <div className="h-2 mt-2 bg-stone-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-green-500"
-                style={{ width: `${(fundingData.invested / fundingData.totalInvestment) * 100}%` }}
+                className="h-full bg-green-500 transition-all duration-300"
+                style={{ width: `${fundingData.totalShares > 0 ? (fundingData.totalShares - fundingData.sharesRemaining) / fundingData.totalShares * 100 : 0}%` }}
               ></div>
             </div>
 
           <div className="flex justify-between mt-1">
             <div>
-              <div className="text-sm text-stone-600 dark:text-stone-400">Total Investment: </div>
-              <div className="text-lg font-semibold"> {fundingData.totalInvestment.toLocaleString()} AED</div>
+              <div className="text-sm text-stone-600 dark:text-stone-400">Total Investment Target: </div>
+              <div className="text-lg font-semibold"> ${fundingData.totalInvestment.toLocaleString()}</div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-stone-600 dark:text-stone-400">Investment Remaining: </div>
-              <div className="text-lg font-semibold"> {fundingData.invested.toLocaleString()} AED</div>
+              <div className="text-sm text-stone-600 dark:text-stone-400">Amount Raised: </div>
+              <div className="text-lg font-semibold text-green-600"> ${fundingData.invested.toLocaleString()}</div>
             </div>
           </div>
           <div className="flex justify-between mt-0">
@@ -588,6 +892,29 @@ export default function FranchiseStore() {
               <div className="text-lg font-semibold"> {fundingData.sharesRemaining.toLocaleString()} shares</div>
             </div>
           </div>
+          
+          {/* PDA Information for funding stage */}
+          {/* {franchisePDA && (
+            <div className="mt-4 p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-sm text-stone-600 dark:text-stone-400">Franchise PDA</div>
+                  <div className="text-lg font-semibold">
+                    {franchisePDA.totalRaised.toFixed(2)} USD
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    {franchisePDA.sharesIssued} / {franchisePDA.totalShares} shares
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-stone-600 dark:text-stone-400">PDA Address</div>
+                  <div className="text-xs font-mono text-stone-500">
+                    {franchisePDA.pda.slice(0, 6)}...{franchisePDA.pda.slice(-6)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )} */}
           
         </div>
       </Card>
@@ -619,6 +946,16 @@ export default function FranchiseStore() {
         </div>
 
         <div className="p-6">
+          {activeTab === 'franchise' && (
+            <div className="space-y-6">
+              <FranchiseStageProgress 
+                currentStage={fundraisingData.stage || 'funding'} 
+                className="mb-6"
+              />
+              <FranchiseTab />
+            </div>
+          )}
+          
           {activeTab === 'finances' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -916,7 +1253,7 @@ export default function FranchiseStore() {
           <div className="hidden"></div>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[500px] dark:bg-stone-900">
-          {/* <DialogHeader>
+          <DialogHeader>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
                 <Store className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
@@ -926,7 +1263,7 @@ export default function FranchiseStore() {
                 <p className="text-sm text-stone-500 dark:text-stone-400">Become a part of {franchise.name}</p>
               </div>
             </div>
-          </DialogHeader> */}
+          </DialogHeader>
           
           {/* Franchise Details */}
           <div className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
@@ -974,7 +1311,7 @@ export default function FranchiseStore() {
                   value={[sharesToBuy]}
                   onValueChange={(value) => setSharesToBuy(value[0])}
                   min={1}
-                  max={1000}
+                  max={maxSharesToBuy}
                   step={1}
                   className=""
                 />
@@ -996,23 +1333,23 @@ export default function FranchiseStore() {
                   id="shares"
                   type="number"
                   min="1"
-                  max={totalShares}
+                  max={maxSharesToBuy}
                   value={sharesToBuy}
-                  onChange={(e) => setSharesToBuy(Math.min(totalShares, Math.max(1, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => setSharesToBuy(Math.min(maxSharesToBuy, Math.max(1, parseInt(e.target.value) || 1)))}
                   className="text-center"
                 />
                 <Button 
                   variant="outline" 
                   size="icon"
-                  onClick={() => setSharesToBuy(prev => Math.min(totalShares, prev + 1))}
-                  disabled={sharesToBuy >= totalShares}
+                  onClick={() => setSharesToBuy(prev => Math.min(maxSharesToBuy, prev + 1))}
+                  disabled={sharesToBuy >= maxSharesToBuy}
                 >
                   +
                 </Button>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Min: 1</span>
-                <span>Max: {totalShares}</span>
+                <span>Max: {maxSharesToBuy}</span>
               </div>
             </div>
             
@@ -1034,6 +1371,57 @@ export default function FranchiseStore() {
               </div>
             </div>
           </div>
+          {/* Wallet Connection Status */}
+          {account?.address && (
+            <div className={`p-3 rounded-lg ${
+              signer && 'signAndSendTransactions' in signer 
+                ? 'bg-green-50 dark:bg-green-900/20' 
+                : 'bg-yellow-50 dark:bg-yellow-900/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    signer && 'signAndSendTransactions' in signer 
+                      ? 'bg-green-500' 
+                      : 'bg-yellow-500'
+                  }`}></div>
+                  <span className={`text-sm ${
+                    signer && 'signAndSendTransactions' in signer 
+                      ? 'text-green-700 dark:text-green-400' 
+                      : 'text-yellow-700 dark:text-yellow-400'
+                  }`}>
+                    {signer && 'signAndSendTransactions' in signer 
+                      ? 'Wallet Ready' 
+                      : 'Wallet Connected - Not Ready'
+                    }
+                  </span>
+                </div>
+                <span className={`text-xs font-mono ${
+                  signer && 'signAndSendTransactions' in signer 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : 'text-yellow-600 dark:text-yellow-400'
+                }`}>
+                  {account.address.slice(0, 6)}...{account.address.slice(-4)}
+                </span>
+              </div>
+              {signer && !('signAndSendTransactions' in signer) && (
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  Please try reconnecting your wallet or refresh the page.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* No Shares Available Warning */}
+          {maxSharesToBuy <= 0 && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span className="text-sm text-red-700 dark:text-red-400">No shares available for purchase</span>
+              </div>
+            </div>
+          )}
+
           {/* Total Cost in SOL */}
           <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
             <div className="flex justify-between items-center">
@@ -1054,13 +1442,143 @@ export default function FranchiseStore() {
             <Button variant="outline" onClick={() => setIsBuySharesOpen(false)}>Cancel</Button>
             <Button 
               className="bg-yellow-600 hover:bg-yellow-700"
-              onClick={() => {
-                const totalCost = sharesToBuy * sharePrice * (1 + platformFeePercentage / 100);
-                console.log(`Purchasing ${sharesToBuy} shares for $${totalCost.toFixed(2)} (${(totalCost / solToUsdRate).toFixed(4)} SOL)`);
-                setIsBuySharesOpen(false);
+              disabled={isProcessing || maxSharesToBuy <= 0 || !account?.address || !signer || !('signAndSendTransactions' in signer)}
+              onClick={async () => {
+                if (!account?.address) {
+                  try {
+                    const connected = await connect();
+                    if (!connected) return;
+                  } catch (error) {
+                    toast.error('Failed to connect wallet');
+                    return;
+                  }
+                }
+
+                if (!account?.address) {
+                  toast.error('Wallet not connected');
+                  return;
+                }
+
+                // Check if signer is available
+                if (!signer || !('signAndSendTransactions' in signer)) {
+                  toast.error('Wallet signer not available. Please try reconnecting your wallet.');
+                  return;
+                }
+
+                // Calculate payment breakdown
+                const subtotalAmount = sharesToBuy * sharePrice;
+                const platformFeeAmount = subtotalAmount * (platformFeePercentage / 100);
+                const totalCost = subtotalAmount + platformFeeAmount;
+                
+                const subtotalInSOL = subtotalAmount / solToUsdRate;
+                const platformFeeInSOL = platformFeeAmount / solToUsdRate;
+                const totalCostInSOL = totalCost / solToUsdRate;
+                
+                console.log('Payment breakdown:', {
+                  subtotal: subtotalAmount,
+                  platformFee: platformFeeAmount,
+                  total: totalCost,
+                  subtotalSOL: subtotalInSOL,
+                  platformFeeSOL: platformFeeInSOL,
+                  totalSOL: totalCostInSOL
+                });
+                
+                setIsProcessing(true);
+                
+                try {
+                  if (!franchiseId) {
+                    toast.error('Franchise ID not found');
+                    return;
+                  }
+
+                  // Get destination addresses
+                  const brandWalletAddress = franchise.brandWalletAddress;
+                  if (!brandWalletAddress) {
+                    toast.error('Brand wallet address not found. Please ensure the franchiser has a registered wallet.');
+                    return;
+                  }
+
+                  // Company wallet address for platform fees
+                  const companyWalletAddress = '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+
+                  // Process Solana payment with split transfers
+                  const transactionHash = await handleSolanaPaymentSplit(
+                    subtotalInSOL, 
+                    platformFeeInSOL, 
+                    brandWalletAddress, 
+                    companyWalletAddress
+                  );
+
+                  // Store platform fee transaction for company wallet tracking
+                  const platformFeeTransaction = {
+                    amount: platformFeeAmount,
+                    from: franchise.name,
+                    timestamp: new Date().toISOString(),
+                    description: `Platform fee from ${franchise.name} share purchase`,
+                    transactionHash: transactionHash,
+                    franchiseId: franchiseId,
+                    sharesPurchased: sharesToBuy
+                  };
+                  
+                  const platformFeeKey = `platform_fee_${Date.now()}_${franchiseId}`;
+                  localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeTransaction));
+                  console.log('✅ Stored platform fee transaction in FranchiseStore:', {
+                    key: platformFeeKey,
+                    transaction: platformFeeTransaction,
+                    platformFeeAmount: platformFeeAmount,
+                    sharesPurchased: sharesToBuy
+                  });
+
+                  // Also add to income table
+                  addToIncomeTable('platform_fee', platformFeeAmount, franchise.name, `Platform fee from ${franchise.name} share purchase`, transactionHash);
+                  
+                  // Record the purchase in Convex using the real mutation
+                  await addInvestment(
+                    sharesToBuy, 
+                    sharePrice, 
+                    subtotalAmount, // Use subtotal without platform fee for consistency
+                    account.address, 
+                    transactionHash
+                  );
+                  
+                  // Update PDA with new shares (optional - for local state)
+                  if (franchiseData?._id) {
+                    const { updatePDASharesIssued } = await import('@/lib/franchisePDA');
+                    const currentPDA = await getFranchisePDA(franchiseData._id);
+                    if (currentPDA) {
+                      const newSharesIssued = currentPDA.sharesIssued + sharesToBuy;
+                      const newTotalRaised = currentPDA.totalRaised + totalCost;
+                      updatePDASharesIssued(franchiseData._id, newSharesIssued, newTotalRaised);
+                    }
+                  }
+                  
+                  // Reset form
+                  setSharesToBuy(1);
+                  setIsBuySharesOpen(false);
+                  
+                  // Show success message
+                  toast.success(`Successfully purchased ${sharesToBuy} shares for $${totalCost.toFixed(2)}! Transaction: ${transactionHash.slice(0, 8)}...`);
+                  
+                  // Check if funding is complete
+                  if (franchiseData?._id) {
+                    const { isFundingComplete } = await import('@/lib/franchisePDA');
+                    if (isFundingComplete(franchiseData._id as string)) {
+                      toast.success('🎉 Funding target reached! Franchise will transition to launching stage.');
+                    }
+                  }
+                  
+                } catch (error) {
+                  console.error('Error purchasing shares:', error);
+                  toast.error(`Failed to purchase shares: ${(error as Error).message || 'Please try again.'}`);
+                } finally {
+                  setIsProcessing(false);
+                }
               }}
             >
-              Buy Now
+              {isProcessing ? 'Processing...' : 
+               !account?.address ? 'Connect Wallet' : 
+               !signer || !('signAndSendTransactions' in signer) ? 'Wallet Not Ready' : 
+               'Buy Now'}
             </Button>
           </div>
         </DialogContent>
@@ -1068,3 +1586,13 @@ export default function FranchiseStore() {
     </div>
   );
 }
+
+const FranchiseStore: React.FC<FranchiseStoreProps> = (props) => {
+  return (
+    <WalletErrorBoundary>
+      <FranchiseStoreInner {...props} />
+    </WalletErrorBoundary>
+  );
+};
+
+export default FranchiseStore;

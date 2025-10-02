@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Building, Search, LocateFixed, X } from 'lucide-react';
-import { LoadScript } from '@react-google-maps/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -18,8 +17,14 @@ import { useFranchisersByLocation } from '@/hooks/useFranchisersByLocation';
 import { extractLocationInfo, normalizeCountryName, normalizeCityName } from '@/lib/locationUtils';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../../convex/_generated/dataModel';
-// import { useQuery } from "convex/react";
-// import { api } from "../../../../../convex/_generated/api";
+import { useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { useFranchiseWallet } from '@/hooks/useFranchiseWallet';
+import { useSolana } from '@/components/solana/use-solana';
+import { useWalletUiSigner } from '@/components/solana/use-wallet-ui-signer';
+import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
+import { Keypair } from '@solana/web3.js';
+import { Address } from 'gill';
 
 // Dynamically import the MapComponent with SSR disabled
 const MapComponent = dynamic(
@@ -36,12 +41,12 @@ interface Business {
   name: string;
   slug: string;
   logoUrl?: string;
-  walletAddress: string;
   industry: string;
   category: string;
   description: string;
   website?: string;
   status: string;
+  brandWalletAddress?: string;
   location: {
     _id: string;
     franchiserId: string;
@@ -107,6 +112,7 @@ const FranchiserLogo: React.FC<{
         width={size === 'sm' ? 32 : size === 'md' ? 48 : 64}
         height={size === 'sm' ? 32 : size === 'md' ? 48 : 64}
         className="object-contain"
+        unoptimized
       />
     </div>
   ) : (
@@ -161,7 +167,7 @@ const FranchiserLogo: React.FC<{
             {/* Investment info - responsive layout */}
             <div className="flex flex-col sm:flex-col sm:text-right mt-2 sm:mt-0">
               <p className="text-xs sm:text-sm font-medium">
-                Min Budget: ${(business.location.franchiseFee + business.location.setupCost + business.location.workingCapital).toLocaleString()}
+                Min Budget: ${(business.location.franchiseFee + (business.location.setupCost * business.location.minArea) + (business.location.workingCapital * business.location.minArea)).toLocaleString()}
               </p>
               <p className="text-xs text-stone-500 mt-1">
                 Min Area: {business.location.minArea} sq ft
@@ -179,7 +185,37 @@ const dummyUser = {
   phone: '+1234567890'
 } as const;
 
-const FranchiseCreate: React.FC = () => {
+// Helper function to add income records to the income table
+const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' | 'subscription', amount: number, source: string, description: string, transactionHash?: string) => {
+  try {
+    const incomeRecord = {
+      id: `income_${Date.now()}`,
+      type,
+      amount,
+      description,
+      source,
+      timestamp: new Date().toISOString(),
+      status: 'completed' as const,
+      transactionHash
+    };
+
+    // Get existing income records
+    const existingRecords = localStorage.getItem('company_income_records');
+    const records = existingRecords ? JSON.parse(existingRecords) : [];
+    
+    // Add new record
+    records.unshift(incomeRecord);
+    
+    // Save back to localStorage
+    localStorage.setItem('company_income_records', JSON.stringify(records));
+    
+    console.log('✅ Added income record:', incomeRecord);
+  } catch (error) {
+    console.error('Error adding income record:', error);
+  }
+};
+
+const FranchiseCreateInner: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [mapSearchQuery, setMapSearchQuery] = useState('');
@@ -197,7 +233,24 @@ const FranchiseCreate: React.FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
-  const usdtPerSol = 100; // Dummy exchange rate
+  const [usdtPerSol, setUsdtPerSol] = useState(0); // Real-time exchange rate from CoinGecko
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+  const [franchiseWalletAddress, setFranchiseWalletAddress] = useState<string | null>(null);
+
+  // Solana hooks
+  const { account, client } = useSolana();
+  const signer = useWalletUiSigner();
+
+  // Convex mutations
+  const generateFranchiseSlug = useMutation(api.franchiseManagement.generateFranchiseSlug);
+  const createFranchise = useMutation(api.franchiseManagement.createFranchise);
+  const updateFranchiseStatus = useMutation(api.franchiseManagement.updateFranchiseStatus);
+  const updateFranchiseStage = useMutation(api.franchiseManagement.updateFranchiseStage);
+  const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
+  const createInvoice = useMutation(api.franchiseManagement.createInvoice);
+  const createProperty = useMutation(api.propertyManagement.createProperty);
+  const updatePropertyStage = useMutation(api.propertyManagement.updatePropertyStage);
 
   // Get franchisers based on selected location
   const effectiveLocationInfo = manualLocationOverride || locationInfo;
@@ -208,7 +261,65 @@ const FranchiseCreate: React.FC = () => {
     enabled: !!effectiveLocationInfo?.country
   });
 
-  // Initialize Google Maps services
+  // Debug franchiser data
+  useEffect(() => {
+    if (franchisers && franchisers.length > 0) {
+      console.log('Franchisers loaded:', franchisers);
+      franchisers.forEach((franchiser, index) => {
+        console.log(`Franchiser ${index}:`, {
+          name: franchiser.name,
+          brandWalletAddress: franchiser.brandWalletAddress,
+          hasBrandWallet: !!franchiser.brandWalletAddress
+        });
+      });
+    }
+  }, [franchisers]);
+
+  // Fetch SOL/USDT price from CoinGecko
+  const fetchSolanaPrice = useCallback(async () => {
+    setPriceLoading(true);
+    try {
+      console.log('Fetching SOL price from CoinGecko...');
+      
+      // Use a more reliable endpoint with proper headers
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usdt', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('CoinGecko API response:', data);
+      
+      if (data.solana && data.solana.usdt) {
+        setUsdtPerSol(data.solana.usdt);
+        setLastPriceUpdate(new Date());
+        console.log('SOL/USDT price updated:', data.solana.usdt);
+      } else {
+        console.log('No SOL price data found in response');
+        // Set a reasonable fallback price
+        setUsdtPerSol(200);
+        setLastPriceUpdate(new Date());
+      }
+    } catch (error) {
+      console.error('Failed to fetch SOL price:', error);
+      // Set a fallback price if API fails
+      setUsdtPerSol(200); // Reasonable fallback
+      setLastPriceUpdate(new Date());
+    } finally {
+      setPriceLoading(false);
+    }
+  }, []);
+
+  // Initialize Google Maps services and fetch SOL price
   useEffect(() => {
     if (window.google && window.google.maps && window.google.maps.places) {
       autocompleteService.current = new window.google.maps.places.AutocompleteService();
@@ -218,7 +329,29 @@ const FranchiseCreate: React.FC = () => {
     } else {
       console.error('Google Maps API not loaded');
     }
-  }, []);
+    
+    // Fetch SOL price on component mount
+    fetchSolanaPrice();
+    
+    // Set a fallback price after 3 seconds if still loading
+    const fallbackTimeout = setTimeout(() => {
+      if (usdtPerSol === 0) {
+        console.log('Setting fallback SOL price after timeout');
+        setUsdtPerSol(150);
+        setLastPriceUpdate(new Date());
+      }
+    }, 3000);
+    
+    // Set up auto-refresh for SOL price every 30 seconds
+    const priceInterval = setInterval(() => {
+      fetchSolanaPrice();
+    }, 30000); // 30 seconds
+    
+    return () => {
+      clearInterval(priceInterval);
+      clearTimeout(fallbackTimeout);
+    };
+  }, [fetchSolanaPrice, usdtPerSol]);
 
 
   // Handle input changes and fetch predictions
@@ -332,9 +465,9 @@ const FranchiseCreate: React.FC = () => {
       userEmail: dummyUser.email
     },
     investment: {
-      selectedShares: 100,
-      totalShares: 1000,
-      sharePrice: 1.00,
+      selectedShares: 0,
+      totalShares: 0,
+      sharePrice: 0,
       franchiseFee: 0,
       setupCost: 0,
       workingCapital: 0,
@@ -346,9 +479,6 @@ const FranchiseCreate: React.FC = () => {
   useEffect(() => {
     if (formData.selectedBusiness) {
       const business = formData.selectedBusiness;
-      const totalInvestment = business.location.franchiseFee + business.location.setupCost + business.location.workingCapital;
-      const totalShares = Math.floor(totalInvestment) || 1000;
-      const sharePrice = totalShares > 0 ? totalInvestment / totalShares : 1.0;
       
       setFormData(prev => ({
         ...prev,
@@ -356,15 +486,6 @@ const FranchiseCreate: React.FC = () => {
           ...prev.locationDetails,
           sqft: business.location.minArea.toString(),
           costPerArea: '0', // Will be calculated based on total investment
-        },
-        investment: {
-          ...prev.investment,
-          franchiseFee: business.location.franchiseFee,
-          setupCost: business.location.setupCost,
-          workingCapital: business.location.workingCapital,
-          totalInvestment,
-          totalShares,
-          sharePrice
         }
       }));
     }
@@ -380,13 +501,24 @@ const FranchiseCreate: React.FC = () => {
     const baseSetupCost = formData.selectedBusiness.location.setupCost;
     const baseWorkingCapital = formData.selectedBusiness.location.workingCapital;
     
-    // Calculate ratio based on area (minimum 1.0 for min area)
-    const areaRatio = Math.max(1.0, selectedArea / minArea);
+    // Debug logging to see what values we're getting from the database
+    console.log('Database values from franchiserLocation:', {
+      selectedArea,
+      minArea,
+      baseFranchiseFee,
+      baseSetupCost,
+      baseWorkingCapital,
+      locationData: formData.selectedBusiness.location
+    });
     
-    // Franchise fee is fixed, only setup cost and working capital scale with area
+    // The base values are already per-sqft rates, not total costs
+    const setupCostPerSqft = baseSetupCost; // Already per sqft
+    const workingCapitalPerSqft = baseWorkingCapital; // Already per sqft
+    
+    // Franchise fee is fixed, setup cost and working capital scale with area
     const franchiseFee = baseFranchiseFee; // Fixed
-    const setupCost = Math.round(baseSetupCost * areaRatio);
-    const workingCapital = Math.round(baseWorkingCapital * areaRatio);
+    const setupCost = Math.round(setupCostPerSqft * selectedArea);
+    const workingCapital = Math.round(workingCapitalPerSqft * selectedArea);
     const totalInvestment = franchiseFee + setupCost + workingCapital;
     
     return {
@@ -403,6 +535,7 @@ const FranchiseCreate: React.FC = () => {
       const calculatedInvestment = calculateInvestmentByArea();
       const totalShares = Math.floor(calculatedInvestment.totalInvestment) || 1000;
       const sharePrice = totalShares > 0 ? calculatedInvestment.totalInvestment / totalShares : 1.0;
+      const defaultSelectedShares = Math.ceil(totalShares * 0.02); // Set default to 2% of total shares
       
       setFormData(prev => ({
         ...prev,
@@ -410,7 +543,8 @@ const FranchiseCreate: React.FC = () => {
           ...prev.investment,
           ...calculatedInvestment,
           totalShares,
-          sharePrice
+          sharePrice,
+          selectedShares: defaultSelectedShares // Set default selected shares to 2%
         }
       }));
     }
@@ -460,11 +594,12 @@ const FranchiseCreate: React.FC = () => {
 
   const updateInvestment = (selectedShares: number) => {
     const totalShares = formData.investment.totalShares;
+    const minShares = totalShares > 0 ? Math.ceil(totalShares * 0.02) : 0; // Changed from 0.05 to 0.02 (2%)
     setFormData(prev => ({
       ...prev,
       investment: {
         ...prev.investment,
-        selectedShares: Math.min(Math.max(selectedShares, Math.ceil(totalShares * 0.05)), totalShares)
+        selectedShares: totalShares > 0 ? Math.min(Math.max(selectedShares, minShares), totalShares) : selectedShares
       }
     }));
   };
@@ -478,10 +613,16 @@ const FranchiseCreate: React.FC = () => {
       case 3:
         const { doorNumber, sqft, isOwned, landlordNumber, landlordEmail, userNumber, userEmail, franchiseSlug, buildingName } = formData.locationDetails;
         const basicFields = doorNumber && sqft && franchiseSlug && buildingName && formData.locationDetails.costPerArea;
+        
+        // Check if carpet area meets minimum requirement
+        const carpetArea = parseFloat(sqft) || 0;
+        const minArea = formData.selectedBusiness?.location.minArea || 0;
+        const areaValid = carpetArea >= minArea;
+        
         if (isOwned) {
-          return !!basicFields && !!userNumber && !!userEmail;
+          return !!basicFields && !!userNumber && !!userEmail && areaValid;
         } else {
-          return !!basicFields && !!landlordNumber && !!landlordEmail;
+          return !!basicFields && !!landlordNumber && !!landlordEmail && areaValid;
         }
       case 4:
         return true;
@@ -511,6 +652,17 @@ const FranchiseCreate: React.FC = () => {
 
   const selectBusiness = async (business: Business) => {
     await simulateLoading(300);
+    
+    // Debug logging to see what business data we're selecting
+    console.log('Selecting business:', {
+      businessName: business.name,
+      locationData: business.location,
+      minArea: business.location.minArea,
+      setupCost: business.location.setupCost,
+      workingCapital: business.location.workingCapital,
+      franchiseFee: business.location.franchiseFee
+    });
+    
     setFormData(prev => ({
       ...prev,
       selectedBusiness: business,
@@ -518,10 +670,6 @@ const FranchiseCreate: React.FC = () => {
         ...prev.locationDetails,
         costPerArea: business.location.minArea?.toString() || '100',
         sqft: business.location.minArea ? business.location.minArea.toString() : prev.locationDetails.sqft
-      },
-      investment: {
-        ...prev.investment,
-        totalShares: business.location.minArea ? Math.floor(business.location.minArea * (parseInt(prev.locationDetails.sqft) || 0)) : 1000
       }
     }));
   };
@@ -910,29 +1058,7 @@ const FranchiseCreate: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-4 gap-4">
-                  <div className="col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Building Name
-                  </label>
-                  <Input
-                    value={formData.locationDetails.buildingName}
-                    onChange={(e) => updateLocationDetails('buildingName', e.target.value)}
-                    className="w-full p-2 border "
-                    placeholder="Building name"
-                  />
-                </div>
                 <div className="col-span-1">
-                    <label className="block text-sm font-medium text-stone-700 mb-1">
-                      Door Number
-                    </label>
-                    <Input
-                      value={formData.locationDetails.doorNumber}
-                      onChange={(e) => updateLocationDetails('doorNumber', e.target.value)}
-                      className="w-full p-2 border "
-                      placeholder="e.g., 101"
-                    />
-                  </div>
-                  <div className="col-span-1">
                     <label className="block text-sm font-medium text-stone-700 mb-1">
                       Carpet Area (sq ft)
                     </label>
@@ -945,16 +1071,47 @@ const FranchiseCreate: React.FC = () => {
                       min={formData.selectedBusiness?.location.minArea || 0}
                     />
                     {formData.selectedBusiness && (
-                      <div className="mt-1 text-xs text-stone-500">
-                        Min: {formData.selectedBusiness.location.minArea} sq ft
-                        {parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
-                          <span className="text-green-600 ml-2">
-                            (+{((parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea - 1) * 100).toFixed(0)}% larger)
-                          </span>
+                      <div className="mt-1 text-xs">
+                        <div className="text-stone-500">
+                          Min: {formData.selectedBusiness.location.minArea} sq ft
+                          {parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                            <span className="text-green-600 ml-2">
+                              (+{((parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea - 1) * 100).toFixed(0)}% larger)
+                            </span>
+                          )}
+                        </div>
+                        {parseFloat(formData.locationDetails.sqft) < formData.selectedBusiness.location.minArea && (
+                          <div className="text-red-600 mt-1">
+                            Area must be at least {formData.selectedBusiness.location.minArea} sq ft
+                          </div>
                         )}
-                  </div>
+                      </div>
                     )}
                   </div>
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
+                      Door Number
+                    </label>
+                    <Input
+                      value={formData.locationDetails.doorNumber}
+                      onChange={(e) => updateLocationDetails('doorNumber', e.target.value)}
+                      className="w-full p-2 border "
+                      placeholder="e.g., 101"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                    Building Name
+                  </label>
+                  <Input
+                    value={formData.locationDetails.buildingName}
+                    onChange={(e) => updateLocationDetails('buildingName', e.target.value)}
+                    className="w-full p-2 border "
+                    placeholder="Building name"
+                  />
+                </div>
+              
+                  
                 </div>
 
                 {/* Investment Breakdown - Based on selected franchiser */}
@@ -988,13 +1145,13 @@ const FranchiseCreate: React.FC = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-stone-600 dark:text-stone-400">
-                            • Setup Cost (Cost per sqft ${formData.selectedBusiness?.location.setupCost ? Math.round(formData.selectedBusiness.location.setupCost / formData.selectedBusiness.location.minArea) : 0})
+                            • Setup Cost (${formData.selectedBusiness?.location.setupCost || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
                           </span>
                           <span>${formData.investment.setupCost.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-stone-600 dark:text-stone-400">
-                            • Working Capital (Cost per sqft ${formData.selectedBusiness?.location.workingCapital ? Math.round(formData.selectedBusiness.location.workingCapital / formData.selectedBusiness.location.minArea) : 0})
+                            • Working Capital (${formData.selectedBusiness?.location.workingCapital || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
                           </span>
                           <span>${formData.investment.workingCapital.toLocaleString()}</span>
                         </div>
@@ -1070,13 +1227,13 @@ const FranchiseCreate: React.FC = () => {
                          </div>
                          <div className="flex justify-between">
                            <span className="text-stone-600 dark:text-stone-400">
-                             Setup Cost (Cost per sqft ${formData.selectedBusiness?.location.setupCost ? Math.round(formData.selectedBusiness.location.setupCost / formData.selectedBusiness.location.minArea) : 0})
+                             Setup Cost (${formData.selectedBusiness?.location.setupCost || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
                            </span>
                            <span className="font-medium">${formData.investment.setupCost.toLocaleString()}</span>
                          </div>
                          <div className="flex justify-between">
                            <span className="text-stone-600 dark:text-stone-400">
-                             Working Capital (Cost per sqft ${formData.selectedBusiness?.location.workingCapital ? Math.round(formData.selectedBusiness.location.workingCapital / formData.selectedBusiness.location.minArea) : 0})
+                             Working Capital (${formData.selectedBusiness?.location.workingCapital || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
                            </span>
                            <span className="font-medium">${formData.investment.workingCapital.toLocaleString()}</span>
                          </div>
@@ -1104,23 +1261,24 @@ const FranchiseCreate: React.FC = () => {
                       <div className="flex justify-between mb-4">
                         <div>
                           <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Your Investment</p>
-                          <p className="text-xs text-stone-600 dark:text-stone-300">Minimum 5% of total shares</p>
+                          <p className="text-xs text-stone-600 dark:text-stone-300">Minimum 2% of total shares</p>
                         </div>
                         <div className="text-right">
                           <p className="font-medium text-stone-900 dark:text-blue-100">{formData.investment.selectedShares.toLocaleString()} Shares</p>
                           <p className="text-sm text-stone-600 dark:text-stone-300">
-                            {((formData.investment.selectedShares / formData.investment.totalShares) * 100).toFixed(1)}% of total
+                            {formData.investment.totalShares > 0 ? ((formData.investment.selectedShares / formData.investment.totalShares) * 100).toFixed(1) : 0}% of total
                           </p>
                         </div>
                       </div>
                       
                       <Slider
                         value={[formData.investment.selectedShares]}
-                        min={Math.ceil(formData.investment.totalShares * 0.05)}
-                        max={formData.investment.totalShares}
+                        min={formData.investment.totalShares > 0 ? Math.ceil(formData.investment.totalShares * 0.02) : 0}
+                        max={formData.investment.totalShares || 0}
                         step={1}
                         onValueChange={([value]) => updateInvestment(value)}
                         className="w-full mb-6"
+                        disabled={formData.investment.totalShares === 0}
                       />
                       
                       <div className="grid grid-cols-2 gap-4">
@@ -1142,8 +1300,8 @@ const FranchiseCreate: React.FC = () => {
                             type="number"
                             value={formData.investment.selectedShares}
                             onChange={(e) => updateInvestment(Number(e.target.value))}
-                            min={Math.ceil(formData.investment.totalShares * 0.05)}
-                            max={formData.investment.totalShares}
+                            min={formData.investment.totalShares > 0 ? Math.ceil(formData.investment.totalShares * 0.02) : 0}
+                            max={formData.investment.totalShares || 0}
                             className="w-full p-2 border"
                           />
                         </div>
@@ -1154,7 +1312,30 @@ const FranchiseCreate: React.FC = () => {
 
                 {/* Payment Summary */}
                 <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
-                      <h4 className="font-medium mb-2">Payment Summary</h4>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">Payment Summary</h4>
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-stone-500">1 SOL = ${usdtPerSol > 0 ? usdtPerSol.toFixed(2) : 'Loading...'} USDT</span>
+                            <button
+                              onClick={fetchSolanaPrice}
+                              disabled={priceLoading}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {priceLoading ? (
+                                <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                '🔄'
+                              )}
+                            </button>
+                          </div>
+                          {lastPriceUpdate && (
+                            <span className="text-xs text-stone-400">
+                              Updated {lastPriceUpdate.toLocaleTimeString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                   <div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -1183,7 +1364,7 @@ const FranchiseCreate: React.FC = () => {
                           </span>
                           </div>
                         <div className="text-xs text-green-600 dark:text-green-400 text-right mt-1">
-                            ≈ {(formData.investment.selectedShares * formData.investment.sharePrice * 1.02 / usdtPerSol).toFixed(4)} SOL
+                            ≈ {usdtPerSol > 0 ? (formData.investment.selectedShares * formData.investment.sharePrice * 1.02 / usdtPerSol).toFixed(4) : 'Loading...'} SOL
                         </div>
                       </div>
                     </div>
@@ -1219,15 +1400,316 @@ const FranchiseCreate: React.FC = () => {
               </Button>
             ) : (
               <Button
-                onClick={() => {
+                onClick={async () => {
+                  if (!formData.selectedBusiness || !selectedLocation) {
+                    toast.error('Please complete all required fields');
+                    return;
+                  }
+
+                  if (!account?.address) {
+                    toast.error('Please connect your wallet first');
+                    return;
+                  }
+
+                  // Check if signer is available and has the required methods
+                  if (!signer || !('signAndSendTransactions' in signer)) {
+                    const errorMsg = (signer as { error?: { message?: string } })?.error?.message || 'Wallet signer not available';
+                    toast.error(`Wallet error: ${errorMsg}. Please try reconnecting your wallet.`);
+                    return;
+                  }
+
+                  // Check if signer is a mock signer (indicates wallet connection issues)
+                  if ((signer as { isMock?: boolean })?.isMock) {
+                    toast.error('Wallet connection issue detected. Please reconnect your wallet.');
+                    return;
+                  }
+
                   setLoading(true);
-                  // Simulate payment processing
-                  setTimeout(() => {
-                    setLoading(false);
-                    toast.success('Franchise created successfully!');
+                  
+                  try {
+                    // Calculate payment breakdown
+                    const subtotalAmount = formData.investment.selectedShares * formData.investment.sharePrice;
+                    const platformFeeAmount = subtotalAmount * 0.02; // 2% platform fee
+                    const totalInvestmentAmount = subtotalAmount + platformFeeAmount;
+                    
+                    const subtotalInSOL = subtotalAmount / usdtPerSol;
+                    const platformFeeInSOL = platformFeeAmount / usdtPerSol;
+                    const totalAmountInSOL = totalInvestmentAmount / usdtPerSol;
+                    
+                    console.log('Payment breakdown:', {
+                      subtotal: subtotalAmount,
+                      platformFee: platformFeeAmount,
+                      total: totalInvestmentAmount,
+                      subtotalSOL: subtotalInSOL,
+                      platformFeeSOL: platformFeeInSOL,
+                      totalSOL: totalAmountInSOL
+                    });
+                    
+                    // Use gill for share purchase transaction
+                    const { createTransaction, getBase58Decoder, signAndSendTransactionMessageWithSigners } = await import('gill');
+                    const { getTransferSolInstruction } = await import('gill/programs');
+                    
+                    const { value: latestBlockhash } = await client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send();
+                    console.log('Latest blockhash:', latestBlockhash);
+                    
+                    // Get destination addresses
+                    const brandWalletAddress = formData.selectedBusiness.brandWalletAddress;
+                    if (!brandWalletAddress) {
+                      console.error('Brand wallet address not found in business data:', formData.selectedBusiness);
+                      throw new Error('Brand wallet address not found. Please ensure the franchiser has a registered wallet.');
+                    }
+                    
+                    // Company wallet address for platform fees
+                    const companyWalletAddress = '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+                    
+                    console.log('Transferring to:', {
+                      brandWallet: brandWalletAddress,
+                      companyWallet: companyWalletAddress,
+                      subtotalSOL: subtotalInSOL,
+                      platformFeeSOL: platformFeeInSOL
+                    });
+                    
+                    // For now, use single transfer to brand wallet (fallback approach)
+                    // TODO: Implement proper split transfer once we understand the gill library better
+                    const transaction = createTransaction({
+                      feePayer: signer,
+                      version: 0,
+                      latestBlockhash,
+                      instructions: [
+                        // Transfer total amount to brand wallet for now
+                        getTransferSolInstruction({
+                          amount: Math.round(totalAmountInSOL * 1000000000), // Convert to lamports
+                          destination: brandWalletAddress as Address,
+                          source: signer,
+                        }),
+                      ],
+                    });
+
+                    console.log('Transaction created, signing and sending...');
+                    let transferSignature: string;
+                    try {
+                      const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+                      transferSignature = getBase58Decoder().decode(signatureBytes);
+                      console.log('Transfer signature:', transferSignature);
+
+                      if (!transferSignature) {
+                        throw new Error('Failed to purchase shares');
+                      }
+
+                      // Store platform fee transaction for company wallet tracking (will be updated after franchise creation)
+                      const platformFeeTransaction = {
+                        amount: platformFeeAmount,
+                        from: formData.selectedBusiness.name,
+                        timestamp: new Date().toISOString(),
+                        description: `Platform fee from ${formData.selectedBusiness.name} franchise creation`,
+                        transactionHash: transferSignature,
+                        franchiseId: 'pending' // Will be updated after franchise creation
+                      };
+                      
+                      const platformFeeKey = `platform_fee_${Date.now()}_pending`;
+                      localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeTransaction));
+                      console.log('✅ Stored platform fee transaction in FranchiseCreate:', {
+                        key: platformFeeKey,
+                        transaction: platformFeeTransaction,
+                        platformFeeAmount: platformFeeAmount
+                      });
+
+                      // Also add to income table
+                      addToIncomeTable('platform_fee', platformFeeAmount, formData.selectedBusiness.name, `Platform fee from ${formData.selectedBusiness.name} franchise creation`, transferSignature);
+                    } catch (error) {
+                      if (error instanceof Error && error.message.includes('User rejected')) {
+                        toast.error('Transaction cancelled by user');
+                        return; // Exit early if user cancelled
+                      }
+                      throw error; // Re-throw other errors
+                    }
+
+                    // Only create franchise after successful payment
+                    // Generate franchise slug
+                    const franchiseSlug = await generateFranchiseSlug({
+                      franchiserSlug: formData.selectedBusiness.slug
+                    });
+
+                    // Create franchise record with auto-approval and funding stage
+                    const franchiseId = await createFranchise({
+                      franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
+                      franchiseeId: account.address, // Use connected wallet address
+                      locationId: formData.selectedBusiness.location._id as Id<"franchiserLocations">,
+                      franchiseSlug,
+                      businessName: `${formData.selectedBusiness.name} - ${formData.locationDetails.buildingName}`,
+                      address: selectedLocation.address,
+                      coordinates: {
+                        lat: selectedLocation.lat,
+                        lng: selectedLocation.lng,
+                      },
+                      buildingName: formData.locationDetails.buildingName,
+                      doorNumber: formData.locationDetails.doorNumber,
+                      sqft: parseInt(formData.locationDetails.sqft),
+                      isOwned: formData.locationDetails.isOwned,
+                      landlordContact: formData.locationDetails.isOwned ? undefined : {
+                        name: 'Landlord',
+                        phone: formData.locationDetails.landlordNumber,
+                        email: formData.locationDetails.landlordEmail,
+                      },
+                      franchiseeContact: {
+                        name: 'Franchisee',
+                        phone: formData.locationDetails.userNumber,
+                        email: formData.locationDetails.userEmail,
+                      },
+                      investment: {
+                        totalInvestment: formData.investment.totalInvestment,
+                        totalInvested: 0, // Start with 0, will be updated by purchaseShares
+                        sharesIssued: formData.investment.totalShares,
+                        sharesPurchased: 0, // Start with 0, will be updated by purchaseShares
+                        sharePrice: formData.investment.sharePrice,
+                        franchiseFee: formData.investment.franchiseFee,
+                        setupCost: formData.investment.setupCost,
+                        workingCapital: formData.investment.workingCapital,
+                        minimumInvestment: Math.ceil(formData.investment.totalShares * 0.02 * formData.investment.sharePrice), // 2% of total investment
+                      },
+                    });
+
+                    // Create franchise PDA after successful franchise creation
+                    const { generateFranchisePDA, storeFranchisePDA } = await import('@/lib/franchisePDA');
+                    const franchisePDA = generateFranchisePDA(
+                        franchiseId as string,
+                        formData.investment.totalShares,
+                        formData.investment.sharePrice
+                    );
+                    console.log('Created franchise PDA:', franchisePDA.pda);
+                    storeFranchisePDA(franchisePDA);
+                    setFranchiseWalletAddress(franchisePDA.pda); // Use PDA as address for now
+
+                    // Update platform fee transaction with actual franchise ID
+                    const platformFeeKey = `platform_fee_${Date.now()}_pending`;
+                    const existingPlatformFee = localStorage.getItem(platformFeeKey);
+                    if (existingPlatformFee) {
+                      const platformFeeData = JSON.parse(existingPlatformFee);
+                      platformFeeData.franchiseId = franchiseId;
+                      platformFeeData.description = `Platform fee from ${formData.selectedBusiness.name} franchise creation (${franchiseSlug})`;
+                      localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeData));
+                      console.log('Updated platform fee transaction with franchise ID:', platformFeeData);
+                    }
+
+                    // Store initial fundraising data (will be updated by purchaseShares)
+                    const initialFundraisingData = {
+                        totalInvestment: formData.investment.totalInvestment,
+                        invested: 0, // Start with 0, will be updated by purchaseShares
+                        totalShares: formData.investment.totalShares,
+                        sharesIssued: 0, // Start with 0, will be updated by purchaseShares
+                        sharesRemaining: formData.investment.totalShares,
+                        pricePerShare: formData.investment.sharePrice,
+                        franchiseFee: formData.investment.franchiseFee,
+                        setupCost: formData.investment.setupCost,
+                        workingCapital: formData.investment.workingCapital,
+                        progressPercentage: 0, // Start with 0, will be updated by purchaseShares
+                        stage: 'funding'
+                    };
+                    
+                    // Clear any existing localStorage data for this franchise to prevent conflicts
+                    localStorage.removeItem(`franchise_fundraising_${franchiseId}`);
+                    
+                    // Store the correct fundraising data
+                    localStorage.setItem(`franchise_fundraising_${franchiseId}`, JSON.stringify(initialFundraisingData));
+                    console.log('Stored initial fundraising data for franchise:', franchiseId, initialFundraisingData);
+
+                    // Auto-approve the franchise and set to approved status
+                    await updateFranchiseStatus({
+                      franchiseId: franchiseId as Id<"franchises">,
+                      status: 'approved',
+                    });
+
+                    // Set the franchise stage to funding
+                    await updateFranchiseStage({
+                      franchiseId: franchiseId as Id<"franchises">,
+                      stage: 'funding',
+                    });
+
+                    // Create property record for admin management
+                    const propertyId = await createProperty({
+                      address: selectedLocation.address,
+                      coordinates: {
+                        lat: selectedLocation.lat,
+                        lng: selectedLocation.lng,
+                      },
+                      buildingName: formData.locationDetails.buildingName,
+                      doorNumber: formData.locationDetails.doorNumber,
+                      sqft: parseInt(formData.locationDetails.sqft),
+                      costPerSqft: parseFloat(formData.locationDetails.costPerArea) || 0,
+                      propertyType: 'commercial', // Default to commercial
+                      amenities: [], // Can be added later by admin
+                      images: [], // Can be added later by admin
+                      landlordContact: formData.locationDetails.isOwned ? {
+                        name: formData.locationDetails.userNumber,
+                        phone: formData.locationDetails.userNumber,
+                        email: formData.locationDetails.userEmail,
+                      } : {
+                        name: 'Landlord',
+                        phone: formData.locationDetails.landlordNumber,
+                        email: formData.locationDetails.landlordEmail,
+                      },
+                      priority: 'medium',
+                    });
+
+                    // Update property stage to "rented" since franchise is auto-approved
+                    await updatePropertyStage({
+                      propertyId,
+                      stage: 'rented',
+                      franchiseId: franchiseId as Id<"franchises">,
+                      franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
+                      notes: 'Property auto-approved for franchise creation - now in funding stage',
+                      updatedBy: 'system-auto-approval',
+                    });
+
+                    // Update PDA with shares purchased
+                    const { updatePDASharesIssued } = await import('@/lib/franchisePDA');
+                    updatePDASharesIssued(franchiseId as string, formData.investment.selectedShares, subtotalAmount);
+
+                    // Purchase shares - use subtotal amount (without platform fee) for consistency
+                    await purchaseShares({
+                      franchiseId: franchiseId as Id<"franchises">,
+                      investorId: account.address,
+                      sharesPurchased: formData.investment.selectedShares,
+                      sharePrice: formData.investment.sharePrice,
+                      totalAmount: subtotalAmount, // Use subtotal without platform fee
+                      transactionHash: transferSignature,
+                    });
+
+                    // Create invoice
+                    await createInvoice({
+                      franchiseId: franchiseId as Id<"franchises">,
+                      investorId: account.address,
+                      invoiceNumber: `INV-${Date.now()}`,
+                      amount: formData.investment.selectedShares * formData.investment.sharePrice * 1.02, // Including 2% service fee
+                      currency: 'USD',
+                      description: `Franchise investment for ${formData.selectedBusiness.name}`,
+                      items: [
+                        {
+                          description: `Franchise shares (${formData.investment.selectedShares} shares)`,
+                          quantity: formData.investment.selectedShares,
+                          unitPrice: formData.investment.sharePrice,
+                          total: formData.investment.selectedShares * formData.investment.sharePrice,
+                        },
+                        {
+                          description: 'Service fee (2%)',
+                          quantity: 1,
+                          unitPrice: formData.investment.selectedShares * formData.investment.sharePrice * 0.02,
+                          total: formData.investment.selectedShares * formData.investment.sharePrice * 0.02,
+                        }
+                      ],
+                      dueDate: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
+                    });
+
+                    toast.success(`Franchise created! ${totalAmountInSOL.toFixed(4)} SOL transferred to ${formData.selectedBusiness.name} brand wallet.`);
                     // Navigate to franchise account page
-                    router.push('/franchise/franchise-1');
-                  }, 1000);
+                    router.push(`/${formData.selectedBusiness.slug}/${franchiseSlug}`);
+                    
+                  } catch (error) {
+                    console.error('Error creating franchise:', error);
+                    toast.error('Failed to create franchise. Please try again.');
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
                 disabled={!canProceed() || loading}
                 className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
@@ -1243,20 +1725,14 @@ const FranchiseCreate: React.FC = () => {
   );
 };
 
-// Wrap the component with Google Maps LoadScript
-const FranchiseCreateWithGoogleMaps: React.FC = () => {
-  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-    return <div>Google Maps API key is not configured</div>;
-  }
-
+const FranchiseCreate: React.FC = () => {
   return (
-    <LoadScript
-      googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
-      libraries={['places']}
-    >
-      <FranchiseCreate />
-    </LoadScript>
+    <WalletErrorBoundary>
+      <GoogleMapsLoader>
+        <FranchiseCreateInner />
+      </GoogleMapsLoader>
+    </WalletErrorBoundary>
   );
 };
 
-export default FranchiseCreateWithGoogleMaps;
+export default FranchiseCreate;

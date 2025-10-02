@@ -9,24 +9,32 @@ export const getAllFranchisers = query({
   },
 });
 
-// Query to get franchiser by wallet address
+// Query to get franchiser by ID
+export const getFranchiserById = query({
+  args: { id: v.id("franchiser") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Query to get franchiser by owner wallet address
 export const getFranchiserByWallet = query({
   args: { walletAddress: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("franchiser")
-      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_ownerWallet", (q) => q.eq("ownerWalletAddress", args.walletAddress))
       .first();
   },
 });
 
-// Query to get all franchisers by wallet address
+// Query to get all franchisers by owner wallet address
 export const getAllFranchisersByWallet = query({
   args: { walletAddress: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("franchiser")
-      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
+      .withIndex("by_ownerWallet", (q) => q.eq("ownerWalletAddress", args.walletAddress))
       .collect();
   },
 });
@@ -67,7 +75,9 @@ export const getFranchiserProducts = query({
 // Mutation to create a new franchiser
 export const createFranchiser = mutation({
   args: {
-    walletAddress: v.string(),
+    ownerWalletAddress: v.string(),
+    brandWalletAddress: v.string(),
+    brandWalletSecretKey: v.optional(v.string()),
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),
     slug: v.string(),
@@ -97,7 +107,9 @@ export const createFranchiser = mutation({
 export const createFranchiserWithDetails = mutation({
   args: {
     franchiser: v.object({
-      walletAddress: v.string(),
+      ownerWalletAddress: v.string(),
+      brandWalletAddress: v.string(),
+      brandWalletSecretKey: v.optional(v.string()),
       logoUrl: v.optional(v.id("_storage")),
       name: v.string(),
       slug: v.string(),
@@ -179,35 +191,6 @@ export const createFranchiserWithDetails = mutation({
       locationIds,
       productIds,
     };
-  },
-});
-
-// Mutation to update franchiser
-export const updateFranchiser = mutation({
-  args: {
-    id: v.id("franchiser"),
-    walletAddress: v.optional(v.string()),
-    logoUrl: v.optional(v.id("_storage")),
-    name: v.optional(v.string()),
-    slug: v.optional(v.string()),
-    description: v.optional(v.string()),
-    industry: v.optional(v.string()),
-    category: v.optional(v.string()),
-    website: v.optional(v.string()),
-    interiorImages: v.optional(v.array(v.id("_storage"))),
-    status: v.optional(v.union(
-      v.literal("draft"),
-      v.literal("pending"),
-      v.literal("approved"),
-      v.literal("rejected")
-    )),
-  },
-  handler: async (ctx, args) => {
-    const { id, ...updates } = args;
-    return await ctx.db.patch(id, {
-      ...updates,
-      updatedAt: Date.now(),
-    });
   },
 });
 
@@ -466,6 +449,7 @@ export const getFranchisersByLocation = query({
         }
         
         console.log("Franchiser passed all filters:", franchiser.name);
+        console.log("Franchiser brandWalletAddress:", franchiser.brandWalletAddress);
         return {
           ...franchiser,
           industry: industryName,
@@ -492,5 +476,69 @@ export const getFranchisersByLocation = query({
     console.log("=== END FRANCHISER SEARCH DEBUG ===");
     
     return uniqueFranchisers;
+  },
+});
+
+// Mutation to update franchiser
+export const updateFranchiser = mutation({
+  args: {
+    id: v.id("franchiser"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    industry: v.optional(v.string()),
+    category: v.optional(v.string()),
+    website: v.optional(v.string()),
+    status: v.optional(v.union(
+      v.literal("draft"),
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    )),
+  },
+  handler: async (ctx, args) => {
+    const { id, ...updateData } = args;
+    
+    // Remove undefined values
+    const cleanUpdateData = Object.fromEntries(
+      Object.entries(updateData).filter(([_, value]) => value !== undefined)
+    );
+    
+    await ctx.db.patch(id, {
+      ...cleanUpdateData,
+      updatedAt: Date.now(),
+    });
+    
+    return id;
+  },
+});
+
+// Mutation to delete franchiser
+export const deleteFranchiser = mutation({
+  args: { id: v.id("franchiser") },
+  handler: async (ctx, args) => {
+    // Delete associated locations
+    const locations = await ctx.db
+      .query("franchiserLocations")
+      .withIndex("by_franchiser", (q) => q.eq("franchiserId", args.id))
+      .collect();
+    
+    for (const location of locations) {
+      await ctx.db.delete(location._id);
+    }
+    
+    // Delete associated products
+    const products = await ctx.db
+      .query("franchiserProducts")
+      .withIndex("by_franchiser", (q) => q.eq("franchiserId", args.id))
+      .collect();
+    
+    for (const product of products) {
+      await ctx.db.delete(product._id);
+    }
+    
+    // Delete the franchiser
+    await ctx.db.delete(args.id);
+    
+    return args.id;
   },
 });

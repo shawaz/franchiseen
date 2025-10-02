@@ -10,7 +10,6 @@ import {
   Building2,
   CreditCard,
   Store,
-  CheckSquare,
   Settings,
   Box,
   Users,
@@ -18,7 +17,6 @@ import {
 import { ProductsTab } from './ProductsTab';
 import { FranchiseTab } from './FranchiseTab';
 import BrandWallet from './BrandWallet';
-import { ApprovalTab } from './ApprovalTab';
 import { PayoutsTab } from './PayoutsTab';
 import { SetupTab } from './SetupTab';
 import { TeamTab } from './TeamTab';
@@ -30,7 +28,7 @@ interface BrandDashboardProps {
   brandSlug: string;
 }
 
-type TabId = 'overview' | 'products' | 'franchise' | 'approvals' | 'setup' | 'payouts' | 'team' | 'settings';
+type TabId = 'overview' | 'products' | 'franchise' | 'setup' | 'payouts' | 'team' | 'settings';
 
 type Tab = {
   id: TabId;
@@ -77,7 +75,6 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'products', label: 'Products', icon: Box },
     { id: 'franchise', label: 'Franchise', icon: Store },
-    { id: 'approvals', label: 'Approvals', icon: CheckSquare },
     { id: 'setup', label: 'Setup', icon: Receipt },
     { id: 'payouts', label: 'Payouts', icon: Receipt },
     { id: 'team', label: 'Team', icon: Users },
@@ -87,6 +84,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   return (
     <div className="space-y-6 py-12">
       <BrandWallet 
+        franchiserId={franchiseData.franchiser._id}
         business={{
           name: franchiseData.franchiser.name,
           logoUrl: logoUrl || undefined
@@ -219,7 +217,6 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
             />
           )}
           {activeTab === 'franchise' && <FranchiseTab />}
-          {activeTab === 'approvals' && <ApprovalTab />}
           {activeTab === 'setup' && <SetupTab />}
           {activeTab === 'payouts' && <PayoutsTab />}
           {activeTab === 'team' && <TeamTab />}

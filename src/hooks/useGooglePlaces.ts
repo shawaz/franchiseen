@@ -57,9 +57,33 @@ export function useGooglePlaces({ input, types = 'country', componentRestriction
             
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
               setPredictions(predictions);
+              setError(null);
+            } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+              // ZERO_RESULTS is a normal response, not an error
+              setPredictions([]);
+              setError(null);
+              console.log('No places found for the search query:', input);
+            } else if (status === google.maps.places.PlacesServiceStatus.INVALID_REQUEST) {
+              console.warn('Google Places API invalid request:', input);
+              setError('Invalid search request');
+              setPredictions([]);
+            } else if (status === google.maps.places.PlacesServiceStatus.OVER_QUERY_LIMIT) {
+              console.error('Google Places API query limit exceeded');
+              setError('Search limit exceeded. Please try again later.');
+              setPredictions([]);
+            } else if (status === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+              console.error('Google Places API request denied');
+              setError('Search request denied. Please check API configuration.');
+              setPredictions([]);
             } else {
-              console.error('Google Places API error:', status);
-              setError(`API Error: ${status}`);
+              // Handle other errors, but never set ZERO_RESULTS as an error
+              if (status !== 'ZERO_RESULTS') {
+                console.error('Google Places API error:', status);
+                setError(`API Error: ${status}`);
+              } else {
+                console.log('ZERO_RESULTS detected, not setting as error');
+                setError(null);
+              }
               setPredictions([]);
             }
             setLoading(false);

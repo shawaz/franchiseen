@@ -6,7 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Power,  Store, UserCircle } from "lucide-react";
+import { Power,  Store, UserCircle, Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -15,6 +15,8 @@ import { useRouter } from 'next/navigation';
 import { useAllFranchisersByWallet } from '@/hooks/useFranchises';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../convex/_generated/dataModel';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 interface AccountDropdownProps {
   balance?: number;
@@ -47,6 +49,7 @@ const FranchiserDropdownItem = ({ franchiser }: FranchiserDropdownItemProps) => 
             height={32}
             loading="lazy"
             className="object-cover rounded z-0"
+            unoptimized
           />
         ) : (
           <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/20 rounded flex items-center justify-center">
@@ -74,9 +77,17 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
   // Get user's franchiser data
   const franchisers = useAllFranchisersByWallet(account?.address || '');
   
+  // Check if user is a team member
+  const teamMember = useQuery(api.adminManagement.getTeamMemberByWallet, 
+    account?.address ? { walletAddress: account.address } : "skip"
+  );
+  
   // Debug logging
   console.log('Account dropdown - account:', account?.address);
   console.log('Account dropdown - franchisers:', franchisers);
+  console.log('Account dropdown - team member:', teamMember);
+  console.log('Account dropdown - franchisers loading:', franchisers === undefined);
+  console.log('Account dropdown - franchisers length:', franchisers?.length || 0);
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
@@ -132,15 +143,17 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
             </div>
           </Link>  
           
+          
+
           {/* User's Registered Brands */}
-          {franchisers && franchisers.length > 0 ? (
+          {franchisers === undefined ? (
+            <div className="px-5 py-2 text-xs text-gray-500">
+              Loading brands...
+            </div>
+          ) : franchisers && franchisers.length > 0 ? (
             franchisers.map((franchiser) => (
               <FranchiserDropdownItem key={franchiser._id} franchiser={franchiser} />
             ))
-          ) : account?.address ? (
-            <div className="px-5 py-2 text-xs text-gray-500">
-              No brands registered for this wallet
-            </div>
           ) : null}
           
           {/* <Link
@@ -150,11 +163,13 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
             <div className="relative h-8 w-8 flex-shrink-0 z-0">
               <Image
                 src={ "/logo/logo-2.svg"}
+                unoptimized
                 alt="Profile"
                 width={32}
                 height={32}
                 loading="lazy"
                 className="object-cover rounded z-0"
+                unoptimized
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -173,6 +188,7 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
             <div className="relative h-8 w-8 flex-shrink-0 z-0">
               <Image
                 src={ "/logo/logo-2.svg"}
+                unoptimized
                 alt="Profile"
                 width={32}
                 height={32}
@@ -196,6 +212,7 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
             <div className="relative h-8 w-8 flex-shrink-0 z-0">
               <Image
                 src={ "/logo/logo-2.svg"}
+                unoptimized
                 alt="Profile"
                 width={32}
                 height={32}
@@ -212,6 +229,19 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
               </p>
             </div>
           </Link> */}
+          {/* Company Dashboard - Only for team members */}
+          {teamMember && (
+           <Link href="/admin/home/ai">
+           <button
+             className="w-full border-t flex items-center gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
+           >
+             <Building2 className="h-5 w-5 dark:text-gray-400 text-gray-400" />
+             <span className="text-sm font-medium">
+               Company
+             </span>
+           </button>
+           </Link>
+          )}
           {/* Settings Menu */}
           <div className="border-t">
             <Link href="/register">

@@ -4,40 +4,34 @@ import Image from "next/image";
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { FranchiseCardProps } from "@/types/ui";
 
-interface FranchiseCardProps {
-  type: "fund" | "launch" | "live"; // Keep old tab names for compatibility
-  title: string;
-  location: string;
-  price: number;
-  image: string;
-  logo: string; 
-  size?: string | number;
-  returnRate?: string | number;
-  investorsCount?: number;
-  fundingGoal?: number;
-  fundingProgress?: number;
-  // Launching specific props
-  startDate?: string;
-  endDate?: string;
-  launchProgress?: number;
-  // Outlets specific props
-  currentBalance?: number;
-  totalBudget?: number;
-  activeOutlets?: number;
-  id: string;
-}
+// Helper function to validate URLs
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const FranchiseCard: React.FC<FranchiseCardProps> = ({
   type,
+  stage,
   logo,
   title,
-  location,
+  industry,
+  category,
   price,
   image,
   size,
   returnRate,
   investorsCount,
+  totalInvestment,
+  totalInvested,
+  sharesIssued,
+  sharesPurchased,
   fundingGoal,
   fundingProgress,
   startDate,
@@ -47,6 +41,8 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   totalBudget,
   activeOutlets,
   id,
+  brandSlug,
+  franchiseSlug,
 }) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const router = useRouter();
@@ -83,12 +79,14 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   const renderCardContent = () => {
     switch (type) {
       case "fund":
+        const investmentProgress = totalInvestment ? ((totalInvested || 0) / totalInvestment) * 100 : 0;
+        
         return (
           <>
             <div className="flex justify-between items-center mt-2">
-              <p className="font-semibold">{formatCurrency(price)}</p>
+              <p className="font-semibold">{formatCurrency(totalInvestment || 0)}</p>
               <div className="text-sm text-blue-600 font-medium">
-                {formatCurrency(price)} EMRR
+                {Math.round(investmentProgress)}% Invested
               </div>
             </div>
             <div className="mt-2">
@@ -96,20 +94,15 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
                 <div
                   className="bg-blue-500 h-2 "
                   style={{
-                    width: `${fundingGoal ? ((fundingProgress || 0) / fundingGoal) * 100 : 0}%`,
+                    width: `${investmentProgress}%`,
                   }}
                 ></div>
               </div>
               <div className="flex justify-between text-xs mt-1">
-                <span>{formatCurrency(fundingProgress || 0)} raised</span>
-                <span>{investorsCount} Franchisee</span>
+                <span>{formatCurrency(totalInvested || 0)} raised</span>
+                <span>{formatCurrency((totalInvestment || 0) - (totalInvested || 0))} remaining</span>
               </div>
             </div>
-            {/* <div className="mt-2">
-              <span className="inline-block px-2 py-1  text-xs font-medium bg-green-100 text-green-800">
-                Funding
-              </span>
-            </div> */}
           </>
         );
       case "launch":
@@ -181,17 +174,23 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
     _id: id,
     name: title,
     title,
-    location,
+    industry,
+    category,
     price,
     images: [image],
     size: size ? String(size) : undefined,
     status: type,
+    // Investment data
+    totalInvestment,
+    totalInvested,
+    sharesIssued,
+    sharesPurchased,
     // Add franchise-specific properties
     ...(type === "fund" && {
       returnRate,
       investorsCount,
-      fundingGoal,
-      fundingProgress,
+      fundingGoal: fundingGoal || totalInvestment,
+      fundingProgress: fundingProgress || totalInvested,
       minimumInvestment: price,
     }),
     ...(type === "launch" && {
@@ -208,7 +207,12 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
 
   // Determine the navigation path based on franchise type
   const getNavigationPath = () => {
-    // Get the base ID (remove any existing type prefix)
+    // Use the correct [brandSlug]/[franchiseSlug] format
+    if (brandSlug && franchiseSlug) {
+      return `/${brandSlug}/${franchiseSlug}`;
+    }
+    
+    // Fallback to old format if brandSlug or franchiseSlug is not available
     const baseId = id
       ? id.toString().replace(/^(fund-|launch-|live-)/, "")
       : "1";
@@ -235,7 +239,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
         onClick={() => router.push(getNavigationPath())}
       >
         <div className="relative">
-          {image && !image.startsWith("blob:") ? (
+          {image && image.trim() !== "" && !image.startsWith("blob:") && isValidUrl(image) ? (
             <Image
               src={image}
               alt={title}
@@ -249,7 +253,25 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               <p className="text-muted-foreground">Image not available</p>
             </div>
           )}
-          <button
+          <div className="flex items-center justify-between">
+
+            {/* Stage Badge */}
+          {stage && (
+            <div className="mt-2 absolute  left-2 top-2">
+              <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
+                stage === 'funding' 
+                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
+                  : stage === 'launching'
+                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
+                  : stage === 'ongoing'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+              }`}>
+                {stage.charAt(0).toUpperCase() + stage.slice(1)}
+              </span>
+            </div>
+          )}
+           <button
             onClick={(e) => {
               e.stopPropagation();
               setIsFavorite(!isFavorite);
@@ -261,21 +283,33 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               className={isFavorite ? "fill-destructive text-destructive" : ""}
             />
           </button>
+          </div>
+         
         </div>
         <div className="p-4">
           <div className="flex items-center">
-            <Image
-              src={logo}
-              alt=""
-              width={30}
-              height={30}
-              className=" mr-4"
-            />
+            {logo && logo.trim() !== "" && isValidUrl(logo) ? (
+              <Image
+                src={logo}
+                alt=""
+                width={45}
+                height={45}
+                className=" mr-4"
+                unoptimized
+              />
+            ) : (
+              <div className="w-[30px] h-[30px] bg-muted rounded mr-4 flex items-center justify-center">
+                <span className="text-xs text-muted-foreground">Logo</span>
+              </div>
+            )}
             <div>
               <h3 className="font-semibold truncate">{title}</h3>
-              <p className="text-sm text-muted-foreground">{location}</p>
+              <p className="text-sm text-muted-foreground">{industry} • {category}</p>
             </div>
           </div>
+          
+          
+          
           {renderCardContent()}
         </div>
       </div>

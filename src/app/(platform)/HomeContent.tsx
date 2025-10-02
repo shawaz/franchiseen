@@ -2,11 +2,10 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import FranchiseCard from "@/components/app/franchise/FranchiseCard";
+import FranchiseCardWithData from "@/components/app/franchise/FranchiseCardWithData";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Franchise } from "./page";
-import { useFranchises, useFranchisersByStatus } from "@/hooks/useFranchises";
+import { useFranchises, useFranchisersByStatus, useFranchisesWithStages } from "@/hooks/useFranchises";
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -16,6 +15,7 @@ function HomeContent() {
   // Get franchise data from Convex
   const allFranchises = useFranchises();
   const approvedFranchises = useFranchisersByStatus("approved");
+  const franchisesWithStages = useFranchisesWithStages();
 
   // Update active tab based on URL parameter
   useEffect(() => {
@@ -25,17 +25,6 @@ function HomeContent() {
     }
   }, [searchParams]);
 
-  // Filter franchises based on search query
-  const getFilteredProperties = (franchisesToFilter: Franchise[]) => {
-    if (!searchQuery) return franchisesToFilter;
-    const query = searchQuery.toLowerCase();
-    return franchisesToFilter.filter(
-      (franchise) =>
-        franchise.title.toLowerCase().includes(query) ||
-        franchise.location.toLowerCase().includes(query) ||
-        (franchise.description?.toLowerCase() || "").includes(query),
-    );
-  };
 
   // Render search and filters for each tab
   const renderSearchFilters = () => {
@@ -85,7 +74,7 @@ function HomeContent() {
   // Render property listings based on active tab
   const renderTabContent = () => {
     // Show loading state if data is still loading
-    if (allFranchises === undefined || approvedFranchises === undefined) {
+    if (allFranchises === undefined || approvedFranchises === undefined || franchisesWithStages === undefined) {
       return (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -93,61 +82,57 @@ function HomeContent() {
       );
     }
 
-    // Convert Convex data to Franchise format
-    const convertToFranchise = (franchiser: {
-      _id: string;
-      logoUrl?: string;
-      name: string;
-      interiorImages?: string[];
-      description?: string;
-    }): Franchise => ({
-      _id: franchiser._id,
-      logo: franchiser.logoUrl || "",
-      title: franchiser.name,
-      location: "Dubai, UAE", // Default location, could be enhanced with location data
-      price: 15000, // Default price, could be enhanced with pricing data
-      images: franchiser.interiorImages || [],
-      squareFeet: 1200, // Default size
-      type: "fund" as const, // Default type
-      description: franchiser.description,
-      returnRate: 8.5,
-      investorsCount: 42,
-      fundingGoal: 500000,
-      fundingProgress: 250000,
-    });
 
-    // Use approved franchises for all tabs for now
-    const currentProperties = approvedFranchises.map(convertToFranchise);
-    const filteredProperties = getFilteredProperties(currentProperties);
+    // Filter franchises by stage based on active tab
+    let currentFranchises = franchisesWithStages || [];
+    
+    if (activeTab === "fund") {
+      currentFranchises = currentFranchises.filter(f => f.stage === "funding");
+    } else if (activeTab === "launch") {
+      currentFranchises = currentFranchises.filter(f => f.stage === "launching");
+    } else if (activeTab === "live") {
+      currentFranchises = currentFranchises.filter(f => f.stage === "ongoing" || f.stage === "closed");
+    }
+
+    // Filter franchises based on search query
+    const filteredFranchises = searchQuery 
+      ? currentFranchises.filter((franchise) => {
+          const query = searchQuery.toLowerCase();
+          return (
+            franchise.franchiseSlug?.toLowerCase().includes(query) ||
+            franchise.franchiser?.name?.toLowerCase().includes(query) ||
+            franchise.franchiser?.industry?.toLowerCase().includes(query) ||
+            franchise.franchiser?.category?.toLowerCase().includes(query) ||
+            franchise.address?.toLowerCase().includes(query)
+          );
+        })
+      : currentFranchises;
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProperties.length > 0 ? (
-          filteredProperties.map((franchise) => (
-            <FranchiseCard
+        {filteredFranchises.length > 0 ? (
+          filteredFranchises.map((franchise) => (
+            <FranchiseCardWithData
               key={franchise._id.toString()}
-              id={franchise._id.toString()}
-              type={activeTab as "fund" | "launch" | "live"}
-              logo={franchise.logo}
-              title={franchise.title}
-              location={franchise.location || "Dubai, UAE"}
-              price={franchise.price}
-              image={
-                franchise.images && franchise.images.length > 0
-                  ? franchise.images[0]
-                  : ""
-              }
-              size={franchise.squareFeet}
-              returnRate={franchise.returnRate || 8}
-              investorsCount={franchise.investorsCount || 42}
-              fundingGoal={franchise.fundingGoal || 500000}
-              fundingProgress={franchise.fundingProgress || 250000}
-              startDate={franchise.startDate}
-              endDate={franchise.endDate}
-              launchProgress={franchise.launchProgress}
-              currentBalance={franchise.currentBalance}
-              totalBudget={franchise.totalBudget}
-              activeOutlets={franchise.activeOutlets}
+              franchise={{
+                _id: franchise._id,
+                title: franchise.franchiseSlug,
+                industry: franchise.franchiser?.industry || "Unknown Industry",
+                category: franchise.franchiser?.category || "Unknown Category",
+                logo: franchise.franchiser?.logoUrl || "",
+                images: franchise.franchiser?.interiorImages || [],
+                price: franchise.investment?.sharePrice || 1,
+                squareFeet: franchise.sqft || 1200,
+                returnRate: 8.5,
+                stage: franchise.stage,
+                type: activeTab as "fund" | "launch" | "live",
+                fundingGoal: franchise.investment?.totalInvestment || 500000,
+                fundingProgress: 0,
+                investorsCount: 0,
+                franchiser: franchise.franchiser || undefined,
+                investment: franchise.investment || undefined,
+              }}
+              activeTab={activeTab as "fund" | "launch" | "live"}
             />
           ))
         ) : (

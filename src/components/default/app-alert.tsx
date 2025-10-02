@@ -12,7 +12,7 @@ export function AppAlert({
   className?: string
 }) {
   return (
-    <Alert variant="warning" className={className}>
+    <Alert variant="default" className={className}>
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>{children}</AlertTitle>
       <AlertDescription className="flex justify-end">{action}</AlertDescription>

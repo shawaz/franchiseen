@@ -46,7 +46,7 @@ function PlacesAutocompleteInner({
 
   // Debug logging for production issues
   useEffect(() => {
-    if (error) {
+    if (error && !error.includes('ZERO_RESULTS')) {
       console.error('PlacesAutocomplete error:', error);
     }
     if (value.length > 2 && predictions.length === 0 && !loading) {

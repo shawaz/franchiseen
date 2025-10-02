@@ -14,7 +14,7 @@ export default function Footer() {
           {/* Logo and tagline */}
           <div className="flex flex-col gap-4 lg:col-span-3">
             <div className="flex items-center gap-2">
-              <Image src="/logo.svg" alt="Franchiseen Logo" className="h-8 w-8" width={32} height={32} />
+              <Image src="/logo.svg" alt="Franchiseen Logo" className="h-8 w-8" width={32} height={32} unoptimized />
               <span className="text-xl ml-2 font-bold">FRANCHISEEN</span>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">

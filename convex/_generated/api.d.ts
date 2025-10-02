@@ -13,9 +13,16 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as adminManagement from "../adminManagement.js";
+import type * as aiChat from "../aiChat.js";
+import type * as brandWallet from "../brandWallet.js";
 import type * as files from "../files.js";
+import type * as franchiseManagement from "../franchiseManagement.js";
 import type * as franchises from "../franchises.js";
+import type * as investments from "../investments.js";
+import type * as leadsManagement from "../leadsManagement.js";
 import type * as masterData from "../masterData.js";
+import type * as propertyManagement from "../propertyManagement.js";
 import type * as seedData from "../seedData.js";
 
 /**
@@ -27,9 +34,16 @@ import type * as seedData from "../seedData.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  adminManagement: typeof adminManagement;
+  aiChat: typeof aiChat;
+  brandWallet: typeof brandWallet;
   files: typeof files;
+  franchiseManagement: typeof franchiseManagement;
   franchises: typeof franchises;
+  investments: typeof investments;
+  leadsManagement: typeof leadsManagement;
   masterData: typeof masterData;
+  propertyManagement: typeof propertyManagement;
   seedData: typeof seedData;
 }>;
 export declare const api: FilterApi<

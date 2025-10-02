@@ -1,31 +1,8 @@
 import HomeContent from "./HomeContent";
+import type { FranchiseDisplayData } from "@/types/ui";
 
-// Define the Franchise interface
-export interface Franchise {
-  _id: string | number;
-  logo: string;
-  title: string;
-  location: string;
-  price: number;
-  images: string[];
-  squareFeet?: number;
-  description?: string;
-  type: "fund" | "launch" | "live";
-  availableFrom?: string;
-  returnRate?: string | number;
-  investorsCount?: number;
-  fundingGoal?: number;
-  fundingProgress?: number;
-  minimumInvestment?: number;
-  yearBuilt?: number;
-  startDate?: string;
-  endDate?: string;
-  launchProgress?: number;
-  currentBalance?: number;
-  totalBudget?: number;
-  activeOutlets?: number;
-  projectedAnnualYield?: number;
-}
+// Re-export for backward compatibility
+export type Franchise = FranchiseDisplayData;
 
 export default function Home() {
   return <HomeContent />;

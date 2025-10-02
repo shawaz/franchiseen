@@ -62,6 +62,20 @@ export function useAllCategories() {
   return useQuery(api.masterData.getAllCategories);
 }
 
+export function useCategoryById(categoryId: Id<"categories"> | undefined) {
+  return useQuery(
+    api.masterData.getCategoryById,
+    categoryId ? { categoryId } : "skip"
+  );
+}
+
+export function useCategoriesByIds(categoryIds: Id<"categories">[]) {
+  return useQuery(
+    api.masterData.getCategoriesByIds,
+    categoryIds.length > 0 ? { categoryIds } : "skip"
+  );
+}
+
 export function useCreateCategory() {
   return useMutation(api.masterData.createCategory);
 }
