@@ -11,7 +11,7 @@ import type {
 import type { InvestmentData, InvestmentProgress } from "./investment";
 
 // Franchise with related data
-export interface FranchiseWithDetails extends Franchise {
+export interface FranchiseWithDetails extends Omit<Franchise, 'location'> {
   franchiser?: Franchiser;
   investment?: Investment;
   location?: FranchiseLocation;

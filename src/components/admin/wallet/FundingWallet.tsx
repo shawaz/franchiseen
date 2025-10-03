@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,8 +60,10 @@ export default function FundingWallet() {
   const [industryFilter, setIndustryFilter] = useState('All Industries');
 
   // Fetch real data from Convex
-  const franchises = useQuery(api.franchiseManagement.getFranchises, { limit: 100 }) || [];
-  const investments = useQuery(api.investments.getAllInvestments) || [];
+  const franchisesQuery = useQuery(api.franchiseManagement.getFranchises, { limit: 100 });
+  const investmentsQuery = useQuery(api.investments.getAllInvestments);
+  const franchises = useMemo(() => franchisesQuery || [], [franchisesQuery]);
+  const investments = useMemo(() => investmentsQuery || [], [investmentsQuery]);
   const loading = franchises === undefined || investments === undefined;
 
   // Get industry and category names
@@ -128,21 +130,7 @@ export default function FundingWallet() {
     };
   });
 
-  useEffect(() => {
-    filterPdas();
-  }, [franchises, investments, searchTerm, statusFilter, industryFilter, industries, categories]);
-
-  const refreshData = async () => {
-    try {
-      // Data will automatically refresh due to Convex reactivity
-      toast.success('Funding wallets refreshed successfully');
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      toast.error('Failed to refresh data');
-    }
-  };
-
-  const filterPdas = () => {
+  const filterPdas = useCallback(() => {
     let filtered = pdas;
 
     // Filter by search term
@@ -182,6 +170,20 @@ export default function FundingWallet() {
     }
 
     setFilteredPdas(filtered);
+  }, [pdas, searchTerm, statusFilter, industryFilter]);
+
+  useEffect(() => {
+    filterPdas();
+  }, [franchises, investments, searchTerm, statusFilter, industryFilter, industries, categories, filterPdas]);
+
+  const refreshData = async () => {
+    try {
+      // Data will automatically refresh due to Convex reactivity
+      toast.success('Funding wallets refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('Failed to refresh data');
+    }
   };
 
   const formatCurrency = (amount: number) => {

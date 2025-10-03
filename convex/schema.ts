@@ -131,10 +131,18 @@ export default defineSchema({
     locationId: v.id("franchiserLocations"),
     franchiseSlug: v.string(), // e.g., "nike-01", "nike-02"
     businessName: v.string(),
-    address: v.string(),
-    coordinates: v.object({
-      lat: v.number(),
-      lng: v.number(),
+    address: v.string(), // Full address string for display
+    // Detailed location breakdown
+    location: v.object({
+      area: v.optional(v.string()), // Area/Neighborhood
+      city: v.string(),
+      state: v.string(),
+      country: v.string(),
+      pincode: v.optional(v.string()), // Postal/ZIP code
+      coordinates: v.object({
+        lat: v.number(),
+        lng: v.number(),
+      }),
     }),
     buildingName: v.optional(v.string()),
     doorNumber: v.optional(v.string()),
@@ -166,7 +174,7 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_franchiser", ["franchiserId"]).index("by_franchisee", ["franchiseeId"]).index("by_slug", ["franchiseSlug"]).index("by_stage", ["stage"]).index("by_investment", ["investmentId"]),
+  }).index("by_franchiser", ["franchiserId"]).index("by_franchisee", ["franchiseeId"]).index("by_slug", ["franchiseSlug"]).index("by_stage", ["stage"]).index("by_investment", ["investmentId"]).index("by_location_city", ["location.city"]).index("by_location_state", ["location.state"]).index("by_location_country", ["location.country"]),
 
   // Investment table
   investments: defineTable({
@@ -402,6 +410,74 @@ export default defineSchema({
     .index("by_available", ["isAvailable"])
     .index("by_verified", ["isVerified"])
     .index("by_createdAt", ["createdAt"]),
+
+  // Franchise Wallets
+  franchiseWallets: defineTable({
+    franchiseId: v.id("franchises"),
+    franchiserId: v.id("franchiser"),
+    walletAddress: v.string(),
+    balance: v.number(),
+    currency: v.string(),
+    status: v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("suspended")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"])
+    .index("by_franchiser", ["franchiserId"])
+    .index("by_status", ["status"]),
+
+  // Franchise Transactions
+  franchiseTransactions: defineTable({
+    franchiseId: v.id("franchises"),
+    walletId: v.id("franchiseWallets"),
+    type: v.union(
+      v.literal("initial_funding"),
+      v.literal("expense"),
+      v.literal("revenue"),
+      v.literal("transfer"),
+      v.literal("refund")
+    ),
+    amount: v.number(),
+    description: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    transactionHash: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_franchise", ["franchiseId"])
+    .index("by_wallet", ["walletId"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"]),
+
+  // Franchise Setup Management
+  franchiseSetup: defineTable({
+    franchiseId: v.id("franchises"),
+    franchiserId: v.id("franchiser"),
+    projectName: v.string(),
+    franchiseeName: v.string(),
+    location: v.string(),
+    startDate: v.number(),
+    targetLaunchDate: v.number(),
+    status: v.union(
+      v.literal("not_started"),
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("delayed")
+    ),
+    progress: v.number(), // 0-100
+    investmentAmount: v.number(),
+    investmentReceived: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"])
+    .index("by_franchiser", ["franchiserId"])
+    .index("by_status", ["status"]),
 
   // Leads management
   leads: defineTable({

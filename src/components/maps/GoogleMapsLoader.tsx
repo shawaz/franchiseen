@@ -74,6 +74,8 @@ export default function GoogleMapsLoader({
     );
   }
 
+  console.log('GoogleMapsLoader: API key present, isMounted:', isMounted, 'isLoaded:', isLoaded, 'isGoogleMapsLoaded():', isGoogleMapsLoaded());
+
   // Show loading state
   if (!isMounted) {
     return <>{loadingFallback}</>;
@@ -81,6 +83,7 @@ export default function GoogleMapsLoader({
 
   // If already loaded, just render children
   if (isGoogleMapsLoaded() || isLoaded) {
+    console.log('GoogleMapsLoader: Maps already loaded, rendering children');
     return <>{children}</>;
   }
 

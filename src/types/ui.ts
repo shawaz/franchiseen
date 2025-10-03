@@ -10,13 +10,18 @@ export interface FranchiseCardProps {
   stage?: FranchiseStage;
   title: string;
   industry: string;
+  industryName?: string; // Resolved industry name
   category: string;
+  categoryName?: string; // Resolved category name
   price: number;
   image: string;
   logo: string;
   size?: string | number;
   returnRate?: string | number;
   investorsCount?: number;
+  address?: string; // Franchise address
+  buildingName?: string; // Building name
+  doorNumber?: string; // Door number
   
   // Investment data
   totalInvestment?: number;
@@ -64,7 +69,9 @@ export interface FranchiseDisplayData {
   type: FranchiseTabType;
   
   // Location and timing
-  location?: string;
+  location?: string; // Address field
+  buildingName?: string; // Building name
+  doorNumber?: string; // Door number
   availableFrom?: string;
   minimumInvestment?: number;
   yearBuilt?: number;
@@ -132,6 +139,7 @@ export interface Franchisee {
   avatar: string;
   totalShares: number;
   totalInvested: number;
+  totalEarned?: number; // Total amount earned from investment
   isOfferActive: boolean;
   joinDate: string;
 }

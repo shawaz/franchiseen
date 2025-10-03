@@ -118,6 +118,13 @@ export const getAllIndustries = query({
   },
 });
 
+export const getIndustryById = query({
+  args: { industryId: v.id("industries") },
+  handler: async (ctx, { industryId }) => {
+    return await ctx.db.get(industryId);
+  },
+});
+
 // ===== CATEGORIES =====
 
 export const createCategory = mutation({

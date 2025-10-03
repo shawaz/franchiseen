@@ -2,7 +2,7 @@
 
 import { useFranchiseFundraisingData } from "@/hooks/useFranchises";
 import { useConvexImageUrl } from "@/hooks/useConvexImageUrl";
-import { useCategoryById } from "@/hooks/useMasterData";
+import { useCategoryById, useIndustryById } from "@/hooks/useMasterData";
 import FranchiseCard from "./FranchiseCard";
 import type { FranchiseDisplayData } from "@/types/ui";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -36,8 +36,9 @@ const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise
   const logoUrl = useConvexImageUrl(franchise.franchiser?.logoUrl as Id<"_storage"> | undefined);
   const coverImageUrl = useConvexImageUrl(franchise.franchiser?.interiorImages?.[0] as Id<"_storage"> | undefined);
   
-  // Get category name by ID
+  // Get category and industry names by ID
   const categoryData = useCategoryById(franchise.franchiser?.category as Id<"categories"> | undefined);
+  const industryData = useIndustryById(franchise.franchiser?.industry as Id<"industries"> | undefined);
 
   // Update franchise data with real fundraising information
   const franchiseWithData: FranchiseDisplayData = {
@@ -56,7 +57,9 @@ const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise
       logo={logoUrl || "/logo/logo-4.svg"}
       title={franchise.franchiser?.name || franchiseWithData.title}
       industry={franchise.franchiser?.industry || franchiseWithData.industry || "Unknown Industry"}
-      category={categoryData?.name || franchiseWithData.category || "Unknown Category"}
+      industryName={industryData?.name || franchise.franchiser?.industry || franchiseWithData.industry || "Unknown Industry"}
+      category={franchise.franchiser?.category || franchiseWithData.category || "Unknown Category"}
+      categoryName={categoryData?.name || franchise.franchiser?.category || franchiseWithData.category || "Unknown Category"}
       price={franchise.investment?.sharePrice || franchiseWithData.price}
       image={coverImageUrl || "/images/placeholder-franchise.jpg"}
       size={franchiseWithData.squareFeet}
@@ -76,6 +79,9 @@ const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise
       activeOutlets={franchiseWithData.activeOutlets}
       brandSlug={franchise.franchiser?.slug}
       franchiseSlug={franchiseWithData.title}
+      address={franchiseWithData.location || "Address not available"}
+      buildingName={franchiseWithData.buildingName}
+      doorNumber={franchiseWithData.doorNumber}
     />
   );
 };

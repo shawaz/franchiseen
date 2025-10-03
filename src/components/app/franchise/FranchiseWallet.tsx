@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { ArrowUpDown, Copy, MoveDownLeft, MoveUpRight } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFranchiseWallet } from '@/hooks/useFranchiseWallet';
 import { getStoredWallet } from '@/lib/solanaWalletUtils';
@@ -24,7 +24,6 @@ interface WalletProps {
 const DEMO_RATE = 150.50; // SOL to USD rate
 
 const FranchiseWallet: React.FC<WalletProps> = ({
-  onAddMoney,
   className = '',
   business = {
     name: 'Loading...',
@@ -47,7 +46,7 @@ const FranchiseWallet: React.FC<WalletProps> = ({
   const logoUrl = useConvexImageUrl(franchiseData?.franchiser?.logoUrl);
 
   // Use franchise wallet hook if franchiseId is provided
-  const { wallet, refreshBalance, requestAirdropToWallet } = useFranchiseWallet({
+  const { wallet, refreshBalance } = useFranchiseWallet({
     franchiseId,
     useDeterministic: true
   });
@@ -92,37 +91,9 @@ const FranchiseWallet: React.FC<WalletProps> = ({
     toast.success('Wallet address copied to clipboard!');
   };
 
-  const handleSendSOL = () => {
-    toast.info('This is a demo. Send SOL functionality is disabled.');
-  };
 
-  const handleRefresh = () => {
-    if (franchiseId) {
-      refreshBalance();
-    } else {
-      toast.success('Balance refreshed!');
-    }
-  };
 
-  const handleAirdrop = () => {
-    if (franchiseId) {
-      requestAirdropToWallet(1);
-    } else {
-      toast.info('Airdrop only available for franchise wallets');
-    }
-  };
 
-  // Debug function to check wallet status
-  const debugWallet = () => {
-    console.log('Debug wallet info:', {
-      franchiseId,
-      wallet,
-      walletAddress,
-      balance,
-      loading
-    });
-    toast.info('Check console for wallet debug info');
-  };
 
   return (
     <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,13 +61,36 @@ export default function FranchiseWallet() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const filterWallets = useCallback(() => {
+    let filtered = wallets;
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(wallet => 
+        wallet.franchise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.franchise.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.franchise.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.manager.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.manager.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.address.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(wallet => wallet.status === statusFilter);
+    }
+
+    setFilteredWallets(filtered);
+  }, [wallets, searchTerm, statusFilter]);
+
   useEffect(() => {
     fetchFranchiseWallets();
   }, []);
 
   useEffect(() => {
     filterWallets();
-  }, [wallets, searchTerm, statusFilter]);
+  }, [wallets, searchTerm, statusFilter, filterWallets]);
 
   const fetchFranchiseWallets = async () => {
     setLoading(true);
@@ -176,29 +199,6 @@ export default function FranchiseWallet() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterWallets = () => {
-    let filtered = wallets;
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(wallet => 
-        wallet.franchise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.franchise.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.franchise.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.manager.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.manager.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.address.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(wallet => wallet.status === statusFilter);
-    }
-
-    setFilteredWallets(filtered);
   };
 
   const formatCurrency = (amount: number) => {

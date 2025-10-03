@@ -1534,9 +1534,16 @@ const FranchiseCreateInner: React.FC = () => {
                       franchiseSlug,
                       businessName: `${formData.selectedBusiness.name} - ${formData.locationDetails.buildingName}`,
                       address: selectedLocation.address,
-                      coordinates: {
-                        lat: selectedLocation.lat,
-                        lng: selectedLocation.lng,
+                      location: {
+                        area: '',
+                        city: 'Dubai', // Default city
+                        state: 'Dubai', // Default state
+                        country: 'UAE', // Default country
+                        pincode: '',
+                        coordinates: {
+                          lat: selectedLocation.lat,
+                          lng: selectedLocation.lng,
+                        },
                       },
                       buildingName: formData.locationDetails.buildingName,
                       doorNumber: formData.locationDetails.doorNumber,

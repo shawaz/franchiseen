@@ -69,6 +69,13 @@ export function useCategoryById(categoryId: Id<"categories"> | undefined) {
   );
 }
 
+export function useIndustryById(industryId: Id<"industries"> | undefined) {
+  return useQuery(
+    api.masterData.getIndustryById,
+    industryId ? { industryId } : "skip"
+  );
+}
+
 export function useCategoriesByIds(categoryIds: Id<"categories">[]) {
   return useQuery(
     api.masterData.getCategoriesByIds,

@@ -50,6 +50,8 @@ export const getFranchiserBySlug = query({
   },
 });
 
+// Note: isSlugAvailable query removed as URL availability checking was simplified
+
 // Query to get franchiser locations
 export const getFranchiserLocations = query({
   args: { franchiserId: v.id("franchiser") },

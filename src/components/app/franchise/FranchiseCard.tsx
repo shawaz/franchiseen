@@ -22,27 +22,26 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   logo,
   title,
   industry,
+  industryName,
   category,
+  categoryName,
   price,
   image,
-  size,
-  returnRate,
   investorsCount,
   totalInvestment,
   totalInvested,
-  sharesIssued,
-  sharesPurchased,
-  fundingGoal,
   fundingProgress,
   startDate,
   endDate,
   launchProgress,
   currentBalance,
   totalBudget,
-  activeOutlets,
   id,
   brandSlug,
   franchiseSlug,
+  address,
+  buildingName,
+  doorNumber,
 }) => {
   const [isFavorite, setIsFavorite] = useState(false);
   const router = useRouter();
@@ -169,42 +168,6 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
     }
   };
 
-  // Create a franchise object with all the props
-  const franchise = {
-    _id: id,
-    name: title,
-    title,
-    industry,
-    category,
-    price,
-    images: [image],
-    size: size ? String(size) : undefined,
-    status: type,
-    // Investment data
-    totalInvestment,
-    totalInvested,
-    sharesIssued,
-    sharesPurchased,
-    // Add franchise-specific properties
-    ...(type === "fund" && {
-      returnRate,
-      investorsCount,
-      fundingGoal: fundingGoal || totalInvestment,
-      fundingProgress: fundingProgress || totalInvested,
-      minimumInvestment: price,
-    }),
-    ...(type === "launch" && {
-      startDate,
-      endDate,
-      launchProgress,
-    }),
-    ...(type === "live" && {
-      currentBalance,
-      totalBudget,
-      activeOutlets,
-    }),
-  };
-
   // Determine the navigation path based on franchise type
   const getNavigationPath = () => {
     // Use the correct [brandSlug]/[franchiseSlug] format
@@ -230,7 +193,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   };
 
   // Use the franchise object to avoid unused variable warning
-  console.log("Rendering franchise:", franchise.title);
+  console.log("Rendering franchise:", franchiseSlug || title);
 
   return (
     <>
@@ -257,8 +220,8 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
 
             {/* Stage Badge */}
           {stage && (
-            <div className="mt-2 absolute  left-2 top-2">
-              <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
+            <div className="mt-2 absolute  left-4 top-3">
+              <span className={`inline-block px-4 uppercase font-bold py-2 text-xs font-medium rounded-full ${
                 stage === 'funding' 
                   ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
                   : stage === 'launching'
@@ -276,7 +239,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               e.stopPropagation();
               setIsFavorite(!isFavorite);
             }}
-            className="absolute top-2 right-2 p-2  bg-background/80"
+            className="absolute top-4 right-4 p-2  bg-background/80"
           >
             <Heart
               size={20}
@@ -292,8 +255,8 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               <Image
                 src={logo}
                 alt=""
-                width={45}
-                height={45}
+                width={35}
+                height={35}
                 className=" mr-4"
                 unoptimized
               />
@@ -302,11 +265,36 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
                 <span className="text-xs text-muted-foreground">Logo</span>
               </div>
             )}
-            <div>
-              <h3 className="font-semibold truncate">{title}</h3>
-              <p className="text-sm text-muted-foreground">{industry} • {category}</p>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold truncate">{franchiseSlug || title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {industryName || industry} • {categoryName || category}
+              </p>
+              
             </div>
+            
           </div>
+          <div>
+          {(buildingName || doorNumber) && (
+                <p className="text-sm text-muted-foreground mt-2 mb-1">
+                  {buildingName && doorNumber ? (
+                    ` ${buildingName}, Door ${doorNumber}`
+                  ) : buildingName ? (
+                    `🏢 ${buildingName}`
+                  ) : (
+                    `🚪 Door ${doorNumber}`
+                  )}
+                </p>
+              )}
+          {address && (
+                <p className="text-sm text-muted-foreground mb-2 mt-1 truncate" title={address}>
+                  {address}
+                </p>
+              )}
+              
+
+          </div>
+         
           
           
           

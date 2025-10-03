@@ -20,6 +20,16 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { generateBrandWallet } from '@/lib/brandWalletUtils';
 import { useWalletUi } from '@wallet-ui/react';
 
+// Reserved words that cannot be used as brand URLs
+const RESERVED_WORDS = [
+  'account', 'admin', 'like', 'notify', 'create', 'register', 'company',
+  'api', 'www', 'mail', 'ftp', 'blog', 'support', 'help', 'about',
+  'contact', 'privacy', 'terms', 'legal', 'security', 'login', 'signup',
+  'dashboard', 'profile', 'settings', 'billing', 'payment', 'checkout',
+  'cart', 'shop', 'store', 'product', 'search', 'filter', 'sort',
+  'home', 'index', 'main', 'app', 'mobile', 'desktop', 'web'
+];
+
 // Country code mapping for Google Places API
 const COUNTRY_CODE_MAP: Record<string, string> = {
   'United Arab Emirates': 'AE',
@@ -211,6 +221,8 @@ const FranchiserRegister: React.FC = () => {
   const { industries, categories, productCategories, isLoading: masterDataLoading } = useMasterData();
   // const { hierarchicalData } = useHierarchicalData(); // Commented out as it's not used
 
+  // Removed real-time URL availability checking for simplicity
+
   // Helper function to get country code
   const getCountryCode = (countryName: string): string | undefined => {
     return COUNTRY_CODE_MAP[countryName];
@@ -252,10 +264,53 @@ const FranchiserRegister: React.FC = () => {
     }
   };
 
+  // Validate brand URL
+  const validateBrandUrl = (url: string): { isValid: boolean; error?: string } => {
+    if (!url) {
+      return { isValid: false, error: 'Brand URL is required' };
+    }
+
+    // Check for invalid characters
+    if (!/^[a-z0-9-]+$/.test(url)) {
+      return { isValid: false, error: 'Only lowercase letters, numbers, and hyphens are allowed' };
+    }
+
+    // Check if it starts or ends with hyphen
+    if (url.startsWith('-') || url.endsWith('-')) {
+      return { isValid: false, error: 'URL cannot start or end with a hyphen' };
+    }
+
+    // Check for consecutive hyphens
+    if (url.includes('--')) {
+      return { isValid: false, error: 'URL cannot contain consecutive hyphens' };
+    }
+
+    // Check minimum length
+    if (url.length < 3) {
+      return { isValid: false, error: 'URL must be at least 3 characters long' };
+    }
+
+    // Check maximum length
+    if (url.length > 50) {
+      return { isValid: false, error: 'URL must be less than 50 characters' };
+    }
+
+    // Check against reserved words
+    if (RESERVED_WORDS.includes(url.toLowerCase())) {
+      return { isValid: false, error: 'This URL is reserved and cannot be used' };
+    }
+
+    return { isValid: true };
+  };
+
   // State for validation errors
   const [validationErrors, setValidationErrors] = useState<{
     website?: string;
+    brandUrl?: string;
   }>({});
+
+  // Simplified URL validation state
+  const [urlValidationError, setUrlValidationError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<FormData>({
     brandName: '',
@@ -616,6 +671,25 @@ const FranchiserRegister: React.FC = () => {
       .trim();
   };
 
+  // Simple URL validation on change
+  useEffect(() => {
+    if (!formData.brandUrl) {
+      setUrlValidationError(null);
+      setValidationErrors(prev => ({ ...prev, brandUrl: undefined }));
+      return;
+    }
+
+    // Validate URL format
+    const validation = validateBrandUrl(formData.brandUrl);
+    if (!validation.isValid) {
+      setUrlValidationError(validation.error || 'Invalid URL format');
+      setValidationErrors(prev => ({ ...prev, brandUrl: validation.error }));
+    } else {
+      setUrlValidationError(null);
+      setValidationErrors(prev => ({ ...prev, brandUrl: undefined }));
+    }
+  }, [formData.brandUrl]);
+
   // Update brand URL when brand name changes
   const handleBrandNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const name = e.target.value;
@@ -824,6 +898,13 @@ const FranchiserRegister: React.FC = () => {
         return;
       }
 
+      // Validate brand URL
+      const urlValidation = validateBrandUrl(formData.brandUrl);
+      if (!urlValidation.isValid) {
+        toast.error(urlValidation.error || 'Invalid brand URL');
+        return;
+      }
+
       // Validate website format (if provided)
       if (formData.website && !validateWebsite(formData.website)) {
         toast.error('Please enter a valid website URL');
@@ -987,18 +1068,34 @@ const FranchiserRegister: React.FC = () => {
             <div className="space-y-2">
               <Label htmlFor="brandUrl">Brand URL *</Label>
               <div className="flex">
-                <span className="inline-flex items-center px-3  border border-r-0  text-stone-500 sm:text-sm">
+                <span className="inline-flex items-center px-3 border border-r-0 text-stone-500 sm:text-sm">
                   franchiseen.com/
                 </span>
                 <Input
                   id="brandUrl"
                   value={formData.brandUrl}
                   onChange={(e) => setFormData(prev => ({ ...prev, brandUrl: e.target.value }))}
-                  className="flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm bg-stone-50 dark:bg-stone-800"
+                  className={`flex-1 min-w-0 block w-full px-3 py-2 sm:text-sm bg-stone-50 dark:bg-stone-800 ${
+                    validationErrors.brandUrl 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : ''
+                  }`}
                   placeholder="brand-url"
                   required
                 />
               </div>
+              {/* Simple Error Message */}
+              {urlValidationError && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {urlValidationError}
+                </p>
+              )}
+              {/* URL Format Help */}
+              {!formData.brandUrl && (
+                <p className="text-xs text-stone-500">
+                  Only lowercase letters, numbers, and hyphens. Cannot start or end with hyphen.
+                </p>
+              )}
             </div>
 
             </div>
@@ -2454,7 +2551,15 @@ const FranchiserRegister: React.FC = () => {
                         !formData.industry || !formData.category || !formData.logoFile ||
                         (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0)) {
                       toast.error('Please fill in all required fields including logo and timing');
-                    setLoading(false);
+                      setLoading(false);
+                      return;
+                    }
+
+                    // Validate brand URL
+                    const urlValidation = validateBrandUrl(formData.brandUrl);
+                    if (!urlValidation.isValid) {
+                      toast.error(urlValidation.error || 'Invalid brand URL');
+                      setLoading(false);
                       return;
                     }
 
