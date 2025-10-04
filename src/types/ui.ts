@@ -137,6 +137,7 @@ export interface Franchisee {
   fullName: string;
   walletId: string;
   avatar: string;
+  avatarStorageId?: string; // Convex storage ID for avatar
   totalShares: number;
   totalInvested: number;
   totalEarned?: number; // Total amount earned from investment

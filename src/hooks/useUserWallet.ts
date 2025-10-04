@@ -89,6 +89,16 @@ export function useUserWallet({ userId }: UseUserWalletProps = {}) {
       // Get wallet balance
       const balance = await getWalletBalance(result.publicKey || '');
       
+      // Check if server wallet is different from localStorage wallet
+      const storedWalletAddress = localStorage.getItem('userWalletAddress');
+      if (storedWalletAddress && storedWalletAddress !== result.publicKey) {
+        console.log(`Wallet address changed from ${storedWalletAddress} to ${result.publicKey}. Clearing localStorage.`);
+        // Clear old wallet data from localStorage
+        localStorage.removeItem('userWalletAddress');
+        localStorage.removeItem('userPrivateKey');
+        localStorage.removeItem('userWalletBalance');
+      }
+      
       setWallet({
         publicKey: result.publicKey || '',
         privateKey: new Uint8Array(result.privateKey),
@@ -115,11 +125,12 @@ export function useUserWallet({ userId }: UseUserWalletProps = {}) {
   // Initialize wallet on mount
   useEffect(() => {
     const initializeWallet = async () => {
-      const localWalletLoaded = await loadLocalWallet();
-      
-      // If no local wallet and userId is provided, load from server
-      if (!localWalletLoaded && userId) {
+      // Always try to load from server first if userId is provided
+      if (userId) {
         await loadServerWallet();
+      } else {
+        // Only use localStorage if no userId is provided
+        await loadLocalWallet();
       }
     };
     

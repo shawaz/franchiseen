@@ -240,6 +240,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
           {activeTab === 'team' && <TeamTab />}
           {activeTab === 'settings' && (
             <SettingsTab 
+              franchiserId={franchiseData.franchiser._id}
               brandData={{
                 name: franchiseData.franchiser.name,
                 slug: franchiseData.franchiser.slug,

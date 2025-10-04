@@ -74,17 +74,33 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   const router = useRouter();
   
   // Get user's wallet balance
-  const { wallet } = useUserWallet({ userId: userProfile?.userId as Id<"users"> });
+  const { wallet, updateWalletBalance } = useUserWallet({ userId: userProfile?.userId as Id<"users"> });
   const walletBalance = wallet.balance;
   const balanceLoading = wallet.isLoading;
   
-  // Force re-render when balance updates
-  const [balanceUpdateKey, setBalanceUpdateKey] = useState(0);
-  
-  // Listen for balance updates
+  // Listen for balance updates and refresh the wallet
   useEffect(() => {
-    const handleBalanceUpdate = () => {
-      setBalanceUpdateKey(prev => prev + 1);
+    const handleBalanceUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('Account dropdown received walletBalanceUpdated event:', customEvent.detail);
+      
+      // Refresh the wallet balance from the hook
+      if (customEvent.detail?.newBalance !== undefined) {
+        updateWalletBalance(customEvent.detail.newBalance);
+      } else {
+        // If no specific balance provided, trigger a refresh
+        // This will fetch the latest balance from the blockchain
+        const currentWallet = localStorage.getItem('userWalletAddress');
+        if (currentWallet) {
+          import('@/lib/solanaWalletUtils').then(({ getWalletBalance }) => {
+            getWalletBalance(currentWallet).then((newBalance) => {
+              updateWalletBalance(newBalance);
+            }).catch((error) => {
+              console.error('Error fetching updated balance:', error);
+            });
+          });
+        }
+      }
     };
     
     window.addEventListener('walletBalanceUpdated', handleBalanceUpdate);
@@ -92,7 +108,35 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
     return () => {
       window.removeEventListener('walletBalanceUpdated', handleBalanceUpdate);
     };
-  }, []);
+  }, [updateWalletBalance]);
+
+  // Periodic balance refresh (every 30 seconds) to ensure balance stays current
+  useEffect(() => {
+    if (!wallet.publicKey) return;
+
+    const refreshBalance = async () => {
+      try {
+        const { getWalletBalance } = await import('@/lib/solanaWalletUtils');
+        const currentBalance = await getWalletBalance(wallet.publicKey);
+        
+        // Only update if the balance has changed significantly
+        if (Math.abs(currentBalance - wallet.balance) > 0.001) {
+          console.log(`Account dropdown: Balance changed from ${wallet.balance} to ${currentBalance}`);
+          updateWalletBalance(currentBalance);
+        }
+      } catch (error) {
+        console.error('Error refreshing balance in account dropdown:', error);
+      }
+    };
+
+    // Refresh immediately when wallet is loaded
+    refreshBalance();
+
+    // Set up interval for periodic refresh
+    const intervalId = setInterval(refreshBalance, 30000); // 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [wallet.publicKey, wallet.balance, updateWalletBalance]);
   
   // Get user's franchiser data using user ID from user profile
   const franchisers = useAllFranchisersByUserId(userProfile?._id || '');
@@ -166,7 +210,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
                     : userProfile?.email || 'User'
                   }
                 </h3>
-                <p className="text-xs text-gray-500 truncate" key={balanceUpdateKey}>
+                <p className="text-xs text-gray-500 truncate">
                   {balanceLoading ? 'Loading...' : `${walletBalance.toFixed(4)} SOL`}
                 </p>
               </div>

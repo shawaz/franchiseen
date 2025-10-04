@@ -13,6 +13,10 @@ import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { Id } from '../../../../convex/_generated/dataModel';
 
 // Reserved words that cannot be used as brand URLs
 const RESERVED_WORDS = [
@@ -25,6 +29,7 @@ const RESERVED_WORDS = [
 ];
 
 interface SettingsTabProps {
+  franchiserId?: string;
   brandData?: {
     name: string;
     slug: string;
@@ -43,9 +48,14 @@ interface SettingsTabProps {
   onUpdateBrand?: (updates: Partial<SettingsTabProps['brandData']>) => void;
 }
 
-export default function SettingsTab({ brandData, onUpdateBrand }: SettingsTabProps) {
+export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: SettingsTabProps) {
   const { } = useAuth();
   const { industries, categories, isLoading: masterDataLoading } = useMasterData();
+  const { uploadFile } = useFileUpload();
+  const updateFranchiser = useMutation(api.franchises.updateFranchiser);
+  
+  // State for loading
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // State for validation errors
   const [validationErrors, setValidationErrors] = useState<{
@@ -204,6 +214,76 @@ export default function SettingsTab({ brandData, onUpdateBrand }: SettingsTabPro
     }));
   };
 
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    
+    if (!franchiserId) {
+      toast.error('Franchiser ID not found');
+      return;
+    }
+
+    setIsUpdating(true);
+    
+    try {
+      let logoStorageId = null;
+      
+      // Upload logo if there's a new file
+      if (formData.logoFile) {
+        logoStorageId = await uploadFile(formData.logoFile);
+      }
+      
+      // Prepare update data
+      const updateData: {
+        id: Id<"franchiser">;
+        name: string;
+        description: string;
+        industry: string;
+        category: string;
+        website?: string;
+        logoStorageId?: string;
+        logoUrl?: Id<"_storage">;
+      } = {
+        id: franchiserId as Id<"franchiser">,
+        name: formData.brandName,
+        description: formData.shortDescription,
+        industry: formData.industry,
+        category: formData.category,
+        website: formData.website || undefined,
+      };
+      
+      // Add logo URL if uploaded
+      if (logoStorageId) {
+        updateData.logoUrl = logoStorageId as Id<"_storage">;
+      }
+      
+      // Update franchiser
+      await updateFranchiser(updateData);
+      
+      toast.success('Brand settings updated successfully!');
+      
+      // Call the onUpdateBrand callback if provided
+      if (onUpdateBrand) {
+        onUpdateBrand({
+          name: formData.brandName,
+          slug: formData.brandUrl,
+          description: formData.shortDescription,
+          industry: formData.industry,
+          category: formData.category,
+          website: formData.website,
+          logoUrl: logoStorageId ? `storage:${logoStorageId}` : brandData?.logoUrl,
+          timingPerWeek: formData.timingPerWeek,
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error updating brand:', error);
+      toast.error('Failed to update brand settings. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   // Get available categories based on selected industry
   const availableCategories = useMemo(() => {
     if (!categories || !formData.industry) return [];
@@ -216,43 +296,6 @@ export default function SettingsTab({ brandData, onUpdateBrand }: SettingsTabPro
     return url.startsWith('http://') || url.startsWith('https://') 
       ? url 
       : `https://${url}`;
-  };
-
-  const handleSave = () => {
-    // Validate required fields
-    if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
-        !formData.industry || !formData.category || 
-        (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0)) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    // Validate brand URL
-    const urlValidation = validateBrandUrl(formData.brandUrl);
-    if (!urlValidation.isValid) {
-      toast.error(urlValidation.error || 'Invalid brand URL');
-      return;
-    }
-
-    // Validate website format (if provided)
-    if (formData.website && !validateWebsite(formData.website)) {
-      toast.error('Please enter a valid website URL');
-      return;
-    }
-
-    // Call update function
-    if (onUpdateBrand) {
-      onUpdateBrand({
-        name: formData.brandName,
-        slug: formData.brandUrl,
-        description: formData.shortDescription,
-        industry: formData.industry,
-        category: formData.category,
-        website: formData.website || undefined,
-        timingPerWeek: formData.timingPerWeek,
-      });
-      toast.success('Brand settings updated successfully');
-    }
   };
 
   // Show loading state while master data is being fetched
@@ -287,6 +330,7 @@ export default function SettingsTab({ brandData, onUpdateBrand }: SettingsTabPro
                       alt="Logo preview"
                       fill
                       sizes="96px"
+                      unoptimized
                     />
                     <button
                       type="button"
@@ -599,10 +643,11 @@ export default function SettingsTab({ brandData, onUpdateBrand }: SettingsTabPro
           {/* Save Button */}
           <div className="flex justify-end pt-4 border-t">
             <Button
-              onClick={handleSave}
+              onClick={handleSubmit}
+              disabled={isUpdating}
               className="bg-amber-600 hover:bg-amber-700"
             >
-              Save Changes
+              {isUpdating ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </div>

@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, Upload, User } from "lucide-react";
-import { useMutation, useAction } from "convex/react";
+import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 // import { useConvexImageUrl } from "@/hooks/useConvexImageUrl";
@@ -27,6 +28,7 @@ export function SignupForm({ onBack }: SignupFormProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
+  const [country, setCountry] = useState("");
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +48,9 @@ export function SignupForm({ onBack }: SignupFormProps) {
   // const isUsernameAvailable = useQuery(api.userManagement.isUsernameAvailable, { username });
   const { uploadFile } = useFileUpload();
   // const getImageUrl = useConvexImageUrl();
+  
+  // Load countries from master data
+  const countries = useQuery(api.masterData.getAllCountries);
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +108,7 @@ export function SignupForm({ onBack }: SignupFormProps) {
         firstName,
         lastName,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth).getTime() : undefined,
+        country: country || undefined,
         avatar: avatarStorageId,
       });
 
@@ -340,14 +346,32 @@ export function SignupForm({ onBack }: SignupFormProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries?.map((country: { _id: string; name: string; flag?: string }) => (
+                      <SelectItem key={country._id} value={country.name}>
+                        {country.flag && <span className="mr-2">{country.flag}</span>}
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             {error && (

@@ -147,17 +147,33 @@ export const getFranchiseInvestorsBySlug = query({
       investor.transactions.push(share);
     });
 
-    // Convert map to array and sort by total invested (descending)
-    const investors = Array.from(investorMap.values())
-      .map(investor => ({
-        ...investor,
-        firstPurchaseDate: new Date(investor.firstPurchaseDate).toISOString().split('T')[0],
-        lastPurchaseDate: new Date(investor.lastPurchaseDate).toISOString().split('T')[0],
-        // Calculate earned amount (simplified - in real app this would be based on franchise performance)
-        totalEarned: investor.totalInvested * 0.1 // 10% return for demo
-      }))
-      .sort((a, b) => b.totalInvested - a.totalInvested);
+    // Convert map to array and get user profile data for each investor
+    const investors = await Promise.all(
+      Array.from(investorMap.values()).map(async (investor) => {
+        // Get user profile by wallet address
+        const userProfile = await ctx.db
+          .query("userProfiles")
+          .withIndex("by_walletAddress", (q) => q.eq("walletAddress", investor.investorId))
+          .first();
 
-    return investors;
+        return {
+          ...investor,
+          firstPurchaseDate: new Date(investor.firstPurchaseDate).toISOString().split('T')[0],
+          lastPurchaseDate: new Date(investor.lastPurchaseDate).toISOString().split('T')[0],
+          // Calculate earned amount (simplified - in real app this would be based on franchise performance)
+          totalEarned: investor.totalInvested * 0.1, // 10% return for demo
+          // Add user profile data
+          userProfile: userProfile ? {
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
+            avatar: userProfile.avatar,
+            email: userProfile.email
+          } : null
+        };
+      })
+    );
+
+    // Sort by total invested (descending)
+    return investors.sort((a, b) => b.totalInvested - a.totalInvested);
   },
 });

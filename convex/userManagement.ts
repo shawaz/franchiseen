@@ -42,9 +42,10 @@ export const createUserProfile = mutation({
     firstName: v.string(),
     lastName: v.string(),
     dateOfBirth: v.optional(v.number()),
+    country: v.optional(v.string()),
     avatar: v.optional(v.id("_storage")),
   },
-  handler: async (ctx, { userId, firstName, lastName, dateOfBirth, avatar }) => {
+  handler: async (ctx, { userId, firstName, lastName, dateOfBirth, country, avatar }) => {
 
     // Check if profile already exists
     const existingProfile = await ctx.db
@@ -76,6 +77,7 @@ export const createUserProfile = mutation({
       firstName,
       lastName,
       dateOfBirth,
+      country,
       avatar,
       walletAddress,
       privateKey: walletData.encryptedPrivateKey,
@@ -99,9 +101,10 @@ export const updateUserProfile = mutation({
     firstName: v.optional(v.string()),
     lastName: v.optional(v.string()),
     dateOfBirth: v.optional(v.number()),
+    country: v.optional(v.string()),
     avatar: v.optional(v.id("_storage")),
   },
-  handler: async (ctx, { userId, firstName, lastName, dateOfBirth, avatar }) => {
+  handler: async (ctx, { userId, firstName, lastName, dateOfBirth, country, avatar }) => {
 
     const profile = await ctx.db
       .query("userProfiles")
@@ -117,6 +120,7 @@ export const updateUserProfile = mutation({
       ...(firstName && { firstName }),
       ...(lastName && { lastName }),
       ...(dateOfBirth !== undefined && { dateOfBirth }),
+      ...(country && { country }),
       ...(avatar && { avatar }),
       updatedAt: Date.now(),
     });

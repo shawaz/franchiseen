@@ -22,6 +22,7 @@ export default defineSchema({
         firstName: v.string(),
     lastName: v.string(),
     dateOfBirth: v.optional(v.number()),
+    country: v.optional(v.string()), // User's country
     avatar: v.optional(v.id("_storage")),
         walletAddress: v.optional(v.string()),
         privateKey: v.optional(v.string()), // Encrypted private key
@@ -30,7 +31,8 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"])
     .index("by_email", ["email"])
-    .index("by_walletAddress", ["walletAddress"]),
+    .index("by_walletAddress", ["walletAddress"])
+    .index("by_country", ["country"]),
 
   franchiser: defineTable({
     ownerUserId: v.id("userProfiles"), // User's ID (who owns/manages the brand)
@@ -43,6 +45,17 @@ export default defineSchema({
     category: v.string(),
     website: v.optional(v.string()),
     interiorImages: v.array(v.id("_storage")),
+    type: v.optional(v.union(
+      v.literal("FOCO"), // Franchise Owned Company Operated
+      v.literal("FOFO")  // Franchise Owned Franchise Operated
+    )), // Added franchise type
+    royaltyPercentage: v.optional(v.number()), // Added royalty percentage
+    estimatedMonthlyRevenue: v.optional(v.number()), // Added estimated monthly revenue
+    setupBy: v.optional(v.union(
+      v.literal("DESIGN_INTERIOR_BY_BRAND"),
+      v.literal("DESIGN_INTERIOR_BY_FRANCHISEEN"),
+      v.literal("DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN")
+    )), // Added setup by field
     status: v.union(
       v.literal("draft"),
       v.literal("pending"),
@@ -56,8 +69,10 @@ export default defineSchema({
   franchiserLocations: defineTable({
     franchiserId: v.id("franchiser"),
     country: v.string(),
-    isNationwide: v.boolean(),
+    state: v.optional(v.string()),
     city: v.optional(v.string()),
+    area: v.optional(v.string()),
+    isNationwide: v.boolean(),
     registrationCertificate: v.string(),
     minArea: v.number(),
     franchiseFee: v.number(),
@@ -69,7 +84,7 @@ export default defineSchema({
       v.literal("inactive")
     ),
     createdAt: v.number(),
-  }).index("by_franchiser", ["franchiserId"]),
+  }).index("by_franchiser", ["franchiserId"]).index("by_country", ["country"]).index("by_state", ["state"]).index("by_city", ["city"]).index("by_area", ["area"]),
 
   franchiserProducts: defineTable({
     franchiserId: v.id("franchiser"),

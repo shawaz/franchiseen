@@ -1327,7 +1327,7 @@ const FranchiseCreateInner: React.FC = () => {
                       updatedBy: 'system-auto-approval',
                     });
 
-                    toast.success(`Franchise created successfully! Investment: $${(formData.investment.selectedShares * formData.investment.sharePrice).toFixed(2)}`);
+                    toast.success('Franchise created successfully!');
                     // Navigate to franchise account page
                     router.push(`/${formData.selectedBusiness.slug}/${franchiseSlug}`);
                     

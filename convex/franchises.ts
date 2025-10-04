@@ -131,6 +131,17 @@ export const createFranchiser = mutation({
     category: v.string(),
     website: v.optional(v.string()),
     interiorImages: v.array(v.id("_storage")),
+    type: v.optional(v.union(
+      v.literal("FOCO"),
+      v.literal("FOFO")
+    )),
+    royaltyPercentage: v.optional(v.number()),
+    estimatedMonthlyRevenue: v.optional(v.number()),
+    setupBy: v.optional(v.union(
+      v.literal("DESIGN_INTERIOR_BY_BRAND"),
+      v.literal("DESIGN_INTERIOR_BY_FRANCHISEEN"),
+      v.literal("DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN")
+    )),
     status: v.union(
       v.literal("draft"),
       v.literal("pending"),
@@ -162,6 +173,17 @@ export const createFranchiserWithDetails = mutation({
       category: v.string(),
       website: v.optional(v.string()),
       interiorImages: v.array(v.id("_storage")),
+      type: v.optional(v.union(
+        v.literal("FOCO"),
+        v.literal("FOFO")
+      )),
+      royaltyPercentage: v.optional(v.number()),
+      estimatedMonthlyRevenue: v.optional(v.number()),
+      setupBy: v.optional(v.union(
+        v.literal("DESIGN_INTERIOR_BY_BRAND"),
+        v.literal("DESIGN_INTERIOR_BY_FRANCHISEEN"),
+        v.literal("DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN")
+      )),
       status: v.union(
         v.literal("draft"),
         v.literal("pending"),
@@ -171,8 +193,10 @@ export const createFranchiserWithDetails = mutation({
     }),
     locations: v.array(v.object({
       country: v.string(),
-      isNationwide: v.boolean(),
+      state: v.optional(v.string()),
       city: v.optional(v.string()),
+      area: v.optional(v.string()),
+      isNationwide: v.boolean(),
       registrationCertificate: v.string(),
       minArea: v.number(),
       franchiseFee: v.number(),
@@ -243,8 +267,10 @@ export const createFranchiserLocation = mutation({
   args: {
     franchiserId: v.id("franchiser"),
     country: v.string(),
-    isNationwide: v.boolean(),
+    state: v.optional(v.string()),
     city: v.optional(v.string()),
+    area: v.optional(v.string()),
+    isNationwide: v.boolean(),
     registrationCertificate: v.string(),
     minArea: v.number(),
     franchiseFee: v.number(),
@@ -532,6 +558,18 @@ export const updateFranchiser = mutation({
     industry: v.optional(v.string()),
     category: v.optional(v.string()),
     website: v.optional(v.string()),
+    logoUrl: v.optional(v.id("_storage")),
+    type: v.optional(v.union(
+      v.literal("FOCO"),
+      v.literal("FOFO")
+    )),
+    royaltyPercentage: v.optional(v.number()),
+    estimatedMonthlyRevenue: v.optional(v.number()),
+    setupBy: v.optional(v.union(
+      v.literal("DESIGN_INTERIOR_BY_BRAND"),
+      v.literal("DESIGN_INTERIOR_BY_FRANCHISEEN"),
+      v.literal("DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN")
+    )),
     status: v.optional(v.union(
       v.literal("draft"),
       v.literal("pending"),

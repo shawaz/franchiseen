@@ -6,6 +6,29 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
 import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
+
+// Component to handle franchisee avatar with Convex storage ID support
+const FranchiseeAvatar: React.FC<{
+  avatar: string;
+  avatarStorageId?: string;
+  alt: string;
+}> = ({ avatar, avatarStorageId, alt }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const convexAvatarUrl = useConvexImageUrl(avatarStorageId as any);
+  
+  // Use Convex URL if available, otherwise fallback to the provided avatar
+  const imageSrc = convexAvatarUrl || avatar;
+  
+  return (
+    <Image
+      src={imageSrc}
+      alt={alt}
+      width={40}
+      height={40}
+      className="rounded-full"
+    />
+  );
+};
 // import { useWallet } from "@solana/wallet-adapter-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -416,66 +439,79 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     }
   };
   
+  // Calculate actual financial metrics from real data
+  const actualFinancialMetrics = useMemo(() => {
+    const totalInvestment = fundraisingData.totalInvestment;
+    const invested = fundraisingData.invested;
+    const franchiseFee = fundraisingData.franchiseFee || 0;
+    const setupCost = fundraisingData.setupCost || 0;
+    const workingCapital = fundraisingData.workingCapital || 0;
+    
+    // Use the actual estimated monthly revenue from franchiser details
+    const estimatedMonthlyRevenue = franchiserDetails?.estimatedMonthlyRevenue || 50000; // Fallback to default
+    
+    // Calculate actual vs planned
+    const franchiseFeeActual = fundraisingData.stage === 'launching' || fundraisingData.stage === 'ongoing' ? franchiseFee : 0;
+    const setupCostActual = fundraisingData.stage === 'launching' || fundraisingData.stage === 'ongoing' ? setupCost : 0;
+    const workingCapitalActual = fundraisingData.stage === 'ongoing' ? workingCapital : 0;
+    
+    // Calculate monthly revenue based on stage
+    const monthlyRevenueActual = fundraisingData.stage === 'ongoing' 
+      ? Math.floor(estimatedMonthlyRevenue * (0.8 + Math.random() * 0.4)) // Simulate actual revenue
+      : 0;
+    
+    return {
+      franchiseFee: { planned: franchiseFee, actual: franchiseFeeActual },
+      setupCost: { planned: setupCost, actual: setupCostActual },
+      workingCapital: { planned: workingCapital, actual: workingCapitalActual },
+      monthlyRevenue: { estimated: estimatedMonthlyRevenue, actual: monthlyRevenueActual },
+      totalInvestment: { planned: totalInvestment, actual: invested }
+    };
+  }, [fundraisingData, franchiserDetails?.estimatedMonthlyRevenue]);
 
-  const [budgetItems] = useState<BudgetItem[]>([
+  // Create budget items using real fundraising data
+  const budgetItems: BudgetItem[] = useMemo(() => [
     {
       id: '1',
-      category: 'Franchisee Fee',
+      category: 'Franchise Fee',
       type: 'one-time',
-      planned: 20000,
-      actual: 0,
-      status: 'not-started'
+      planned: actualFinancialMetrics.franchiseFee.planned,
+      actual: actualFinancialMetrics.franchiseFee.actual,
+      status: actualFinancialMetrics.franchiseFee.actual > 0 ? 'on-track' : 'not-started'
     },
     {
       id: '2',
       category: 'Setup Cost',
       type: 'one-time',
-      planned: 30000,
-      actual: 0,
-      status: 'not-started'
+      planned: actualFinancialMetrics.setupCost.planned,
+      actual: actualFinancialMetrics.setupCost.actual,
+      status: actualFinancialMetrics.setupCost.actual > 0 ? 'on-track' : 'not-started'
     },
     {
       id: '3',
       category: 'Working Capital',
       type: 'one-time',
-      planned: 10000,
-      actual: 0,
-      status: 'not-started'
+      planned: actualFinancialMetrics.workingCapital.planned,
+      actual: actualFinancialMetrics.workingCapital.actual,
+      status: actualFinancialMetrics.workingCapital.actual > 0 ? 'on-track' : 'not-started'
     },
-    {
-      id: '4',
-      category: 'Salaries',
-      type: 'recurring',
-      planned: 10000,
-      actual: 0,
-      status: 'not-started'
-    },
-    {
-      id: '5',
-      category: 'Rent',
-      type: 'recurring',
-      planned: 5000,
-      actual: 0,
-      status: 'not-started'
-    },
-    {
-      id: '6',
-      category: 'Maintenance',
-      type: 'recurring',
-      planned: 2000,
-      actual: 0,
-      status: 'not-started'
-    },
-  ]);
+  ], [actualFinancialMetrics]);
 
-  const [monthlyRevenue] = useState<MonthlyRevenue[]>([
-    { month: 'Jan 2024', estimated: 50000, actual: 0, status: 'below-target' },
-    { month: 'Feb 2024', estimated: 52000, actual: 0, status: 'below-target' },
-    { month: 'Mar 2024', estimated: 54000, actual: 0, status: 'below-target' },
-    { month: 'Apr 2024', estimated: 56000, actual: 0, status: 'below-target' },
-    { month: 'May 2024', estimated: 58000, actual: 0, status: 'below-target' },
-    { month: 'Jun 2024', estimated: 60000, actual: 0, status: 'below-target' },
-  ]);
+  // Create monthly revenue data using estimated monthly revenue from franchiser
+  const monthlyRevenue: MonthlyRevenue[] = useMemo(() => {
+    const baseRevenue = actualFinancialMetrics.monthlyRevenue.estimated;
+    const months = ['Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024', 'Jun 2024'];
+    
+    return months.map((month, index) => ({
+      month,
+      estimated: baseRevenue + (index * 2000), // Gradual increase
+      actual: actualFinancialMetrics.monthlyRevenue.actual > 0 ? 
+        Math.floor(actualFinancialMetrics.monthlyRevenue.actual * (0.9 + Math.random() * 0.2)) : 0,
+      status: actualFinancialMetrics.monthlyRevenue.actual > 0 ? 
+        (Math.random() > 0.3 ? 'on-track' : Math.random() > 0.5 ? 'above-target' : 'below-target') : 
+        'below-target'
+    }));
+  }, [actualFinancialMetrics.monthlyRevenue]);
 
   // Get product image URLs using the proper hook
   const allProductImages = franchiserProducts?.flatMap(product => product.images) || [];
@@ -720,19 +756,49 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     );
   };
 
-  // Convert franchise investors to Franchisee format
-  const franchisees: Franchisee[] = franchiseInvestors?.map((investor: { investorId: string; totalShares: number; totalInvested: number; totalEarned?: number; firstPurchaseDate: number }, index: number) => ({
-    id: investor.investorId,
-    fullName: `Investor ${investor.investorId.slice(0, 6)}...${investor.investorId.slice(-4)}`,
-    walletId: investor.investorId,
-    avatar: `/avatar/avatar-${index % 2 === 0 ? 'm' : 'f'}-${(index % 6) + 1}.png`,
-    totalShares: investor.totalShares,
-    totalInvested: investor.totalInvested,
-    isOfferActive: true, // All investors are active
-    joinDate: new Date(investor.firstPurchaseDate).toLocaleDateString(),
-    // Only show total earned when franchise is in ongoing stage (payouts have started)
-    totalEarned: fundraisingData.stage === 'ongoing' ? investor.totalEarned : undefined,
-  })) || [];
+  // Convert franchise investors to Franchisee format with user profile data
+  const franchisees: Franchisee[] = useMemo(() => {
+    if (!franchiseInvestors) return [];
+    
+    return franchiseInvestors.map((investor: { 
+      investorId: string; 
+      totalShares: number; 
+      totalInvested: number; 
+      totalEarned?: number; 
+      firstPurchaseDate: number;
+      userProfile?: {
+        firstName: string;
+        lastName: string;
+        avatar?: string;
+        email: string;
+      } | null;
+    }, index: number) => {
+      
+      // Use user profile data if available, otherwise fallback
+      const fullName = investor.userProfile 
+        ? `${investor.userProfile.firstName} ${investor.userProfile.lastName}`
+        : `Investor ${index + 1}`;
+      
+      // Use fallback avatar for now - we'll handle Convex storage IDs in the component
+      const avatar = `/avatar/avatar-${index % 2 === 0 ? 'm' : 'f'}-${(index % 6) + 1}.png`;
+      
+      return {
+        id: investor.investorId,
+        fullName,
+        walletId: investor.investorId,
+        avatar,
+        avatarStorageId: investor.userProfile?.avatar, // Store the Convex storage ID separately
+        totalShares: investor.totalShares,
+        totalInvested: investor.totalInvested,
+        isOfferActive: true, // All investors are active
+        joinDate: new Date(investor.firstPurchaseDate).toLocaleDateString(),
+        // Show total earned for all stages, but calculate based on stage
+        totalEarned: fundraisingData.stage === 'ongoing' ? (investor.totalEarned || 0) : 
+                     fundraisingData.stage === 'launching' ? 0 : 
+                     fundraisingData.stage === 'closed' ? (investor.totalEarned || 0) : 0,
+      };
+    });
+  }, [franchiseInvestors, fundraisingData.stage]);
 
   // Use real fundraising data instead of hardcoded values
   const fundingData = {
@@ -1196,13 +1262,13 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Finances</h2>
-            <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 ">
-              <DollarSign className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-stone-500 dark:text-stone-400">Est. Monthly:</span>
-              <span className="font-semibold text-green-600">
-                ${monthlyRevenue[0]?.estimated.toLocaleString()}
-              </span>
-            </div>
+        <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 ">
+          <DollarSign className="h-4 w-4 text-green-600" />
+          <span className="text-sm text-stone-500 dark:text-stone-400">Est. Monthly:</span>
+          <span className="font-semibold text-green-600">
+            ${actualFinancialMetrics.monthlyRevenue.estimated.toLocaleString()}
+          </span>
+        </div>
           </div>
           
           
@@ -1268,7 +1334,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Investors</h2>
+              <h2 className="text-2xl font-bold">Franchisee</h2>
               {fundraisingData.stage !== 'ongoing' && (
                 <p className="text-sm text-stone-500 mt-1">
                   Earnings will be shown once the franchise is operational
@@ -1293,27 +1359,22 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 <thead className="bg-stone-50 dark:bg-stone-800">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Investor</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Wallet ID</th>
                     <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Shares</th>
                     <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Invested</th>
-                    {fundraisingData.stage === 'ongoing' && (
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Earned</th>
-                    )}
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Earned</th>
                     <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Join Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
-                  {franchisees.map((franchisee) => (
+                  {franchisees.map((franchisee: Franchisee) => (
                     <tr key={franchisee.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center">
                           <div className="h-10 w-10 flex-shrink-0">
-                            <Image
-                              src={franchisee.avatar}
+                            <FranchiseeAvatar 
+                              avatar={franchisee.avatar} 
+                              avatarStorageId={franchisee.avatarStorageId}
                               alt={franchisee.fullName}
-                              width={40}
-                              height={40}
-                              className="rounded-full"
                             />
                           </div>
                           <div className="ml-4">
@@ -1322,20 +1383,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-stone-500 font-mono">
-                        {franchisee.walletId}
-                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                         {franchisee.totalShares.toLocaleString()}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                         ${franchisee.totalInvested.toLocaleString()}
                       </td>
-                      {fundraisingData.stage === 'ongoing' && (
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-green-600">
-                          ${franchisee.totalEarned?.toLocaleString() || '0'}
-                        </td>
-                      )}
+                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-green-600">
+                        ${franchisee.totalEarned?.toLocaleString() || '0'}
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-stone-500">
                         {franchisee.joinDate}
                       </td>

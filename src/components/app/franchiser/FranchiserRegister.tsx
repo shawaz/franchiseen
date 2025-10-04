@@ -206,7 +206,9 @@ type FormData = {
   setupCostPerSqft: number | '';
   workingCapitalPerSqft: number | '';
   royaltyPercentage: number | '';
-  marketingPercentage: number | '';
+  // New fields
+  setupBy: 'DESIGN_INTERIOR_BY_BRAND' | 'DESIGN_INTERIOR_BY_FRANCHISEEN' | 'DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN';
+  estimatedMonthlyRevenue: number | '';
   // Locations
   locations: Location[];
 };
@@ -338,7 +340,9 @@ const FranchiserRegister: React.FC = () => {
     setupCostPerSqft: '',
     workingCapitalPerSqft: '',
     royaltyPercentage: '',
-    marketingPercentage: '',
+    // New fields
+    setupBy: 'DESIGN_INTERIOR_BY_BRAND',
+    estimatedMonthlyRevenue: '',
     // Locations
     locations: []
   });
@@ -371,6 +375,11 @@ const FranchiserRegister: React.FC = () => {
     isFinance: boolean;
     licenseFile: File | null;
     licensePreview: string | null;
+    cityDetails?: Record<string, {
+      state?: string;
+      area?: string;
+      fullAddress?: string;
+    }>;
   }>>({});
   
   // State for file upload drag and drop
@@ -802,16 +811,19 @@ const FranchiserRegister: React.FC = () => {
         throw new Error('Please sign in to register a brand');
       }
 
-      // Generate a simple wallet address for the brand (for operations)
-      // We'll use a simple hash of the user ID + brand name for consistency
-      const brandWalletAddress = `brand_${userProfile._id}_${formData.brandUrl}`;
+      // Import the brand wallet utility
+      const { generateBrandWallet } = await import('@/lib/brandWalletUtils');
+      
+      // Generate a proper Solana wallet for the brand
+      const wallet = generateBrandWallet();
       
       // Use the authenticated user's ID as the brand owner
       const ownerUserId = userProfile._id;
       
       return {
         ownerUserId, // User's ID (who owns/manages the brand)
-        brandWalletAddress, // Simple brand identifier
+        brandWalletAddress: wallet.publicKey, // Actual Solana public key
+        brandWalletSecretKey: wallet.secretKey, // Store for later use if needed
       };
     } catch (error) {
       console.error('Error generating brand wallet:', error);
@@ -867,10 +879,39 @@ const FranchiserRegister: React.FC = () => {
         workingCapital: formData.workingCapitalPerSqft || 100,
       };
       
+      // Extract state from country name if it contains state information
+      // For countries like "United States", we'll need to handle state selection separately
+      let state: string | undefined;
+      let city: string | undefined;
+      let area: string | undefined;
+      
+      if (countryData.isNationwide) {
+        // For nationwide availability, we don't specify city/state/area
+        state = undefined;
+        city = undefined;
+        area = undefined;
+      } else if (countryData.cities.length > 0) {
+        // For specific cities, we'll use the first city and extract state/area from stored details
+        city = countryData.cities[0];
+        
+        // Get stored city details if available
+        const cityDetail = countryData.cityDetails?.[city];
+        if (cityDetail) {
+          state = cityDetail.state;
+          area = cityDetail.area;
+        } else {
+          // Fallback: try to extract from city name or set as undefined
+          state = undefined;
+          area = undefined;
+        }
+      }
+      
       return {
         country,
+        state,
+        city,
+        area,
         isNationwide: countryData.isNationwide,
-        city: countryData.isNationwide ? undefined : countryData.cities.join(', '),
         registrationCertificate: licenseStorageIds[index] || `cert-${country.toLowerCase()}-${Date.now()}-${index}`,
         minArea: countryData.minArea,
         franchiseFee: countryData.franchiseFee,
@@ -893,6 +934,10 @@ const FranchiserRegister: React.FC = () => {
         category: formData.category,
         website: formData.website || undefined,
         interiorImages: interiorImageStorageIds,
+        type: formData.franchiseType === 'BOTH' ? 'FOCO' : formData.franchiseType, // Convert BOTH to FOCO as default
+        royaltyPercentage: formData.royaltyPercentage || undefined,
+        estimatedMonthlyRevenue: formData.estimatedMonthlyRevenue || undefined,
+        setupBy: formData.setupBy,
         status: 'pending' as const,
       },
       locations: locationsData,
@@ -928,8 +973,8 @@ const FranchiserRegister: React.FC = () => {
     if (currentStep === 2) {
       if (!formData.minCarpetArea || !formData.franchiseFee || 
           !formData.setupCostPerSqft || !formData.workingCapitalPerSqft ||
-          !formData.royaltyPercentage || !formData.marketingPercentage) {
-        toast.error('Please fill in all financial information including royalty and marketing percentages');
+          !formData.royaltyPercentage || !formData.setupBy || !formData.estimatedMonthlyRevenue) {
+        toast.error('Please fill in all financial information including setup by, monthly revenue, and royalty percentage');
         return;
       }
     }
@@ -1113,34 +1158,13 @@ const FranchiserRegister: React.FC = () => {
 
             </div>
 
-            {/* Short Description */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="shortDescription">Short Description *</Label>
-                <span className="text-sm text-stone-500">
-                  {formData.shortDescription.length}/200
-                </span>
-              </div>
-              <Textarea
-                id="shortDescription"
-                value={formData.shortDescription}
-                onChange={(e) => {
-                  if (e.target.value.length <= 200) {
-                    setFormData(prev => ({ ...prev, shortDescription: e.target.value }));
-                  }
-                }}
-                placeholder="Briefly describe your brand"
-                rows={3}
-                maxLength={200}
-                required
-              />
-            </div>
+          
             
 
             {/* Industry, Category, Franchise Type and Website */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Industry - takes 3 columns on medium screens and up */}
-              <div className="space-y-2 md:col-span-3">
+              <div className="space-y-2">
                 <Label htmlFor="industry">Industry *</Label>
                 <Select
                   value={formData.industry}
@@ -1162,7 +1186,7 @@ const FranchiserRegister: React.FC = () => {
               </div>
               
               {/* Category - takes 3 columns on medium screens and up */}
-              <div className="space-y-2 md:col-span-3">
+              <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Select
                   value={formData.category}
@@ -1185,7 +1209,7 @@ const FranchiserRegister: React.FC = () => {
               </div>
 
               {/* Franchise Type - takes 3 columns on medium screens and up */}
-              <div className="space-y-2 md:col-span-3">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="franchiseType">Franchise Type *</Label>
                 <Select
                   value={formData.franchiseType}
@@ -1198,10 +1222,12 @@ const FranchiserRegister: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="FOCO">FOCO (Franchise Owned, Company Operated)</SelectItem>
                     <SelectItem value="FOFO">FOFO (Franchise Owned, Franchise Operated)</SelectItem>
-                    <SelectItem value="BOTH">Both FOCO & FOFO</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
+              </div>
+
               {/* Website - takes 3 columns on medium screens and up */}
               <div className="space-y-2 md:col-span-3">
                 <Label htmlFor="website">Website</Label>
@@ -1236,7 +1262,29 @@ const FranchiserRegister: React.FC = () => {
                   <p className="text-sm text-red-500">{validationErrors.website}</p>
                 )}
                 </div>
+
+                  {/* Short Description */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="shortDescription">Short Description *</Label>
+                <span className="text-sm text-stone-500">
+                  {formData.shortDescription.length}/200
+                </span>
               </div>
+              <Textarea
+                id="shortDescription"
+                value={formData.shortDescription}
+                onChange={(e) => {
+                  if (e.target.value.length <= 200) {
+                    setFormData(prev => ({ ...prev, shortDescription: e.target.value }));
+                  }
+                }}
+                placeholder="Briefly describe your brand"
+                rows={3}
+                maxLength={200}
+                required
+              />
+            </div>
               
               {/* Timing per Week */}
               <div className="space-y-4">
@@ -1369,18 +1417,44 @@ const FranchiserRegister: React.FC = () => {
 
           {currentStep === 2 && (
             <div className="space-y-8">
-              <div>
-                <h3 className="text-xl font-semibold mb-2">Financial Information</h3>
-                <p className="text-stone-500 text-sm">
-                  Provide the financial details required for your franchise opportunity. This information will help potential franchisees understand the investment required.
-                </p>
-              </div>
               
               <div className="space-y-6">
-                {/* Single Row Layout */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Minimum Carpet Area */}
+                  {/* Setup By and Monthly Revenue */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Estimated Monthly Revenue */}
                   <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="estimatedMonthlyRevenue" className="text-xs font-medium">Est. Monthly Revenue *</Label>
+                      <span className="text-xs text-stone-500">
+                        {formData.estimatedMonthlyRevenue ? `$${formData.estimatedMonthlyRevenue.toLocaleString()}` : '$0'}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">$</span>
+                      <Input
+                        id="estimatedMonthlyRevenue"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={formData.estimatedMonthlyRevenue || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? Math.max(0, parseFloat(e.target.value)) : '';
+                          setFormData(prev => ({
+                            ...prev,
+                            estimatedMonthlyRevenue: value as number | ''
+                          }));
+                        }}
+                        className="pl-6 h-9 text-sm"
+                        placeholder="50,000"
+                        required
+                      />
+                    </div>
+                    <p className="text-[10px] text-stone-400">
+                      Expected monthly recurring revenue
+                    </p>
+                  </div>
+                   {/* Minimum Carpet Area */}
+                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
                       <Label htmlFor="minCarpetArea" className="text-xs font-medium">Min. Area *</Label>
                       <span className="text-xs text-stone-500">
@@ -1430,6 +1504,42 @@ const FranchiserRegister: React.FC = () => {
                     </div>
                     <p className="text-[10px] text-stone-400">Min. space required</p>
                   </div>
+                  
+                  {/* Setup By */}
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="setupBy" className="text-xs font-medium">Setup By *</Label>
+                    <Select
+                      value={formData.setupBy}
+                      onValueChange={(value: 'DESIGN_INTERIOR_BY_BRAND' | 'DESIGN_INTERIOR_BY_FRANCHISEEN' | 'DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN') => 
+                        setFormData(prev => ({ ...prev, setupBy: value }))
+                      }
+                    >
+                      <SelectTrigger className="h-9 text-sm w-full">
+                        <SelectValue placeholder="Select setup option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DESIGN_INTERIOR_BY_BRAND">
+                          Design & Interior By Brand
+                        </SelectItem>
+                        <SelectItem value="DESIGN_INTERIOR_BY_FRANCHISEEN">
+                          Design & Interior By Franchiseen
+                        </SelectItem>
+                        <SelectItem value="DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN">
+                          Design By Brand & Interior By Franchiseen
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-stone-400">
+                      Who will handle design and interior setup
+                    </p>
+                  </div>
+                 
+                  
+                </div>
+                {/* Single Row Layout */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  
+                  
 
                   {/* Franchise Fee */}
                   <div className="space-y-1">
@@ -1461,11 +1571,46 @@ const FranchiserRegister: React.FC = () => {
                     </div>
                     <p className="text-[10px] text-stone-400">One-time fee</p>
                   </div>
+                  {/* Royalty Percentage */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="royaltyPercentage" className="text-xs font-medium">Royalty % *</Label>
+                      <span className="text-xs text-stone-500">
+                        {formData.royaltyPercentage ? `${formData.royaltyPercentage}%` : '0%'}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="royaltyPercentage"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={formData.royaltyPercentage || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? Math.max(0, Math.min(100, parseFloat(e.target.value))) : '';
+                          setFormData(prev => ({
+                            ...prev,
+                            royaltyPercentage: value as number | ''
+                          }));
+                        }}
+                        className="h-9 text-sm"
+                        placeholder="5.0"
+                        required
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">%</span>
+                    </div>
+                    <p className="text-[10px] text-stone-400">
+                      Monthly royalty of gross revenue
+                    </p>
+                  </div>
+
+                  
 
                   {/* Setup Cost */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <Label htmlFor="setupCostPerSqft" className="text-xs font-medium">Setup Cost *</Label>
+                      <Label htmlFor="setupCostPerSqft" className="text-xs font-medium">Setup Cost/ Area *</Label>
                       <span className="text-xs text-stone-500">
                         {formData.setupCostPerSqft ? `$${formData.setupCostPerSqft}` : '$0'}/sq.ft
                       </span>
@@ -1531,79 +1676,10 @@ const FranchiserRegister: React.FC = () => {
                         'Per sq.ft, 1 year'}
                     </p>
                   </div>
+
+                  
+                  
                 </div>
-
-                {/* Royalty and Marketing Percentage */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Royalty Percentage */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <Label htmlFor="royaltyPercentage" className="text-xs font-medium">Royalty % *</Label>
-                      <span className="text-xs text-stone-500">
-                        {formData.royaltyPercentage ? `${formData.royaltyPercentage}%` : '0%'}
-                      </span>
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="royaltyPercentage"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.royaltyPercentage || ''}
-                        onChange={(e) => {
-                          const value = e.target.value ? Math.max(0, Math.min(100, parseFloat(e.target.value))) : '';
-                          setFormData(prev => ({
-                            ...prev,
-                            royaltyPercentage: value as number | ''
-                          }));
-                        }}
-                        className="h-9 text-sm"
-                        placeholder="5.0"
-                        required
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">%</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400">
-                      Monthly royalty percentage of gross revenue
-                    </p>
-                  </div>
-
-                  {/* Marketing Percentage */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <Label htmlFor="marketingPercentage" className="text-xs font-medium">Marketing % *</Label>
-                      <span className="text-xs text-stone-500">
-                        {formData.marketingPercentage ? `${formData.marketingPercentage}%` : '0%'}
-                      </span>
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="marketingPercentage"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.marketingPercentage || ''}
-                        onChange={(e) => {
-                          const value = e.target.value ? Math.max(0, Math.min(100, parseFloat(e.target.value))) : '';
-                          setFormData(prev => ({
-                            ...prev,
-                            marketingPercentage: value as number | ''
-                          }));
-                        }}
-                        className="h-9 text-sm"
-                        placeholder="2.0"
-                        required
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">%</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400">
-                      Monthly marketing fee percentage of gross revenue
-                    </p>
-                  </div>
-                </div>
-
                 {/* Total Investment Summary */}
                 <div className="mt-8 p-6 bg-stone-50 dark:bg-stone-800/50 rounded-lg border border-stone-200 dark:border-stone-700">
                   <h4 className="font-semibold text-lg mb-4 flex items-center">
@@ -1664,6 +1740,61 @@ const FranchiserRegister: React.FC = () => {
                           }
                         </span>
                       </div>
+                      
+                      {/* ROI Calculation */}
+                      {formData.estimatedMonthlyRevenue && (
+                        <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-green-800 dark:text-green-200">Estimated ROI</span>
+                            <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                              {(() => {
+                                const totalInvestment = (formData.franchiseFee || 0) +
+                                  (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
+                                  (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0);
+                                
+                                const monthlyRevenue = formData.estimatedMonthlyRevenue || 0;
+                                const annualRevenue = monthlyRevenue * 12;
+                                
+                                if (totalInvestment > 0) {
+                                  const roi = ((annualRevenue - totalInvestment) / totalInvestment) * 100;
+                                  return `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`;
+                                }
+                                return '0%';
+                              })()}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-green-700 dark:text-green-300">
+                            <div className="flex justify-between">
+                              <span>Annual Revenue:</span>
+                              <span>${((formData.estimatedMonthlyRevenue || 0) * 12).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Payback Period:</span>
+                              <span>
+                                {(() => {
+                                  const totalInvestment = (formData.franchiseFee || 0) +
+                                    (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
+                                    (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0);
+                                  
+                                  const monthlyRevenue = formData.estimatedMonthlyRevenue || 0;
+                                  
+                                  if (monthlyRevenue > 0) {
+                                    const months = totalInvestment / monthlyRevenue;
+                                    if (months < 12) {
+                                      return `${months.toFixed(1)} months`;
+                                    } else {
+                                      const years = months / 12;
+                                      return `${years.toFixed(1)} years`;
+                                    }
+                                  }
+                                  return 'N/A';
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       <p className="text-xs text-stone-500 mt-2">
                         This is the estimated minimum investment required to open this franchise location.
                       </p>
@@ -1845,6 +1976,22 @@ const FranchiserRegister: React.FC = () => {
                                     }}
                                 onPlaceSelect={(place) => {
                                     const city = place.structured_formatting.main_text;
+                                    const fullAddress = place.description;
+                                    
+                                    // Extract state and area information from the place details
+                                    let state: string | undefined;
+                                    let area: string | undefined;
+                                    
+                                    // Try to extract state from the secondary text or address components
+                                    if (place.structured_formatting.secondary_text) {
+                                        const secondaryText = place.structured_formatting.secondary_text;
+                                        // Look for state patterns in the secondary text
+                                        const stateMatch = secondaryText.match(/([A-Za-z\s]+),\s*([A-Za-z\s]+)$/);
+                                        if (stateMatch) {
+                                            state = stateMatch[1].trim();
+                                            area = stateMatch[2].trim();
+                                        }
+                                    }
                                     
                                     if (!locationData[country]?.cities.includes(city)) {
                                         setLocationData(prev => ({
@@ -1852,7 +1999,16 @@ const FranchiserRegister: React.FC = () => {
                                             [country]: {
                                                 ...prev[country],
                                                 cities: [...(prev[country]?.cities || []), city],
-                                                cityInput: ''
+                                                cityInput: '',
+                                                // Store additional location details
+                                                cityDetails: {
+                                                    ...prev[country]?.cityDetails,
+                                                    [city]: {
+                                                        state,
+                                                        area,
+                                                        fullAddress
+                                                    }
+                                                }
                                             }
                                         }));
                                     }
@@ -2552,8 +2708,11 @@ const FranchiserRegister: React.FC = () => {
                     // Validate required fields
                     if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
                         !formData.industry || !formData.category || !formData.logoFile ||
-                        (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0)) {
-                      toast.error('Please fill in all required fields including logo and timing');
+                        (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0) ||
+                        !formData.minCarpetArea || !formData.franchiseFee || 
+                        !formData.setupCostPerSqft || !formData.workingCapitalPerSqft ||
+                        !formData.royaltyPercentage || !formData.setupBy || !formData.estimatedMonthlyRevenue) {
+                      toast.error('Please fill in all required fields including financial information');
                       setLoading(false);
                       return;
                     }
