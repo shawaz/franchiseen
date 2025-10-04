@@ -3,16 +3,15 @@
 import React from 'react';
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import {
+import { 
   TrendingUp,
   Calendar,
-  Receipt,
   Building2,
   CreditCard,
   Store,
   Settings,
   Box,
-  Users,
+  MapPin,
 } from 'lucide-react';
 import { ProductsTab } from './ProductsTab';
 import { FranchiseTab } from './FranchiseTab';
@@ -21,6 +20,7 @@ import { PayoutsTab } from './PayoutsTab';
 import { SetupTab } from './SetupTab';
 import { TeamTab } from './TeamTab';
 import SettingsTab from './SettingsTab';
+import { LocationTab } from './LocationTab';
 import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
 import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
 
@@ -28,7 +28,7 @@ interface BrandDashboardProps {
   brandSlug: string;
 }
 
-type TabId = 'overview' | 'products' | 'franchise' | 'setup' | 'payouts' | 'team' | 'settings';
+type TabId = 'overview' | 'products' | 'franchise' | 'locations' | 'setup' | 'payouts' | 'team' | 'settings';
 
 type Tab = {
   id: TabId;
@@ -73,11 +73,12 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
 
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
-    { id: 'products', label: 'Products', icon: Box },
     { id: 'franchise', label: 'Franchise', icon: Store },
-    { id: 'setup', label: 'Setup', icon: Receipt },
-    { id: 'payouts', label: 'Payouts', icon: Receipt },
-    { id: 'team', label: 'Team', icon: Users },
+    { id: 'products', label: 'Products', icon: Box },
+    { id: 'locations', label: 'Locations', icon: MapPin },
+    // { id: 'setup', label: 'Setup', icon: Receipt },
+    // { id: 'payouts', label: 'Payouts', icon: Receipt },
+    // { id: 'team', label: 'Team', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -217,10 +218,49 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
             />
           )}
           {activeTab === 'franchise' && <FranchiseTab />}
+          {activeTab === 'locations' && (
+            <LocationTab 
+              locations={franchiseData.locations}
+              onUpdateLocation={(locationId, updates) => {
+                // TODO: Implement location update mutation
+                console.log('Update location:', locationId, updates);
+              }}
+              onDeleteLocation={(locationId) => {
+                // TODO: Implement location delete mutation
+                console.log('Delete location:', locationId);
+              }}
+              onAddLocation={(location) => {
+                // TODO: Implement location add mutation
+                console.log('Add location:', location);
+              }}
+            />
+          )}
           {activeTab === 'setup' && <SetupTab />}
           {activeTab === 'payouts' && <PayoutsTab />}
           {activeTab === 'team' && <TeamTab />}
-          {activeTab === 'settings' && <SettingsTab />}
+          {activeTab === 'settings' && (
+            <SettingsTab 
+              brandData={{
+                name: franchiseData.franchiser.name,
+                slug: franchiseData.franchiser.slug,
+                description: franchiseData.franchiser.description,
+                industry: franchiseData.franchiser.industry,
+                category: franchiseData.franchiser.category,
+                website: franchiseData.franchiser.website,
+                logoUrl: logoUrl || undefined,
+                timingPerWeek: {
+                  is24Hours: false,
+                  days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+                  startTime: '09:00',
+                  endTime: '18:00'
+                }
+              }}
+              onUpdateBrand={(updates) => {
+                // TODO: Implement brand update mutation
+                console.log('Update brand:', updates);
+              }}
+            />
+          )}
         </div>
       </Card>
     </div>

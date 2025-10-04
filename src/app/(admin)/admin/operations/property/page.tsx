@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { MapPin, CheckCircle, Clock, XCircle, Home, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
+import { MapPin, CheckCircle, Clock, XCircle, Home, ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, Plus, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 import AdminPageTemplate from "@/components/admin/AdminPageTemplate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -385,14 +387,63 @@ export default function PropertyManagement() {
     <AdminPageTemplate
       title="Property Management"
       description="Manage all properties and their availability for franchises"
-      addButtonText="Add New Property"
-      onAddClick={() => console.log('Add property clicked')}
+      addButtonText="Register New Property"
+      onAddClick={() => window.location.href = '/admin/operations/property/register'}
       stats={statsData}
       searchPlaceholder="Search properties..."
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
       filters={filters}
     >
+      {/* Quick Action Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Link href="/admin/operations/property/register">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-4">
+                  <Plus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-stone-900 dark:text-stone-100">Register Property</h3>
+                  <p className="text-sm text-stone-600 dark:text-stone-400">Register new commercial property</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link href="/admin/operations/property/penalties">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mr-4">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-stone-900 dark:text-stone-100">Penalty Management</h3>
+                  <p className="text-sm text-stone-600 dark:text-stone-400">Monitor and manage penalties</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mr-4">
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-stone-900 dark:text-stone-100">Property Verification</h3>
+                <p className="text-sm text-stone-600 dark:text-stone-400">Verify property details</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="space-y-4">
         <div className="rounded-md border">
           <div className="overflow-x-auto">

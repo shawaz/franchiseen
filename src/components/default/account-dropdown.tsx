@@ -6,17 +6,16 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Power,  Store, UserCircle, Building2 } from "lucide-react";
+import { Power,  Store, UserCircle, Building2, Building } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useWalletUi } from '@wallet-ui/react';
 import { useRouter } from 'next/navigation';
-import { useAllFranchisersByWallet } from '@/hooks/useFranchises';
+import { useAllFranchisersByUserId } from '@/hooks/useFranchises';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import { useUserWallet } from '@/hooks/useUserWallet';
 import { Id } from '../../../convex/_generated/dataModel';
-import { useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AccountDropdownProps {
   balance?: number;
@@ -69,23 +68,46 @@ const FranchiserDropdownItem = ({ franchiser }: FranchiserDropdownItemProps) => 
   );
 };
 
-const AccountDropdown = ({ balance }: AccountDropdownProps) => {
+const AccountDropdown = ({}: AccountDropdownProps) => {
   const [mounted, setMounted] = useState(false);
-  const { disconnect, account } = useWalletUi();
+  const { isAuthenticated, userProfile, signOut } = useAuth();
   const router = useRouter();
   
-  // Get user's franchiser data
-  const franchisers = useAllFranchisersByWallet(account?.address || '');
+  // Get user's wallet balance
+  const { wallet } = useUserWallet({ userId: userProfile?.userId as Id<"users"> });
+  const walletBalance = wallet.balance;
+  const balanceLoading = wallet.isLoading;
   
-  // Check if user is a team member
-  const teamMember = useQuery(api.adminManagement.getTeamMemberByWallet, 
-    account?.address ? { walletAddress: account.address } : "skip"
-  );
+  // Force re-render when balance updates
+  const [balanceUpdateKey, setBalanceUpdateKey] = useState(0);
+  
+  // Listen for balance updates
+  useEffect(() => {
+    const handleBalanceUpdate = () => {
+      setBalanceUpdateKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('walletBalanceUpdated', handleBalanceUpdate);
+    
+    return () => {
+      window.removeEventListener('walletBalanceUpdated', handleBalanceUpdate);
+    };
+  }, []);
+  
+  // Get user's franchiser data using user ID from user profile
+  const franchisers = useAllFranchisersByUserId(userProfile?._id || '');
+  
+  // Check if user has franchiseen.com email address
+  const isCompanyUser = userProfile?.email?.endsWith('@franchiseen.com') || false;
+  
+  // Get user avatar URL
+  const avatarUrl = useConvexImageUrl(userProfile?.avatar);
   
   // Debug logging
-  console.log('Account dropdown - account:', account?.address);
+  console.log('Account dropdown - userProfile:', userProfile);
+  console.log('Account dropdown - walletBalance:', walletBalance);
   console.log('Account dropdown - franchisers:', franchisers);
-  console.log('Account dropdown - team member:', teamMember);
+  console.log('Account dropdown - isCompanyUser:', isCompanyUser);
   console.log('Account dropdown - franchisers loading:', franchisers === undefined);
   console.log('Account dropdown - franchisers length:', franchisers?.length || 0);
 
@@ -96,15 +118,15 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
 
   const handleSignOut = async () => {
     try {
-      await disconnect();
+      await signOut();
       // Optional: Redirect to home page after sign out
       router.push('/');
     } catch (error) {
-      console.error('Error disconnecting wallet:', error);
+      console.error('Error signing out:', error);
     }
   };
 
-  if (!mounted) {
+  if (!mounted || !isAuthenticated) {
     return null;
   }
 
@@ -122,22 +144,30 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
           <Link href="/account">
             <div className="flex border-b items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors">
               <div className="relative h-8 w-8 flex-shrink-0 z-0">
-                <Image
-                  src= "/avatar/avatar-m-1.png"
-                  alt="Profile"
-                  width={32}
-                  height={32}
-                  loading="lazy"
-                  className="object-cover rounded z-0"
-                />
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt="Profile"
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    className="object-cover rounded z-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
+                    <UserCircle className="w-5 h-5 text-gray-400" />
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-medium truncate">
-                  {" "}
-                  Shawaz Sharif
+                  {userProfile?.firstName && userProfile?.lastName 
+                    ? `${userProfile.firstName} ${userProfile.lastName}`
+                    : userProfile?.email || 'User'
+                  }
                 </h3>
-                <p className="text-xs text-gray-500 truncate">
-                  {balance !== undefined ? `${balance.toFixed(2)} SOL` : 'Loading...'}
+                <p className="text-xs text-gray-500 truncate" key={balanceUpdateKey}>
+                  {balanceLoading ? 'Loading...' : `${walletBalance.toFixed(4)} SOL`}
                 </p>
               </div>
             </div>
@@ -155,94 +185,8 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
               <FranchiserDropdownItem key={franchiser._id} franchiser={franchiser} />
             ))
           ) : null}
-          
-          {/* <Link
-            href= "/franchise/account"
-            className="flex items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
-          >
-            <div className="relative h-8 w-8 flex-shrink-0 z-0">
-              <Image
-                src={ "/logo/logo-2.svg"}
-                unoptimized
-                alt="Profile"
-                width={32}
-                height={32}
-                loading="lazy"
-                className="object-cover rounded z-0"
-                unoptimized
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium truncate">
-                Citymilana
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                Franchiser
-              </p>
-            </div>
-          </Link>
-          <Link
-            href= "/franchise/franchise-1/account"
-            className="flex items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
-          >
-            <div className="relative h-8 w-8 flex-shrink-0 z-0">
-              <Image
-                src={ "/logo/logo-2.svg"}
-                unoptimized
-                alt="Profile"
-                width={32}
-                height={32}
-                loading="lazy"
-                className="object-cover rounded z-0"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium truncate">
-                Citymilana - 01
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                Manager
-              </p>
-            </div>
-          </Link>
-          <Link
-            href= "/franchise/franchise-1/pos"
-            className="flex items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
-          >
-            <div className="relative h-8 w-8 flex-shrink-0 z-0">
-              <Image
-                src={ "/logo/logo-2.svg"}
-                unoptimized
-                alt="Profile"
-                width={32}
-                height={32}
-                loading="lazy"
-                className="object-cover rounded z-0"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium truncate">
-                Citymilana - 01
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                POS
-              </p>
-            </div>
-          </Link> */}
-          {/* Company Dashboard - Only for team members */}
-          {teamMember && (
-           <Link href="/admin/home/ai">
-           <button
-             className="w-full border-t flex items-center gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
-           >
-             <Building2 className="h-5 w-5 dark:text-gray-400 text-gray-400" />
-             <span className="text-sm font-medium">
-               Company
-             </span>
-           </button>
-           </Link>
-          )}
-          {/* Settings Menu */}
+
+          {/* Register Brand Menu */}
           <div className="border-t">
             <Link href="/register">
             <button
@@ -250,24 +194,35 @@ const AccountDropdown = ({ balance }: AccountDropdownProps) => {
             >
               <Store className="h-5 w-5 dark:text-gray-400 text-gray-400" />
               <span className="text-sm font-medium">
-                Register Brand
+                Register Franchise
               </span>
             </button>
             </Link>
           </div>
+           {/* Company Dashboard - Only for franchiseen.com email users */}
+           {isCompanyUser && (
+           <Link href="/admin/home/ai">
+            <button
+              className="w-full border-t flex items-center gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors"
+            >
+              <Building2 className="h-5 w-5 dark:text-gray-400 text-gray-400" />
+              <span className="text-sm font-medium">
+                Company
+              </span>
+            </button>
+           </Link>
+          )}
           <div className="border-t">
-
-                            <button 
-                              onClick={handleSignOut}
-                              className="w-full flex items-center cursor-pointer gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-red-900/50 hover:bg-red-50 transition-colors"
-                            >
-                              <Power className="h-5 w-5 dark:text-red-400 text-red-400" />
-                              <span className="text-sm text-red-600 dark:text-red-400 font-medium">
-                                Sign Out
-                              </span>
-                            </button>
-
-                        </div>
+            <button 
+              onClick={handleSignOut}
+              className="w-full flex items-center cursor-pointer gap-4 px-6 py-3 text-gray-700 dark:text-gray-100 dark:hover:bg-red-900/50 hover:bg-red-50 transition-colors"
+            >
+              <Power className="h-5 w-5 dark:text-red-400 text-red-400" />
+              <span className="text-sm text-red-600 dark:text-red-400 font-medium">
+                Sign Out
+              </span>
+            </button>
+          </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

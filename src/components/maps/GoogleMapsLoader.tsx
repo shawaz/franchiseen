@@ -1,7 +1,8 @@
 "use client";
 
 import { LoadScript, LoadScriptProps } from '@react-google-maps/api';
-import { ReactNode, useEffect, useState, useRef } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
+import { useGoogleMapsPreload } from '@/hooks/useGoogleMapsPreload';
 
 interface GoogleMapsLoaderProps {
   children: ReactNode;
@@ -9,12 +10,10 @@ interface GoogleMapsLoaderProps {
   errorFallback?: (error: Error) => ReactNode;
 }
 
-const libraries: LoadScriptProps['libraries'] = ['places', 'geometry', 'drawing', 'visualization'];
+const libraries: LoadScriptProps['libraries'] = ['places']; // Removed geometry to reduce load time
 
-// Check if Google Maps API is already loaded
-const isGoogleMapsLoaded = () => {
-  return typeof window !== 'undefined' && window.google && window.google.maps && window.google.maps.Map;
-};
+// Global flag to prevent multiple loads
+let isGoogleMapsLoading = false;
 
 export default function GoogleMapsLoader({ 
   children, 
@@ -30,37 +29,26 @@ export default function GoogleMapsLoader({
   )
 }: GoogleMapsLoaderProps) {
   const [isMounted, setIsMounted] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { isLoaded: isPreloaded, isLoading: isPreloading } = useGoogleMapsPreload();
+  const [isLoaded, setIsLoaded] = useState(false);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const loadingRef = useRef(false);
 
   useEffect(() => {
     setIsMounted(true);
     
-    // Check if already loaded
-    if (isGoogleMapsLoaded()) {
+    // Check if Google Maps is already loaded
+    if (typeof window !== 'undefined' && window.google && window.google.maps) {
       setIsLoaded(true);
-      return;
     }
-
-    // Cleanup function
-    return () => {
-      loadingRef.current = false;
-    };
   }, []);
 
-  // Handle window load event as a fallback
+  // Update loaded state when preload completes
   useEffect(() => {
-    const handleLoad = () => {
-      if (isGoogleMapsLoaded()) {
-        setIsLoaded(true);
-      }
-    };
-
-    window.addEventListener('load', handleLoad);
-    return () => window.removeEventListener('load', handleLoad);
-  }, []);
+    if (isPreloaded) {
+      setIsLoaded(true);
+    }
+  }, [isPreloaded]);
 
   // Show error if API key is missing
   if (!apiKey) {
@@ -74,38 +62,59 @@ export default function GoogleMapsLoader({
     );
   }
 
-  console.log('GoogleMapsLoader: API key present, isMounted:', isMounted, 'isLoaded:', isLoaded, 'isGoogleMapsLoaded():', isGoogleMapsLoaded());
-
-  // Show loading state
+  // Show loading state until mounted
   if (!isMounted) {
     return <>{loadingFallback}</>;
   }
 
-  // If already loaded, just render children
-  if (isGoogleMapsLoaded() || isLoaded) {
-    console.log('GoogleMapsLoader: Maps already loaded, rendering children');
+  // If already loaded (either preloaded or loaded), render children directly
+  if (isLoaded || isPreloaded) {
+    console.log('GoogleMapsLoader: Google Maps already loaded, rendering children');
     return <>{children}</>;
   }
 
   // Show error if any
   if (error) {
+    console.error('GoogleMapsLoader: Error occurred:', error);
     return <>{errorFallback(error)}</>;
   }
 
+  // Show loading if preloading
+  if (isPreloading) {
+    console.log('GoogleMapsLoader: Preloading Google Maps, showing loading fallback');
+    return <>{loadingFallback}</>;
+  }
+
+  // Check if already loading to prevent multiple loads
+  if (isGoogleMapsLoading) {
+    console.log('GoogleMapsLoader: Already loading, showing loading fallback');
+    return <>{loadingFallback}</>;
+  }
+
+  console.log('GoogleMapsLoader: Rendering LoadScript with API key:', apiKey ? 'present' : 'missing');
+  
+  // Set loading flag
+  isGoogleMapsLoading = true;
+  
   return (
     <LoadScript
       googleMapsApiKey={apiKey}
       libraries={libraries}
       loadingElement={loadingFallback}
+      preventGoogleFontsLoading={true} // Prevent loading Google Fonts
       onLoad={() => {
         console.log('Google Maps script loaded successfully');
-        loadingRef.current = false;
+        console.log('Google Maps loaded, window.google:', !!window.google);
+        console.log('Google Maps loaded, window.google.maps:', !!window.google?.maps);
+        console.log('Google Maps loaded, window.google.maps.places:', !!window.google?.maps?.places);
+        isGoogleMapsLoading = false;
         setIsLoaded(true);
       }}
       onError={(err) => {
         const error = err instanceof Error ? err : new Error(String(err));
         console.error('Error loading Google Maps:', error);
-        loadingRef.current = false;
+        console.error('Error details:', err);
+        isGoogleMapsLoading = false;
         setError(error);
       }}
     >

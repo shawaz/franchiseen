@@ -18,6 +18,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useSolana } from '@/components/solana/use-solana';
 import UserWallet from './UserWallet';
+import TransactionsTab from './transactions/TransactionsTab';
 import SharesTab from './shares/SharesTab';
 import DailyPayoutsTab from './payouts/DailyPayoutsTab';
 import InvoicesTab from './invoices/InvoicesTab';
@@ -59,9 +60,10 @@ export default function ProfileDashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: PieChart },
-    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'shares', label: 'Shares', icon: Store },
     { id: 'payouts', label: 'Payouts', icon: Receipt },
+    { id: 'invoices', label: 'Invoices', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -192,15 +194,17 @@ export default function ProfileDashboard() {
             </div>
           )}
 
+          {activeTab === 'transactions' && (
+            <TransactionsTab />
+          )}
+
           {activeTab === 'shares' && (
             <SharesTab />
           )}
 
+          {activeTab === 'payouts' && <DailyPayoutsTab />}
 
           {activeTab === 'invoices' && <InvoicesTab />}
-
-
-          {activeTab === 'payouts' && <DailyPayoutsTab />}
           
           {activeTab === 'settings' && <SettingsTab />}
 

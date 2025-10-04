@@ -6,7 +6,6 @@ import { ArrowLeft, ArrowRight, Building, Search, LocateFixed, X } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import { toast } from 'sonner';
@@ -14,23 +13,25 @@ import { Card, CardContent } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
 import GoogleMapsLoader from '@/components/maps/GoogleMapsLoader';
 import { useFranchisersByLocation } from '@/hooks/useFranchisersByLocation';
-import { extractLocationInfo, normalizeCountryName, normalizeCityName } from '@/lib/locationUtils';
+import { extractLocationInfo, normalizeCountryName, normalizeCityName, isWithinSoldRadius, SoldLocation } from '@/lib/locationUtils';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useSolana } from '@/components/solana/use-solana';
-import { useWalletUiSigner } from '@/components/solana/use-wallet-ui-signer';
-import { Address } from 'gill';
+// Removed Solana wallet imports - no longer needed for payment
 
 // Dynamically import the MapComponent with SSR disabled
 const MapComponent = dynamic(
   () => import('./MapComponent'),
-  { ssr: false, loading: () => (
-    <div className="flex items-center justify-center h-full">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
-    </div>
-  )}
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+        <span className="ml-2 text-sm text-gray-600">Loading map...</span>
+      </div>
+    )
+  }
 );
 
 interface Business {
@@ -182,35 +183,7 @@ const dummyUser = {
   phone: '+1234567890'
 } as const;
 
-// Helper function to add income records to the income table
-const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' | 'subscription', amount: number, source: string, description: string, transactionHash?: string) => {
-  try {
-    const incomeRecord = {
-      id: `income_${Date.now()}`,
-      type,
-      amount,
-      description,
-      source,
-      timestamp: new Date().toISOString(),
-      status: 'completed' as const,
-      transactionHash
-    };
-
-    // Get existing income records
-    const existingRecords = localStorage.getItem('company_income_records');
-    const records = existingRecords ? JSON.parse(existingRecords) : [];
-    
-    // Add new record
-    records.unshift(incomeRecord);
-    
-    // Save back to localStorage
-    localStorage.setItem('company_income_records', JSON.stringify(records));
-    
-    console.log('✅ Added income record:', incomeRecord);
-  } catch (error) {
-    console.error('Error adding income record:', error);
-  }
-};
+// Removed addToIncomeTable helper function - no longer needed for payment
 
 const FranchiseCreateInner: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -227,24 +200,20 @@ const FranchiseCreateInner: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [locationInfo, setLocationInfo] = useState<{ country: string; city?: string } | null>(null);
   const [manualLocationOverride] = useState<{ country: string; city?: string } | null>(null);
+  const [soldLocations] = useState<SoldLocation[]>([]);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
-  const [usdtPerSol, setUsdtPerSol] = useState(0); // Real-time exchange rate from CoinGecko
-  const [priceLoading, setPriceLoading] = useState(false);
-  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null);
+  // Removed SOL price tracking - no longer needed for payment
 
-  // Solana hooks
-  const { account, client } = useSolana();
-  const signer = useWalletUiSigner();
+  // Removed Solana wallet hooks - no longer needed for payment
 
   // Convex mutations
   const generateFranchiseSlug = useMutation(api.franchiseManagement.generateFranchiseSlug);
   const createFranchise = useMutation(api.franchiseManagement.createFranchise);
   const updateFranchiseStatus = useMutation(api.franchiseManagement.updateFranchiseStatus);
   const updateFranchiseStage = useMutation(api.franchiseManagement.updateFranchiseStage);
-  const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
-  const createInvoice = useMutation(api.franchiseManagement.createInvoice);
+  // Removed payment-related mutations - no longer needed
   const createProperty = useMutation(api.propertyManagement.createProperty);
   const updatePropertyStage = useMutation(api.propertyManagement.updatePropertyStage);
 
@@ -271,83 +240,25 @@ const FranchiseCreateInner: React.FC = () => {
     }
   }, [franchisers]);
 
-  // Fetch SOL/USDT price from CoinGecko
-  const fetchSolanaPrice = useCallback(async () => {
-    setPriceLoading(true);
-    try {
-      console.log('Fetching SOL price from CoinGecko...');
-      
-      // Use a more reliable endpoint with proper headers
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usdt', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('CoinGecko API response:', data);
-      
-      if (data.solana && data.solana.usdt) {
-        setUsdtPerSol(data.solana.usdt);
-        setLastPriceUpdate(new Date());
-        console.log('SOL/USDT price updated:', data.solana.usdt);
-      } else {
-        console.log('No SOL price data found in response');
-        // Set a reasonable fallback price
-        setUsdtPerSol(200);
-        setLastPriceUpdate(new Date());
-      }
-    } catch (error) {
-      console.error('Failed to fetch SOL price:', error);
-      // Set a fallback price if API fails
-      setUsdtPerSol(200); // Reasonable fallback
-      setLastPriceUpdate(new Date());
-    } finally {
-      setPriceLoading(false);
-    }
-  }, []);
-
-  // Initialize Google Maps services and fetch SOL price
+  // Initialize Google Maps services with retry mechanism
   useEffect(() => {
-    if (window.google && window.google.maps && window.google.maps.places) {
-      autocompleteService.current = new window.google.maps.places.AutocompleteService();
-      placesService.current = new window.google.maps.places.PlacesService(
-        document.createElement('div')
-      );
-    } else {
-      console.error('Google Maps API not loaded');
-    }
-    
-    // Fetch SOL price on component mount
-    fetchSolanaPrice();
-    
-    // Set a fallback price after 3 seconds if still loading
-    const fallbackTimeout = setTimeout(() => {
-      if (usdtPerSol === 0) {
-        console.log('Setting fallback SOL price after timeout');
-        setUsdtPerSol(150);
-        setLastPriceUpdate(new Date());
+    const initializeGoogleMapsServices = () => {
+      if (window.google && window.google.maps && window.google.maps.places) {
+        autocompleteService.current = new window.google.maps.places.AutocompleteService();
+        placesService.current = new window.google.maps.places.PlacesService(
+          document.createElement('div')
+        );
+        console.log('Google Maps services initialized successfully');
+      } else {
+        console.log('Google Maps API not ready yet, retrying in 500ms...');
+        // Retry after 500ms if Google Maps API is not loaded yet
+        setTimeout(initializeGoogleMapsServices, 500);
       }
-    }, 3000);
-    
-    // Set up auto-refresh for SOL price every 30 seconds
-    const priceInterval = setInterval(() => {
-      fetchSolanaPrice();
-    }, 30000); // 30 seconds
-    
-    return () => {
-      clearInterval(priceInterval);
-      clearTimeout(fallbackTimeout);
     };
-  }, [fetchSolanaPrice, usdtPerSol]);
+
+    // Start initialization
+    initializeGoogleMapsServices();
+  }, []);
 
 
   // Handle input changes and fetch predictions
@@ -355,7 +266,13 @@ const FranchiseCreateInner: React.FC = () => {
     setMapSearchQuery(value);
     
     if (value.length > 2) {
-      autocompleteService.current?.getPlacePredictions(
+      // Check if Google Maps services are available
+      if (!autocompleteService.current) {
+        console.log('Autocomplete service not ready yet');
+        return;
+      }
+      
+      autocompleteService.current.getPlacePredictions(
         {
           input: value,
           types: ['establishment', 'geocode'],
@@ -377,7 +294,10 @@ const FranchiseCreateInner: React.FC = () => {
 
   // Handle suggestion selection
   const handleSelectSuggestion = (placeId: string, description: string) => {
-    if (!placesService.current) return;
+    if (!placesService.current) {
+      console.log('Places service not ready yet');
+      return;
+    }
     
     setMapSearchQuery(description);
     setShowSuggestions(false);
@@ -588,17 +508,6 @@ const FranchiseCreateInner: React.FC = () => {
     });
   };
 
-  const updateInvestment = (selectedShares: number) => {
-    const totalShares = formData.investment.totalShares;
-    const minShares = totalShares > 0 ? Math.ceil(totalShares * 0.02) : 0; // Changed from 0.05 to 0.02 (2%)
-    setFormData(prev => ({
-      ...prev,
-      investment: {
-        ...prev.investment,
-        selectedShares: totalShares > 0 ? Math.min(Math.max(selectedShares, minShares), totalShares) : selectedShares
-      }
-    }));
-  };
 
   const canProceed = () => {
     switch (currentStep) {
@@ -671,6 +580,12 @@ const FranchiseCreateInner: React.FC = () => {
   };
 
   const handleLocationSelect = useCallback((location: { lat: number; lng: number; address: string }) => {
+    // Check if location is within 1km of sold locations
+    if (isWithinSoldRadius(location.lat, location.lng, soldLocations)) {
+      toast.error('This location is within 1km of an existing sold location. Please select a different location.');
+      return;
+    }
+
     setMapCenter({ lat: location.lat, lng: location.lng });
     setSelectedLocation({ 
       lat: location.lat, 
@@ -694,7 +609,7 @@ const FranchiseCreateInner: React.FC = () => {
         lng: location.lng
       }
     }));
-  }, []);
+  }, [soldLocations]);
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -845,8 +760,33 @@ const FranchiseCreateInner: React.FC = () => {
                   </Button>
                 </div>
 
-              <div className="w-full h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden">
-                <GoogleMapsLoader>
+              <div className="w-full h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden rounded-lg">
+                <GoogleMapsLoader
+                  loadingFallback={
+                    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-800 dark:to-stone-900">
+                      <div className="relative">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-stone-200 border-t-yellow-500"></div>
+                        <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border-4 border-yellow-500 opacity-20"></div>
+                      </div>
+                      <span className="mt-4 text-sm text-stone-600 dark:text-stone-400 font-medium">Loading interactive map...</span>
+                      <span className="mt-1 text-xs text-stone-500 dark:text-stone-500">This may take a few seconds</span>
+                    </div>
+                  }
+                  errorFallback={(error) => (
+                    <div className="flex flex-col items-center justify-center h-full p-6 bg-red-50 dark:bg-red-900/20">
+                      <div className="text-red-500 text-center">
+                        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                          </svg>
+                        </div>
+                        <p className="font-medium">Failed to load Google Maps</p>
+                        <p className="text-sm mt-1 text-red-400">{error.message}</p>
+                        <p className="text-xs mt-2 text-red-300">Please check your internet connection and try again.</p>
+                      </div>
+                    </div>
+                  )}
+                >
                   <MapComponent
                     onLocationSelect={handleLocationSelect}
                     initialCenter={mapCenter}
@@ -1249,123 +1189,6 @@ const FranchiseCreateInner: React.FC = () => {
                   </div>
                 )}
 
-                {/* Share Investment Section */}
-                <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
-                  <h4 className="font-medium mb-2">Share Investment</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between mb-4">
-                        <div>
-                          <p className="text-sm font-medium text-stone-900 dark:text-stone-100">Your Investment</p>
-                          <p className="text-xs text-stone-600 dark:text-stone-300">Minimum 2% of total shares</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-stone-900 dark:text-blue-100">{formData.investment.selectedShares.toLocaleString()} Shares</p>
-                          <p className="text-sm text-stone-600 dark:text-stone-300">
-                            {formData.investment.totalShares > 0 ? ((formData.investment.selectedShares / formData.investment.totalShares) * 100).toFixed(1) : 0}% of total
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <Slider
-                        value={[formData.investment.selectedShares]}
-                        min={formData.investment.totalShares > 0 ? Math.ceil(formData.investment.totalShares * 0.02) : 0}
-                        max={formData.investment.totalShares || 0}
-                        step={1}
-                        onValueChange={([value]) => updateInvestment(value)}
-                        className="w-full mb-6"
-                        disabled={formData.investment.totalShares === 0}
-                      />
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-1">
-                            Share Price (USDT)
-                          </label>
-                          <Input
-                            value={formData.investment.sharePrice.toFixed(2)}
-                            disabled
-                            className="w-full p-2 border bg-stone-50"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-1">
-                            Number of Shares
-                          </label>
-                          <Input
-                            type="number"
-                            value={formData.investment.selectedShares}
-                            onChange={(e) => updateInvestment(Number(e.target.value))}
-                            min={formData.investment.totalShares > 0 ? Math.ceil(formData.investment.totalShares * 0.02) : 0}
-                            max={formData.investment.totalShares || 0}
-                            className="w-full p-2 border"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                      </div>
-                    </div>
-
-                {/* Payment Summary */}
-                <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Payment Summary</h4>
-                        <div className="flex flex-col items-end gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-stone-500">1 SOL = ${usdtPerSol > 0 ? usdtPerSol.toFixed(2) : 'Loading...'} USDT</span>
-                            <button
-                              onClick={fetchSolanaPrice}
-                              disabled={priceLoading}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center gap-1"
-                            >
-                              {priceLoading ? (
-                                <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                '🔄'
-                              )}
-                            </button>
-                          </div>
-                          {lastPriceUpdate && (
-                            <span className="text-xs text-stone-400">
-                              Updated {lastPriceUpdate.toLocaleTimeString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                  <div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                        <span className="text-sm text-stone-600 dark:text-stone-400">Shares Purchasing</span>
-                        <span className="text-sm font-medium">{formData.investment.selectedShares.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                        <span className="text-sm text-stone-600 dark:text-stone-400">Price per Share</span>
-                        <span className="text-sm font-medium">{formData.investment.sharePrice.toFixed(2)} USDT</span>
-                        </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-stone-600 dark:text-stone-400">Subtotal</span>
-                        <span className="text-sm font-medium">{(formData.investment.selectedShares * formData.investment.sharePrice).toFixed(2)} USDT</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-stone-600 dark:text-stone-400">Service Fee (2%)</span>
-                        <span className="text-sm font-medium">
-                            {(formData.investment.selectedShares * formData.investment.sharePrice * 0.02).toFixed(2)} USDT
-                          </span>
-                        </div>
-                      <div className="pt-4 mt-4 border-t border-green-200 dark:border-green-700 mt-2">
-                        <div className="flex justify-between font-semibold text-lg">
-                          <span className="text-green-900 dark:text-green-100">Total Payment</span>
-                          <span className="text-green-600 dark:text-green-400">
-                            {(formData.investment.selectedShares * formData.investment.sharePrice * 1.02).toFixed(2)} USDT
-                          </span>
-                          </div>
-                        <div className="text-xs text-green-600 dark:text-green-400 text-right mt-1">
-                            ≈ {usdtPerSol > 0 ? (formData.investment.selectedShares * formData.investment.sharePrice * 1.02 / usdtPerSol).toFixed(4) : 'Loading...'} SOL
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -1402,134 +1225,18 @@ const FranchiseCreateInner: React.FC = () => {
                     return;
                   }
 
-                  if (!account?.address) {
-                    toast.error('Please connect your wallet first');
-                    return;
-                  }
-
-                  // Check if signer is available and has the required methods
-                  if (!signer || !('signAndSendTransactions' in signer)) {
-                    const errorMsg = (signer as { error?: { message?: string } })?.error?.message || 'Wallet signer not available';
-                    toast.error(`Wallet error: ${errorMsg}. Please try reconnecting your wallet.`);
-                    return;
-                  }
-
-                  // Check if signer is a mock signer (indicates wallet connection issues)
-                  if ((signer as { isMock?: boolean })?.isMock) {
-                    toast.error('Wallet connection issue detected. Please reconnect your wallet.');
-                    return;
-                  }
-
                   setLoading(true);
                   
                   try {
-                    // Calculate payment breakdown
-                    const subtotalAmount = formData.investment.selectedShares * formData.investment.sharePrice;
-                    const platformFeeAmount = subtotalAmount * 0.02; // 2% platform fee
-                    const totalInvestmentAmount = subtotalAmount + platformFeeAmount;
-                    
-                    const subtotalInSOL = subtotalAmount / usdtPerSol;
-                    const platformFeeInSOL = platformFeeAmount / usdtPerSol;
-                    const totalAmountInSOL = totalInvestmentAmount / usdtPerSol;
-                    
-                    console.log('Payment breakdown:', {
-                      subtotal: subtotalAmount,
-                      platformFee: platformFeeAmount,
-                      total: totalInvestmentAmount,
-                      subtotalSOL: subtotalInSOL,
-                      platformFeeSOL: platformFeeInSOL,
-                      totalSOL: totalAmountInSOL
-                    });
-                    
-                    // Use gill for share purchase transaction
-                    const { createTransaction, getBase58Decoder, signAndSendTransactionMessageWithSigners } = await import('gill');
-                    const { getTransferSolInstruction } = await import('gill/programs');
-                    
-                    const { value: latestBlockhash } = await client.rpc.getLatestBlockhash({ commitment: 'confirmed' }).send();
-                    console.log('Latest blockhash:', latestBlockhash);
-                    
-                    // Get destination addresses
-                    const brandWalletAddress = formData.selectedBusiness.brandWalletAddress;
-                    if (!brandWalletAddress) {
-                      console.error('Brand wallet address not found in business data:', formData.selectedBusiness);
-                      throw new Error('Brand wallet address not found. Please ensure the franchiser has a registered wallet.');
-                    }
-                    
-                    // Company wallet address for platform fees
-                    const companyWalletAddress = '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
-                    
-                    console.log('Transferring to:', {
-                      brandWallet: brandWalletAddress,
-                      companyWallet: companyWalletAddress,
-                      subtotalSOL: subtotalInSOL,
-                      platformFeeSOL: platformFeeInSOL
-                    });
-                    
-                    // For now, use single transfer to brand wallet (fallback approach)
-                    // TODO: Implement proper split transfer once we understand the gill library better
-                    const transaction = createTransaction({
-                      feePayer: signer,
-                      version: 0,
-                      latestBlockhash,
-                      instructions: [
-                        // Transfer total amount to brand wallet for now
-                        getTransferSolInstruction({
-                          amount: Math.round(totalAmountInSOL * 1000000000), // Convert to lamports
-                          destination: brandWalletAddress as Address,
-                          source: signer,
-                        }),
-                      ],
-                    });
-
-                    console.log('Transaction created, signing and sending...');
-                    let transferSignature: string;
-                    try {
-                      const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
-                      transferSignature = getBase58Decoder().decode(signatureBytes);
-                      console.log('Transfer signature:', transferSignature);
-
-                      if (!transferSignature) {
-                        throw new Error('Failed to purchase shares');
-                      }
-
-                      // Store platform fee transaction for company wallet tracking (will be updated after franchise creation)
-                      const platformFeeTransaction = {
-                        amount: platformFeeAmount,
-                        from: formData.selectedBusiness.name,
-                        timestamp: new Date().toISOString(),
-                        description: `Platform fee from ${formData.selectedBusiness.name} franchise creation`,
-                        transactionHash: transferSignature,
-                        franchiseId: 'pending' // Will be updated after franchise creation
-                      };
-                      
-                      const platformFeeKey = `platform_fee_${Date.now()}_pending`;
-                      localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeTransaction));
-                      console.log('✅ Stored platform fee transaction in FranchiseCreate:', {
-                        key: platformFeeKey,
-                        transaction: platformFeeTransaction,
-                        platformFeeAmount: platformFeeAmount
-                      });
-
-                      // Also add to income table
-                      addToIncomeTable('platform_fee', platformFeeAmount, formData.selectedBusiness.name, `Platform fee from ${formData.selectedBusiness.name} franchise creation`, transferSignature);
-                    } catch (error) {
-                      if (error instanceof Error && error.message.includes('User rejected')) {
-                        toast.error('Transaction cancelled by user');
-                        return; // Exit early if user cancelled
-                      }
-                      throw error; // Re-throw other errors
-                    }
-
-                    // Only create franchise after successful payment
                     // Generate franchise slug
                     const franchiseSlug = await generateFranchiseSlug({
                       franchiserSlug: formData.selectedBusiness.slug
                     });
 
-                    // Create franchise record with auto-approval and funding stage
+                    // Create franchise record with auto-approval
                     const franchiseId = await createFranchise({
                       franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
-                      franchiseeId: account.address, // Use connected wallet address
+                      franchiseeId: 'demo-user', // Demo user ID since no wallet connection
                       locationId: formData.selectedBusiness.location._id as Id<"franchiserLocations">,
                       franchiseSlug,
                       businessName: `${formData.selectedBusiness.name} - ${formData.locationDetails.buildingName}`,
@@ -1561,51 +1268,18 @@ const FranchiseCreateInner: React.FC = () => {
                       },
                       investment: {
                         totalInvestment: formData.investment.totalInvestment,
-                        totalInvested: 0, // Start with 0, will be updated by purchaseShares
+                        totalInvested: 0,
                         sharesIssued: formData.investment.totalShares,
-                        sharesPurchased: 0, // Start with 0, will be updated by purchaseShares
+                        sharesPurchased: 0,
                         sharePrice: formData.investment.sharePrice,
                         franchiseFee: formData.investment.franchiseFee,
                         setupCost: formData.investment.setupCost,
                         workingCapital: formData.investment.workingCapital,
-                        minimumInvestment: Math.ceil(formData.investment.totalShares * 0.02 * formData.investment.sharePrice), // 2% of total investment
+                        minimumInvestment: Math.ceil(formData.investment.totalShares * 0.02 * formData.investment.sharePrice),
                       },
                     });
 
-                    // Update platform fee transaction with actual franchise ID
-                    const platformFeeKey = `platform_fee_${Date.now()}_pending`;
-                    const existingPlatformFee = localStorage.getItem(platformFeeKey);
-                    if (existingPlatformFee) {
-                      const platformFeeData = JSON.parse(existingPlatformFee);
-                      platformFeeData.franchiseId = franchiseId;
-                      platformFeeData.description = `Platform fee from ${formData.selectedBusiness.name} franchise creation (${franchiseSlug})`;
-                      localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeData));
-                      console.log('Updated platform fee transaction with franchise ID:', platformFeeData);
-                    }
-
-                    // Store initial fundraising data (will be updated by purchaseShares)
-                    const initialFundraisingData = {
-                        totalInvestment: formData.investment.totalInvestment,
-                        invested: 0, // Start with 0, will be updated by purchaseShares
-                        totalShares: formData.investment.totalShares,
-                        sharesIssued: 0, // Start with 0, will be updated by purchaseShares
-                        sharesRemaining: formData.investment.totalShares,
-                        pricePerShare: formData.investment.sharePrice,
-                        franchiseFee: formData.investment.franchiseFee,
-                        setupCost: formData.investment.setupCost,
-                        workingCapital: formData.investment.workingCapital,
-                        progressPercentage: 0, // Start with 0, will be updated by purchaseShares
-                        stage: 'funding'
-                    };
-                    
-                    // Clear any existing localStorage data for this franchise to prevent conflicts
-                    localStorage.removeItem(`franchise_fundraising_${franchiseId}`);
-                    
-                    // Store the correct fundraising data
-                    localStorage.setItem(`franchise_fundraising_${franchiseId}`, JSON.stringify(initialFundraisingData));
-                    console.log('Stored initial fundraising data for franchise:', franchiseId, initialFundraisingData);
-
-                    // Auto-approve the franchise and set to approved status
+                    // Auto-approve the franchise
                     await updateFranchiseStatus({
                       franchiseId: franchiseId as Id<"franchises">,
                       status: 'approved',
@@ -1628,9 +1302,9 @@ const FranchiseCreateInner: React.FC = () => {
                       doorNumber: formData.locationDetails.doorNumber,
                       sqft: parseInt(formData.locationDetails.sqft),
                       costPerSqft: parseFloat(formData.locationDetails.costPerArea) || 0,
-                      propertyType: 'commercial', // Default to commercial
-                      amenities: [], // Can be added later by admin
-                      images: [], // Can be added later by admin
+                      propertyType: 'commercial',
+                      amenities: [],
+                      images: [],
                       landlordContact: formData.locationDetails.isOwned ? {
                         name: formData.locationDetails.userNumber,
                         phone: formData.locationDetails.userNumber,
@@ -1649,50 +1323,11 @@ const FranchiseCreateInner: React.FC = () => {
                       stage: 'rented',
                       franchiseId: franchiseId as Id<"franchises">,
                       franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
-                      notes: 'Property auto-approved for franchise creation - now in funding stage',
+                      notes: 'Property auto-approved for franchise creation',
                       updatedBy: 'system-auto-approval',
                     });
 
-                    // Update PDA with shares purchased
-                    const { updatePDASharesIssued } = await import('@/lib/franchisePDA');
-                    updatePDASharesIssued(franchiseId as string, formData.investment.selectedShares, subtotalAmount);
-
-                    // Purchase shares - use subtotal amount (without platform fee) for consistency
-                    await purchaseShares({
-                      franchiseId: franchiseId as Id<"franchises">,
-                      investorId: account.address,
-                      sharesPurchased: formData.investment.selectedShares,
-                      sharePrice: formData.investment.sharePrice,
-                      totalAmount: subtotalAmount, // Use subtotal without platform fee
-                      transactionHash: transferSignature,
-                    });
-
-                    // Create invoice
-                    await createInvoice({
-                      franchiseId: franchiseId as Id<"franchises">,
-                      investorId: account.address,
-                      invoiceNumber: `INV-${Date.now()}`,
-                      amount: formData.investment.selectedShares * formData.investment.sharePrice * 1.02, // Including 2% service fee
-                      currency: 'USD',
-                      description: `Franchise investment for ${formData.selectedBusiness.name}`,
-                      items: [
-                        {
-                          description: `Franchise shares (${formData.investment.selectedShares} shares)`,
-                          quantity: formData.investment.selectedShares,
-                          unitPrice: formData.investment.sharePrice,
-                          total: formData.investment.selectedShares * formData.investment.sharePrice,
-                        },
-                        {
-                          description: 'Service fee (2%)',
-                          quantity: 1,
-                          unitPrice: formData.investment.selectedShares * formData.investment.sharePrice * 0.02,
-                          total: formData.investment.selectedShares * formData.investment.sharePrice * 0.02,
-                        }
-                      ],
-                      dueDate: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
-                    });
-
-                    toast.success(`Franchise created! ${totalAmountInSOL.toFixed(4)} SOL transferred to ${formData.selectedBusiness.name} brand wallet.`);
+                    toast.success(`Franchise created successfully! Investment: $${(formData.investment.selectedShares * formData.investment.sharePrice).toFixed(2)}`);
                     // Navigate to franchise account page
                     router.push(`/${formData.selectedBusiness.slug}/${franchiseSlug}`);
                     
@@ -1706,7 +1341,7 @@ const FranchiseCreateInner: React.FC = () => {
                 disabled={!canProceed() || loading}
                 className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
               >
-                {loading ? 'Processing...' : 'Confirm & Pay'}
+                {loading ? 'Creating...' : 'Create Franchise'}
               </Button>
             )}
           </div>
@@ -1718,12 +1353,7 @@ const FranchiseCreateInner: React.FC = () => {
 };
 
 const FranchiseCreate: React.FC = () => {
-  return (
-
-      <GoogleMapsLoader>
-        <FranchiseCreateInner />
-      </GoogleMapsLoader>
-  );
+  return <FranchiseCreateInner />;
 };
 
 export default FranchiseCreate;

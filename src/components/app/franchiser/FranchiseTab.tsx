@@ -10,6 +10,9 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useParams } from 'next/navigation';
 import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
+import { SoldLocationsModal } from './SoldLocationsModal';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export interface Franchise {
   id: string;
@@ -29,6 +32,17 @@ export interface Franchise {
 }
 
 
+interface SoldLocation {
+  id: string;
+  lat: number;
+  lng: number;
+  address: string;
+  country: string;
+  franchiseFee: number;
+  minArea: number;
+  soldAt: number;
+}
+
 export function FranchiseTab() {
   const params = useParams();
   const brandSlug = params.brandSlug as string;
@@ -43,6 +57,24 @@ export function FranchiseTab() {
       limit: 100
     } : "skip"
   );
+
+  // Sold locations state
+  const [soldLocations, setSoldLocations] = useState<SoldLocation[]>([]);
+
+  // Sold locations management functions
+  const addSoldLocation = (location: Omit<SoldLocation, 'id' | 'soldAt'>) => {
+    const newSoldLocation: SoldLocation = {
+      ...location,
+      id: `${location.country}-${Date.now()}`,
+      soldAt: Date.now(),
+    };
+    setSoldLocations(prev => [...prev, newSoldLocation]);
+  };
+
+  const removeSoldLocation = (id: string) => {
+    setSoldLocations(prev => prev.filter(loc => loc.id !== id));
+    toast.success('Sold location removed');
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -102,9 +134,16 @@ export function FranchiseTab() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Franchise Outlets</h2>
-        <Button>
-          <Store className="mr-2 h-4 w-4" /> Add New Outlet
-        </Button>
+        <div className="flex gap-2">
+          <SoldLocationsModal
+            soldLocations={soldLocations}
+            onAddSoldLocation={addSoldLocation}
+            onRemoveSoldLocation={removeSoldLocation}
+          />
+          <Button>
+            <Store className="mr-2 h-4 w-4" /> Add New Outlet
+          </Button>
+        </div>
       </div>
 
       <Card>

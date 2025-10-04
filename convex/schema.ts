@@ -1,12 +1,40 @@
 // In convex/schema.ts
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+  // Auth tables
+  ...authTables,
+
+  // OTP codes for email verification
+  otpCodes: defineTable({
+    email: v.string(),
+    code: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
+  
+  // User profile table with additional fields
+  userProfiles: defineTable({
+    userId: v.id("users"),
+        email: v.string(),
+        firstName: v.string(),
+    lastName: v.string(),
+    dateOfBirth: v.optional(v.number()),
+    avatar: v.optional(v.id("_storage")),
+        walletAddress: v.optional(v.string()),
+        privateKey: v.optional(v.string()), // Encrypted private key
+        isWalletGenerated: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"])
+    .index("by_email", ["email"])
+    .index("by_walletAddress", ["walletAddress"]),
+
   franchiser: defineTable({
-    ownerWalletAddress: v.string(), // User's wallet (who owns/manages the brand)
+    ownerUserId: v.id("userProfiles"), // User's ID (who owns/manages the brand)
     brandWalletAddress: v.string(), // Brand's wallet (for operations)
-    brandWalletSecretKey: v.optional(v.string()), // Encrypted secret key for brand wallet
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),
     slug: v.string(),
@@ -23,7 +51,7 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_ownerWallet", ["ownerWalletAddress"]).index("by_brandWallet", ["brandWalletAddress"]),
+  }).index("by_ownerUser", ["ownerUserId"]).index("by_brandWallet", ["brandWalletAddress"]),
 
   franchiserLocations: defineTable({
     franchiserId: v.id("franchiser"),
@@ -400,6 +428,50 @@ export default defineSchema({
       v.literal("urgent")
     ),
     
+    // Property Registration Details
+    propertyName: v.optional(v.string()),
+    propertySubType: v.optional(v.union(
+      v.literal("builder"),
+      v.literal("agent")
+    )),
+    ownershipType: v.optional(v.union(
+      v.literal("owned"),
+      v.literal("rented"),
+      v.literal("lease")
+    )),
+    description: v.optional(v.string()),
+    specialNotes: v.optional(v.string()),
+    
+    // Fundraising and Timeline Information
+    fundraisingStartDate: v.optional(v.number()),
+    blockagePeriod: v.optional(v.number()), // in days
+    isFullyFunded: v.optional(v.boolean()),
+    franchiseSetupStart: v.optional(v.number()),
+    contractGenerated: v.optional(v.boolean()),
+    
+    // Penalty System
+    penaltyHistory: v.array(v.object({
+      date: v.number(),
+      type: v.union(
+        v.literal("late_update"),
+        v.literal("false_availability"),
+        v.literal("contract_breach"),
+        v.literal("misinformation")
+      ),
+      amount: v.number(),
+      reason: v.string(),
+      imposedBy: v.string(), // Admin user ID
+      status: v.union(
+        v.literal("pending"),
+        v.literal("paid"),
+        v.literal("waived"),
+        v.literal("disputed")
+      ),
+      notes: v.optional(v.string()),
+    })),
+    totalPenalties: v.number(),
+    unpaidPenalties: v.number(),
+    
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -409,7 +481,9 @@ export default defineSchema({
     .index("by_assignedTo", ["assignedTo"])
     .index("by_available", ["isAvailable"])
     .index("by_verified", ["isVerified"])
-    .index("by_createdAt", ["createdAt"]),
+    .index("by_createdAt", ["createdAt"])
+    .index("by_ownershipType", ["ownershipType"])
+    .index("by_propertySubType", ["propertySubType"]),
 
   // Franchise Wallets
   franchiseWallets: defineTable({
@@ -454,6 +528,39 @@ export default defineSchema({
     .index("by_wallet", ["walletId"])
     .index("by_type", ["type"])
     .index("by_status", ["status"]),
+
+  // Franchise Stage Management
+  franchiseStages: defineTable({
+    franchiseId: v.id("franchises"),
+    franchiserId: v.id("franchiser"),
+    currentStage: v.union(
+      v.literal("funding"),
+      v.literal("launching"),
+      v.literal("ongoing"),
+      v.literal("closed")
+    ),
+    subStage: v.optional(v.union(
+      v.literal("contacting_property"),
+      v.literal("checking_location"),
+      v.literal("signing_agreement"),
+      v.literal("creating_pda"),
+      v.literal("collecting_investments"),
+      v.literal("transferring_fees"),
+      v.literal("setting_up"),
+      v.literal("operational"),
+      v.literal("closing")
+    )),
+    progress: v.number(), // 0-100
+    stageStartDate: v.number(),
+    estimatedCompletionDate: v.optional(v.number()),
+    actualCompletionDate: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"])
+    .index("by_franchiser", ["franchiserId"])
+    .index("by_stage", ["currentStage"])
+    .index("by_subStage", ["subStage"]),
 
   // Franchise Setup Management
   franchiseSetup: defineTable({

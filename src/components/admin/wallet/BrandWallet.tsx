@@ -26,9 +26,9 @@ import { useMasterData } from '@/hooks/useMasterData';
 
 interface BrandWalletData {
   _id: string;
-  ownerWalletAddress: string;
+  ownerUserId: string;
   brandWalletAddress: string;
-  brandWalletSecretKey?: string;
+  // brandWalletSecretKey removed from schema
   logoUrl?: string;
   name: string;
   slug: string;
@@ -320,7 +320,7 @@ export default function BrandWallet() {
                           {getIndustryName(wallet.industry)} • {getCategoryName(wallet.category)}
                         </p>
                         <p className="text-sm text-stone-600 dark:text-stone-400">
-                          Owner: {wallet.ownerWalletAddress.slice(0, 8)}...{wallet.ownerWalletAddress.slice(-8)}
+                          Owner: {wallet.ownerUserId.slice(0, 8)}...{wallet.ownerUserId.slice(-8)}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-xs text-stone-500 font-mono">

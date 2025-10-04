@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 export function useFranchises() {
   return useQuery(api.franchises.getAllFranchisers);
@@ -7,6 +8,14 @@ export function useFranchises() {
 
 export function useFranchiserBySlug(slug: string) {
   return useQuery(api.franchises.getFranchiserBySlug, { slug });
+}
+
+export function useFranchiserByUserId(userId: string) {
+  return useQuery(api.franchises.getFranchiserByUserId, userId ? { userId: userId as Id<"userProfiles"> } : "skip");
+}
+
+export function useAllFranchisersByUserId(userId: string) {
+  return useQuery(api.franchises.getAllFranchisersByUserId, userId ? { userId: userId as Id<"userProfiles"> } : "skip");
 }
 
 export function useFranchiserByWallet(walletAddress: string) {

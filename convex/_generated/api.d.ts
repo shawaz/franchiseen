@@ -15,6 +15,8 @@ import type {
 } from "convex/server";
 import type * as adminManagement from "../adminManagement.js";
 import type * as aiChat from "../aiChat.js";
+import type * as auth from "../auth.js";
+import type * as authActions from "../authActions.js";
 import type * as brandManagement from "../brandManagement.js";
 import type * as brandWallet from "../brandWallet.js";
 import type * as files from "../files.js";
@@ -26,6 +28,7 @@ import type * as leadsManagement from "../leadsManagement.js";
 import type * as masterData from "../masterData.js";
 import type * as propertyManagement from "../propertyManagement.js";
 import type * as seedData from "../seedData.js";
+import type * as userManagement from "../userManagement.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -38,6 +41,8 @@ import type * as seedData from "../seedData.js";
 declare const fullApi: ApiFromModules<{
   adminManagement: typeof adminManagement;
   aiChat: typeof aiChat;
+  auth: typeof auth;
+  authActions: typeof authActions;
   brandManagement: typeof brandManagement;
   brandWallet: typeof brandWallet;
   files: typeof files;
@@ -49,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   masterData: typeof masterData;
   propertyManagement: typeof propertyManagement;
   seedData: typeof seedData;
+  userManagement: typeof userManagement;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

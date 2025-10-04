@@ -19,7 +19,6 @@ export const createBrandWallet = mutation({
 
     // Update the franchiser with the wallet information
     await ctx.db.patch(args.franchiserId, {
-      brandWalletSecretKey: args.encryptedSecretKey,
       updatedAt: Date.now(),
     });
 
@@ -41,9 +40,9 @@ export const getFranchiserWallet = query({
     }
 
     return {
-      ownerWalletAddress: franchiser.ownerWalletAddress,
+      ownerUserId: franchiser.ownerUserId,
       brandWalletAddress: franchiser.brandWalletAddress,
-      hasSecretKey: !!franchiser.brandWalletSecretKey,
+      hasSecretKey: false, // No longer storing secret keys
       // Note: We don't return the actual secret key for security
     };
   },
@@ -71,17 +70,11 @@ export const updateFranchiserWallet = mutation({
       updatedAt: Date.now(),
     };
 
-    if (args.ownerWalletAddress) {
-      updateData.ownerWalletAddress = args.ownerWalletAddress;
-    }
-
     if (args.brandWalletAddress) {
       updateData.brandWalletAddress = args.brandWalletAddress;
     }
 
-    if (args.encryptedSecretKey) {
-      updateData.brandWalletSecretKey = args.encryptedSecretKey;
-    }
+    // Note: No longer storing secret keys or owner wallet addresses
 
     await ctx.db.patch(args.franchiserId, updateData);
 
@@ -97,9 +90,20 @@ export const getFranchiserByWallet = query({
     walletAddress: v.string(),
   },
   handler: async (ctx, args) => {
+    // First get the user profile by wallet address
+    const userProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+    
+    if (!userProfile) {
+      return null;
+    }
+    
+    // Then get franchiser by user ID
     const franchiser = await ctx.db
       .query("franchiser")
-      .withIndex("by_ownerWallet", (q) => q.eq("ownerWalletAddress", args.walletAddress))
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", userProfile._id))
       .first();
 
     if (!franchiser) {
@@ -108,13 +112,13 @@ export const getFranchiserByWallet = query({
 
     return {
       _id: franchiser._id,
-      ownerWalletAddress: franchiser.ownerWalletAddress,
+      ownerUserId: franchiser.ownerUserId,
       brandWalletAddress: franchiser.brandWalletAddress,
       name: franchiser.name,
       slug: franchiser.slug,
       logoUrl: franchiser.logoUrl,
       status: franchiser.status,
-      hasSecretKey: !!franchiser.brandWalletSecretKey,
+      hasSecretKey: false, // No longer storing secret keys
       // Note: We don't return the secret key for security
     };
   },

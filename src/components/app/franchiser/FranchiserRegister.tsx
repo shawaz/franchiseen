@@ -17,8 +17,8 @@ import { useCreateFranchiserWithDetails } from '@/hooks/useFranchises';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { PlacesAutocomplete } from '@/components/ui/places-autocomplete';
 import { useMasterData } from '@/hooks/useMasterData';
-import { generateBrandWallet } from '@/lib/brandWalletUtils';
-import { useWalletUi } from '@wallet-ui/react';
+import { useAuth } from '@/contexts/AuthContext';
+import GoogleMapsLoader from '@/components/maps/GoogleMapsLoader';
 
 // Reserved words that cannot be used as brand URLs
 const RESERVED_WORDS = [
@@ -189,6 +189,7 @@ type FormData = {
   brandUrl: string;
   industry: string;
   category: string;
+  franchiseType: 'FOCO' | 'FOFO' | 'BOTH';
   shortDescription: string;
   website: string;
   timingPerWeek: {
@@ -204,6 +205,8 @@ type FormData = {
   franchiseFee: number | '';
   setupCostPerSqft: number | '';
   workingCapitalPerSqft: number | '';
+  royaltyPercentage: number | '';
+  marketingPercentage: number | '';
   // Locations
   locations: Location[];
 };
@@ -213,7 +216,8 @@ type FormData = {
 
 const FranchiserRegister: React.FC = () => {
   const router = useRouter();
-  const { account } = useWalletUi();
+  // const { account } = useWalletUi(); // Commented out as not used
+  const { userProfile } = useAuth();
   const createFranchiserWithDetails = useCreateFranchiserWithDetails();
   const { uploadFile, uploadMultipleFiles } = useFileUpload();
   
@@ -317,6 +321,7 @@ const FranchiserRegister: React.FC = () => {
     brandUrl: '',
     industry: '',
     category: '',
+    franchiseType: 'FOCO',
     shortDescription: '',
     website: '',
     timingPerWeek: {
@@ -332,13 +337,26 @@ const FranchiserRegister: React.FC = () => {
     franchiseFee: '',
     setupCostPerSqft: '',
     workingCapitalPerSqft: '',
+    royaltyPercentage: '',
+    marketingPercentage: '',
     // Locations
     locations: []
   });
+
+  // Get names for selected industry and category (commented out as not currently used)
+  // const selectedIndustry = useIndustryById(formData.industry as Id<"industries"> | undefined);
+  // const selectedCategory = useCategoryById(formData.category as Id<"categories"> | undefined);
+
+  // Helper function to get product category name by ID
+  const getProductCategoryName = (categoryId: string) => {
+    if (!categoryId || categoryId === 'none') return 'None';
+    const category = productCategories?.find(cat => cat._id === categoryId);
+    return category?.name || categoryId;
+  };
   
   // State for the new location being added (temporary state for the form)
   // const [isFinance, setIsFinance] = useState<boolean>(false); // Commented out as it's not used
-  const [countryInput, setCountryInput] = useState('');
+  // const [countryInput, setCountryInput] = useState(''); // Commented out as not used
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   
   // State for location-specific data
@@ -776,29 +794,24 @@ const FranchiserRegister: React.FC = () => {
     }
   };
 
-  // Function to generate brand wallet and get owner wallet
+  // Function to generate brand wallet and get owner info
   const generateWalletForBrand = async () => {
     try {
-      // Check if user has connected wallet
-      if (!account?.address) {
-        throw new Error('Please connect your wallet to register a brand');
+      // Check if user is authenticated
+      if (!userProfile) {
+        throw new Error('Please sign in to register a brand');
       }
 
-      // Generate a separate wallet for the brand (for brand operations)
-      const brandWallet = generateBrandWallet();
+      // Generate a simple wallet address for the brand (for operations)
+      // We'll use a simple hash of the user ID + brand name for consistency
+      const brandWalletAddress = `brand_${userProfile._id}_${formData.brandUrl}`;
       
-      // Use the connected user's wallet as the brand owner
-      const ownerWalletAddress = account.address;
-      
-      // For security, we should encrypt the secret key before storing
-      // For now, we'll store it as-is (in production, use proper encryption)
-      const encryptedSecretKey = brandWallet.secretKey; // TODO: Implement proper encryption
+      // Use the authenticated user's ID as the brand owner
+      const ownerUserId = userProfile._id;
       
       return {
-        ownerWalletAddress, // User's wallet (who owns/manages the brand)
-        brandWalletAddress: brandWallet.publicKey, // Brand's wallet (for operations)
-        secretKey: brandWallet.secretKey,
-        encryptedSecretKey,
+        ownerUserId, // User's ID (who owns/manages the brand)
+        brandWalletAddress, // Simple brand identifier
       };
     } catch (error) {
       console.error('Error generating brand wallet:', error);
@@ -869,9 +882,8 @@ const FranchiserRegister: React.FC = () => {
 
     return {
       franchiser: {
-        ownerWalletAddress: brandWallet.ownerWalletAddress, // User's wallet (brand owner)
-        brandWalletAddress: brandWallet.brandWalletAddress, // Generated brand wallet address
-        brandWalletSecretKey: brandWallet.encryptedSecretKey, // Store encrypted secret key
+        ownerUserId: brandWallet.ownerUserId, // User's ID (brand owner)
+        brandWalletAddress: brandWallet.brandWalletAddress, // Simple brand identifier
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         logoUrl: logoStorageId as any, // Cast to match Convex ID type
         name: formData.brandName,
@@ -892,7 +904,7 @@ const FranchiserRegister: React.FC = () => {
     // Validate step 1 - Basic Information
     if (currentStep === 1) {
       if (!formData.brandName || !formData.brandUrl || !formData.shortDescription || 
-          !formData.industry || !formData.category || !formData.logoFile || 
+          !formData.industry || !formData.category || !formData.franchiseType || !formData.logoFile || 
           (!formData.timingPerWeek.is24Hours && formData.timingPerWeek.days.length === 0)) {
         toast.error('Please fill in all required fields');
         return;
@@ -915,8 +927,9 @@ const FranchiserRegister: React.FC = () => {
     // Validate step 2 - Financial Information
     if (currentStep === 2) {
       if (!formData.minCarpetArea || !formData.franchiseFee || 
-          !formData.setupCostPerSqft || !formData.workingCapitalPerSqft) {
-        toast.error('Please fill in all financial information');
+          !formData.setupCostPerSqft || !formData.workingCapitalPerSqft ||
+          !formData.royaltyPercentage || !formData.marketingPercentage) {
+        toast.error('Please fill in all financial information including royalty and marketing percentages');
         return;
       }
     }
@@ -1124,9 +1137,9 @@ const FranchiserRegister: React.FC = () => {
             </div>
             
 
-            {/* Industry, Category and Website */}
+            {/* Industry, Category, Franchise Type and Website */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              {/* Industry - takes 5 columns on medium screens and up */}
+              {/* Industry - takes 3 columns on medium screens and up */}
               <div className="space-y-2 md:col-span-3">
                 <Label htmlFor="industry">Industry *</Label>
                 <Select
@@ -1148,7 +1161,7 @@ const FranchiserRegister: React.FC = () => {
                 </Select>
               </div>
               
-              {/* Category - takes 5 columns on medium screens and up */}
+              {/* Category - takes 3 columns on medium screens and up */}
               <div className="space-y-2 md:col-span-3">
                 <Label htmlFor="category">Category *</Label>
                 <Select
@@ -1170,8 +1183,27 @@ const FranchiserRegister: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {/* Website - takes 2 columns on medium screens and up */}
-              <div className="space-y-2 md:col-span-6">
+
+              {/* Franchise Type - takes 3 columns on medium screens and up */}
+              <div className="space-y-2 md:col-span-3">
+                <Label htmlFor="franchiseType">Franchise Type *</Label>
+                <Select
+                  value={formData.franchiseType}
+                  onValueChange={(value: 'FOCO' | 'FOFO' | 'BOTH') => setFormData(prev => ({ ...prev, franchiseType: value }))}
+                  required
+                >
+                  <SelectTrigger id="franchiseType" className="w-full">
+                    <SelectValue placeholder="Select franchise type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FOCO">FOCO (Franchise Owned, Company Operated)</SelectItem>
+                    <SelectItem value="FOFO">FOFO (Franchise Owned, Franchise Operated)</SelectItem>
+                    <SelectItem value="BOTH">Both FOCO & FOFO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Website - takes 3 columns on medium screens and up */}
+              <div className="space-y-2 md:col-span-3">
                 <Label htmlFor="website">Website</Label>
                 <div className="flex">
                   <span className="inline-flex items-center px-3 border border-r-0 text-stone-500 text-sm">
@@ -1501,6 +1533,77 @@ const FranchiserRegister: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Royalty and Marketing Percentage */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Royalty Percentage */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="royaltyPercentage" className="text-xs font-medium">Royalty % *</Label>
+                      <span className="text-xs text-stone-500">
+                        {formData.royaltyPercentage ? `${formData.royaltyPercentage}%` : '0%'}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="royaltyPercentage"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={formData.royaltyPercentage || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? Math.max(0, Math.min(100, parseFloat(e.target.value))) : '';
+                          setFormData(prev => ({
+                            ...prev,
+                            royaltyPercentage: value as number | ''
+                          }));
+                        }}
+                        className="h-9 text-sm"
+                        placeholder="5.0"
+                        required
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">%</span>
+                    </div>
+                    <p className="text-[10px] text-stone-400">
+                      Monthly royalty percentage of gross revenue
+                    </p>
+                  </div>
+
+                  {/* Marketing Percentage */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="marketingPercentage" className="text-xs font-medium">Marketing % *</Label>
+                      <span className="text-xs text-stone-500">
+                        {formData.marketingPercentage ? `${formData.marketingPercentage}%` : '0%'}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="marketingPercentage"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={formData.marketingPercentage || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? Math.max(0, Math.min(100, parseFloat(e.target.value))) : '';
+                          setFormData(prev => ({
+                            ...prev,
+                            marketingPercentage: value as number | ''
+                          }));
+                        }}
+                        className="h-9 text-sm"
+                        placeholder="2.0"
+                        required
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">%</span>
+                    </div>
+                    <p className="text-[10px] text-stone-400">
+                      Monthly marketing fee percentage of gross revenue
+                    </p>
+                  </div>
+                </div>
+
                 {/* Total Investment Summary */}
                 <div className="mt-8 p-6 bg-stone-50 dark:bg-stone-800/50 rounded-lg border border-stone-200 dark:border-stone-700">
                   <h4 className="font-semibold text-lg mb-4 flex items-center">
@@ -1578,83 +1681,9 @@ const FranchiserRegister: React.FC = () => {
             <div className="space-y-2">
                 <Label htmlFor="countries">Select Countries *</Label>
                 <div className="relative">
-                  <PlacesAutocomplete
-                      value={countryInput}
-                      onChange={setCountryInput}
-                      onPlaceSelect={(place) => {
-                          const country = place.structured_formatting.main_text;
-                          const normalizedCountry = normalizeCountryName(country);
-                          
-                          if (!isCountryAlreadySelected(country)) {
-                              setSelectedCountries([...selectedCountries, normalizedCountry]);
-                              // Initialize location data for this country
-                              setLocationData(prev => ({
-                                  ...prev,
-                                  [normalizedCountry]: {
-                                      isNationwide: true,
-                                      cities: [],
-                                      cityInput: '',
-                                      minArea: formData.minCarpetArea || 500,
-                                      franchiseFee: formData.franchiseFee || 25000,
-                                      setupCost: formData.setupCostPerSqft || 150,
-                                      workingCapital: formData.workingCapitalPerSqft || 100,
-                                      isFinance: false,
-                                      licenseFile: null,
-                                      licensePreview: null,
-                                  }
-                              }));
-                          }
-                          setCountryInput('');
-                      }}
-                      placeholder="Search for a country..."
-                      types="country"
-                      className="w-full"
-                  />
-                  
-                  {/* Fallback manual input if Google Places fails */}
-                  {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-                    <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                        Google Maps API not configured. Please enter countries manually:
-                      </p>
-                      <Input
-                        value={countryInput}
-                        onChange={(e) => setCountryInput(e.target.value)}
-                        placeholder="Enter country name"
-                        className="mt-2"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && countryInput.trim()) {
-                            const normalizedCountry = normalizeCountryName(countryInput.trim());
-                            if (!isCountryAlreadySelected(normalizedCountry)) {
-                              setSelectedCountries([...selectedCountries, normalizedCountry]);
-                              setLocationData(prev => ({
-                                ...prev,
-                                [normalizedCountry]: {
-                                  isNationwide: true,
-                                  cities: [],
-                                  cityInput: '',
-                                  minArea: formData.minCarpetArea || 500,
-                                  franchiseFee: formData.franchiseFee || 25000,
-                                  setupCost: formData.setupCostPerSqft || 150,
-                                  workingCapital: formData.workingCapitalPerSqft || 100,
-                                  isFinance: false,
-                                  licenseFile: null,
-                                  licensePreview: null,
-                                }
-                              }));
-                              setCountryInput('');
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
 
                   {/* Manual country selection as backup */}
-                  <div className="mt-4">
-                    <p className="text-sm text-stone-600 dark:text-stone-400 mb-2">
-                      Or select from common countries:
-                    </p>
+                  <div className="my-4">
                     <div className="flex flex-wrap gap-2">
                       {['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'France', 'United Arab Emirates', 'India', 'Singapore', 'Japan'].map((country) => (
                         <Button
@@ -1692,43 +1721,15 @@ const FranchiserRegister: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Selected Countries List */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedCountries.map((country) => (
-                    <Badge
-                        key={country}
-                        variant="secondary"
-                        className="flex items-center gap-1"
-                    >
-                        {country}
-                        <button
-                        onClick={() => {
-                            setSelectedCountries(
-                            selectedCountries.filter((c) => c !== country)
-                            );
-                            // Remove location data for this country
-                            setLocationData(prev => {
-                                const newData = { ...prev };
-                                delete newData[country];
-                                return newData;
-                            });
-                        }}
-                        className="ml-1 text-stone-400 hover:text-stone-600"
-                        >
-                        <X className="h-3 w-3" />
-                        </button>
-                    </Badge>
-                    ))}
-                </div>
             </div>
 
             {/* Country Cards */}
             <div className=" space-y-4">
             {selectedCountries.map((country) => (
-                <Card key={country} className="relative py-5">
-                <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                    <div>
+                <Card key={country} className="relative">
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                    <div className="p-0">
                         <CardTitle className="text-lg">{country}</CardTitle>
                     </div>
                     <Button
@@ -1830,38 +1831,40 @@ const FranchiserRegister: React.FC = () => {
                                 Please select a country first to search for cities
                             </div>
                         ) : (
-                            <PlacesAutocomplete
-                                value={locationData[country]?.cityInput || ''}
-                                onChange={(value) => {
-                                    setLocationData(prev => ({
-                                        ...prev,
-                                        [country]: {
-                                            ...prev[country],
-                                            cityInput: value
-                                        }
-                                    }));
+                            <GoogleMapsLoader>
+                                <PlacesAutocomplete
+                                    value={locationData[country]?.cityInput || ''}
+                                    onChange={(value) => {
+                                        setLocationData(prev => ({
+                                            ...prev,
+                                            [country]: {
+                                                ...prev[country],
+                                                cityInput: value
+                                            }
+                                        }));
+                                    }}
+                                onPlaceSelect={(place) => {
+                                    const city = place.structured_formatting.main_text;
+                                    
+                                    if (!locationData[country]?.cities.includes(city)) {
+                                        setLocationData(prev => ({
+                                            ...prev,
+                                            [country]: {
+                                                ...prev[country],
+                                                cities: [...(prev[country]?.cities || []), city],
+                                                cityInput: ''
+                                            }
+                                        }));
+                                    }
                                 }}
-                            onPlaceSelect={(place) => {
-                                const city = place.structured_formatting.main_text;
-                                
-                                if (!locationData[country]?.cities.includes(city)) {
-                                    setLocationData(prev => ({
-                                        ...prev,
-                                        [country]: {
-                                            ...prev[country],
-                                            cities: [...(prev[country]?.cities || []), city],
-                                            cityInput: ''
-                                        }
-                                    }));
-                                }
-                            }}
-                                placeholder={`Search for a city in ${country}...`}
-                                types="(cities)"
-                                componentRestrictions={getCountryCode(country) ? { 
-                                    country: getCountryCode(country) 
-                                } : undefined}
-                                className="w-full"
-                            />
+                                    placeholder={`Search for a city in ${country}...`}
+                                    types="(cities)"
+                                    componentRestrictions={getCountryCode(country) ? { 
+                                        country: getCountryCode(country) 
+                                    } : undefined}
+                                    className="w-full"
+                                />
+                            </GoogleMapsLoader>
                         )}
 
                         {/* Selected City List */}
@@ -2379,7 +2382,7 @@ const FranchiserRegister: React.FC = () => {
                                 <h4 className="font-medium">Product #{index + 1}</h4>
                                 <p className="text-sm text-stone-500">
                                   {product.name || 'Add product details'}
-                                  {product.category !== 'none' && ` • ${product.category}`}
+                                  {product.category !== 'none' && ` • ${getProductCategoryName(product.category)}`}
                                 </p>
                               </div>
                               <Button 

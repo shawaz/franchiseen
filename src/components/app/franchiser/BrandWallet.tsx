@@ -45,49 +45,63 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
   
   // Fetch real balance from Solana network
   const fetchBalance = useCallback(async (address: string) => {
-    const publicKey = new PublicKey(address);
-    
-    // Try primary RPC first
-    try {
-      const balanceInLamports = await connection.getBalance(publicKey);
-      const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
-      setBalance(balanceInSol);
-      setIsDemoBalance(false);
+    // Check if address is a valid Solana public key
+    if (!address || address.startsWith('brand_') || address.length < 32) {
+      // This is a brand identifier, not a real Solana address
+      setBalance(0);
+      setIsDemoBalance(true);
       return;
-    } catch (error) {
-      console.warn('Primary RPC failed:', error);
+    }
+    
+    try {
+      const publicKey = new PublicKey(address);
       
-      // Try fallback RPCs
-      for (const rpcUrl of FALLBACK_RPC_URLS) {
-        try {
-          console.log(`Trying fallback RPC: ${rpcUrl}`);
-          const fallbackConnection = new Connection(rpcUrl);
-          const balanceInLamports = await fallbackConnection.getBalance(publicKey);
-          const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
-          setBalance(balanceInSol);
-          setIsDemoBalance(false);
-          console.log(`Successfully fetched balance using fallback RPC: ${rpcUrl}`);
-          return;
-        } catch (fallbackError) {
-          console.warn(`Fallback RPC ${rpcUrl} also failed:`, fallbackError);
-        }
-      }
-      
-      // All RPCs failed, use demo balance
-      console.error('All RPC endpoints failed, using demo balance');
-      console.warn('Wallet address:', address);
-      console.warn('Primary RPC URL:', SOLANA_RPC_URL);
-      
-      if (error instanceof Error && error.message.includes('403')) {
-        console.warn('RPC access forbidden - this might be a mainnet address on devnet or RPC restrictions');
-      } else if (error instanceof Error && error.message.includes('Invalid public key')) {
-        console.warn('Invalid public key format');
-        setBalance(0);
+      // Try primary RPC first
+      try {
+        const balanceInLamports = await connection.getBalance(publicKey);
+        const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
+        setBalance(balanceInSol);
         setIsDemoBalance(false);
         return;
+      } catch (error) {
+        console.warn('Primary RPC failed:', error);
+        
+        // Try fallback RPCs
+        for (const rpcUrl of FALLBACK_RPC_URLS) {
+          try {
+            console.log(`Trying fallback RPC: ${rpcUrl}`);
+            const fallbackConnection = new Connection(rpcUrl);
+            const balanceInLamports = await fallbackConnection.getBalance(publicKey);
+            const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
+            setBalance(balanceInSol);
+            setIsDemoBalance(false);
+            console.log(`Successfully fetched balance using fallback RPC: ${rpcUrl}`);
+            return;
+          } catch (fallbackError) {
+            console.warn(`Fallback RPC ${rpcUrl} also failed:`, fallbackError);
+          }
+        }
+        
+        // All RPCs failed, use demo balance
+        console.error('All RPC endpoints failed, using demo balance');
+        console.warn('Wallet address:', address);
+        console.warn('Primary RPC URL:', SOLANA_RPC_URL);
+        
+        if (error instanceof Error && error.message.includes('403')) {
+          console.warn('RPC access forbidden - this might be a mainnet address on devnet or RPC restrictions');
+        } else if (error instanceof Error && error.message.includes('Invalid public key')) {
+          console.warn('Invalid public key format');
+          setBalance(0);
+          setIsDemoBalance(false);
+          return;
+        }
+        
+        setBalance(0.5); // Demo balance
+        setIsDemoBalance(true);
       }
-      
-      setBalance(0.5); // Demo balance
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      setBalance(0);
       setIsDemoBalance(true);
     }
   }, [connection]);
@@ -110,7 +124,7 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
       franchiserId,
       franchiserData,
       walletData,
-      ownerWalletAddress: walletData?.ownerWalletAddress || franchiserData?.ownerWalletAddress,
+      ownerUserId: walletData?.ownerUserId || franchiserData?.ownerUserId,
       brandWalletAddress: walletData?.brandWalletAddress || franchiserData?.brandWalletAddress,
       hasBrandWalletAddress: !!(walletData?.brandWalletAddress || franchiserData?.brandWalletAddress)
     });
@@ -228,7 +242,7 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
               className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
             >
               <Wallet className="h-3 w-3 mr-1" />
-              {(walletData?.hasSecretKey || franchiserData?.brandWalletSecretKey) ? 'Brand Wallet' : 'System Wallet'}
+              {walletData?.hasSecretKey ? 'Brand Wallet' : 'System Wallet'}
             </Badge>
           </div>
         </div>
@@ -316,7 +330,7 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
           {walletAddress && (
             <div className="mt-4 p-3 bg-white/10 rounded-lg">
               <p className="text-yellow-100 text-xs text-center">
-                {(walletData?.hasSecretKey || franchiserData?.brandWalletSecretKey)
+                {walletData?.hasSecretKey
                   ? 'Brand wallet active. This wallet is managed by the system for franchise transactions.'
                   : 'System wallet active. This wallet is managed by the platform for franchise transactions.'
                 }

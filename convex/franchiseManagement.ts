@@ -117,12 +117,59 @@ export const updateFranchiseStage = mutation({
       v.literal("ongoing"),
       v.literal("closed")
     ),
+    subStage: v.optional(v.union(
+      v.literal("contacting_property"),
+      v.literal("checking_location"),
+      v.literal("signing_agreement"),
+      v.literal("creating_pda"),
+      v.literal("collecting_investments"),
+      v.literal("transferring_fees"),
+      v.literal("setting_up"),
+      v.literal("operational"),
+      v.literal("closing")
+    )),
+    progress: v.optional(v.number()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // Update franchise table
     await ctx.db.patch(args.franchiseId, {
       stage: args.stage,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
+    
+    // Update or create franchise stage tracking
+    const existingStage = await ctx.db
+      .query("franchiseStages")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .first();
+    
+    if (existingStage) {
+      await ctx.db.patch(existingStage._id, {
+        currentStage: args.stage,
+        subStage: args.subStage,
+        progress: args.progress ?? existingStage.progress,
+        notes: args.notes,
+        updatedAt: now,
+      });
+    } else {
+      const franchise = await ctx.db.get(args.franchiseId);
+      if (franchise) {
+        await ctx.db.insert("franchiseStages", {
+          franchiseId: args.franchiseId,
+          franchiserId: franchise.franchiserId,
+          currentStage: args.stage,
+          subStage: args.subStage,
+          progress: args.progress ?? 0,
+          stageStartDate: now,
+          notes: args.notes,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
     
     return args.franchiseId;
   },
@@ -688,7 +735,62 @@ export const purchaseSharesBySlug = mutation({
   },
 });
 
-// Create franchise wallet and transfer funds
+// Create funding PDA as escrow during funding stage
+export const createFundingPDA = mutation({
+  args: {
+    franchiseId: v.id("franchises"),
+    totalInvestment: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const franchise = await ctx.db.get(args.franchiseId);
+    if (!franchise) {
+      throw new Error("Franchise not found");
+    }
+
+    if (franchise.stage !== "funding") {
+      throw new Error("Can only create funding PDA during funding stage");
+    }
+
+    // Create a funding PDA entry (acts as escrow)
+    const walletId = await ctx.db.insert("franchiseWallets", {
+      franchiseId: args.franchiseId,
+      franchiserId: franchise.franchiserId,
+      walletAddress: `funding_pda_${args.franchiseId}_${Date.now()}`, // Funding PDA address
+      balance: 0, // Starts with 0, accumulates as investments come in
+      currency: "USD",
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Update franchise stage to funding with creating_pda sub-stage
+    await ctx.db.patch(args.franchiseId, {
+      stage: "funding",
+      updatedAt: Date.now(),
+    });
+
+    // Create stage tracking entry
+    await ctx.db.insert("franchiseStages", {
+      franchiseId: args.franchiseId,
+      franchiserId: franchise.franchiserId,
+      currentStage: "funding",
+      subStage: "creating_pda",
+      progress: 10,
+      stageStartDate: Date.now(),
+      notes: "Funding PDA created as escrow",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return {
+      walletId,
+      pdaAddress: `funding_pda_${args.franchiseId}_${Date.now()}`,
+      message: `Funding PDA created as escrow for franchise ${franchise.franchiseSlug}`,
+    };
+  },
+});
+
+// Create franchise wallet and transfer funds from PDA when funding is complete
 export const createFranchiseWallet = mutation({
   args: {
     franchiseId: v.id("franchises"),
@@ -700,11 +802,22 @@ export const createFranchiseWallet = mutation({
       throw new Error("Franchise not found");
     }
 
-    // Create a franchise wallet entry
-    const walletId = await ctx.db.insert("franchiseWallets", {
+    // Find the funding PDA
+    const fundingPDA = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .filter((q) => q.eq(q.field("walletAddress"), q.field("walletAddress")))
+      .first();
+
+    if (!fundingPDA) {
+      throw new Error("Funding PDA not found");
+    }
+
+    // Create the actual franchise wallet
+    const franchiseWalletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
       franchiserId: franchise.franchiserId,
-      walletAddress: `franchise_${args.franchiseId}_${Date.now()}`, // Placeholder - would be actual wallet address
+      walletAddress: `franchise_${args.franchiseId}_${Date.now()}`, // Actual franchise wallet address
       balance: args.totalInvestment,
       currency: "USD",
       status: "active",
@@ -712,22 +825,244 @@ export const createFranchiseWallet = mutation({
       updatedAt: Date.now(),
     });
 
-    // Create initial transaction record
+    // Transfer from funding PDA to franchise wallet
     await ctx.db.insert("franchiseTransactions", {
       franchiseId: args.franchiseId,
-      walletId: walletId,
+      walletId: franchiseWalletId,
       type: "initial_funding",
       amount: args.totalInvestment,
-      description: `Initial funding transfer of $${args.totalInvestment.toLocaleString()}`,
+      description: `Funding transferred from PDA to franchise wallet: $${args.totalInvestment.toLocaleString()}`,
       status: "completed",
-      transactionHash: `initial_${args.franchiseId}_${Date.now()}`,
+      transactionHash: `transfer_${args.franchiseId}_${Date.now()}`,
       createdAt: Date.now(),
     });
 
+    // Mark funding PDA as inactive
+    await ctx.db.patch(fundingPDA._id, {
+      status: "inactive",
+      updatedAt: Date.now(),
+    });
+
     return {
-      walletId,
+      walletId: franchiseWalletId,
       balance: args.totalInvestment,
-      message: `Franchise wallet created with $${args.totalInvestment.toLocaleString()} initial funding`,
+      message: `Franchise wallet created with $${args.totalInvestment.toLocaleString()} transferred from funding PDA`,
+    };
+  },
+});
+
+// Transition to launching stage and handle fee transfers
+export const transitionToLaunchingStage = mutation({
+  args: {
+    franchiseId: v.id("franchises"),
+  },
+  handler: async (ctx, args) => {
+    const franchise = await ctx.db.get(args.franchiseId);
+    if (!franchise) {
+      throw new Error("Franchise not found");
+    }
+
+    const investment = await ctx.db.get(franchise.investmentId);
+    if (!investment) {
+      throw new Error("Investment data not found");
+    }
+
+    // Verify funding is complete
+    const fundingProgress = investment.totalInvestment > 0 
+      ? (investment.totalInvested / investment.totalInvestment) * 100 
+      : 0;
+
+    if (fundingProgress < 100) {
+      throw new Error("Funding not complete. Cannot transition to launching stage.");
+    }
+
+    // Create franchise wallet and transfer funds from PDA
+    const walletResult = await ctx.runMutation("franchiseManagement:createFranchiseWallet", {
+      franchiseId: args.franchiseId,
+      totalInvestment: investment.totalInvestment,
+    });
+
+    // Get franchiser to access brand wallet
+    const franchiser = await ctx.db.get(franchise.franchiserId);
+    if (!franchiser) {
+      throw new Error("Franchiser not found");
+    }
+
+    // Transfer franchise fee to brand wallet
+    const franchiseFeeTransaction = await ctx.db.insert("franchiseTransactions", {
+      franchiseId: args.franchiseId,
+      walletId: walletResult.walletId,
+      type: "transfer",
+      amount: investment.franchiseFee,
+      description: `Franchise fee transferred to brand wallet: $${investment.franchiseFee.toLocaleString()}`,
+      status: "completed",
+      transactionHash: `franchise_fee_${args.franchiseId}_${Date.now()}`,
+      createdAt: Date.now(),
+    });
+
+    // Transfer setup cost to brand wallet (or vendor wallet if specified)
+    const setupCostTransaction = await ctx.db.insert("franchiseTransactions", {
+      franchiseId: args.franchiseId,
+      walletId: walletResult.walletId,
+      type: "transfer",
+      amount: investment.setupCost,
+      description: `Setup cost transferred to brand wallet: $${investment.setupCost.toLocaleString()}`,
+      status: "completed",
+      transactionHash: `setup_cost_${args.franchiseId}_${Date.now()}`,
+      createdAt: Date.now(),
+    });
+
+    // Update franchise stage to launching
+    await ctx.db.patch(args.franchiseId, {
+      stage: "launching",
+      updatedAt: Date.now(),
+    });
+
+    // Set up 45-day launch timeline
+    const now = Date.now();
+    const launchDate = now + (45 * 24 * 60 * 60 * 1000); // 45 days from now
+
+    // Update stage tracking
+    await ctx.db.insert("franchiseStages", {
+      franchiseId: args.franchiseId,
+      franchiserId: franchise.franchiserId,
+      currentStage: "launching",
+      subStage: "transferring_fees",
+      progress: 25,
+      stageStartDate: now,
+      estimatedCompletionDate: launchDate,
+      notes: `Franchise fee ($${investment.franchiseFee.toLocaleString()}) and setup cost ($${investment.setupCost.toLocaleString()}) transferred to brand wallet`,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create setup table entry with 45-day launch timeline
+    await ctx.db.insert("franchiseSetup", {
+      franchiseId: args.franchiseId,
+      franchiserId: franchise.franchiserId,
+      projectName: `${franchise.franchiseSlug} Setup`,
+      franchiseeName: franchise.franchiseeContact.name,
+      location: franchise.address,
+      startDate: now,
+      targetLaunchDate: launchDate,
+      status: "not_started",
+      progress: 0,
+      investmentAmount: investment.totalInvestment,
+      investmentReceived: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      success: true,
+      newStage: "launching",
+      franchiseWallet: walletResult.walletId,
+      franchiseFeeTransferred: investment.franchiseFee,
+      setupCostTransferred: investment.setupCost,
+      launchDate: new Date(launchDate).toISOString(),
+      remainingBalance: investment.workingCapital,
+    };
+  },
+});
+
+// Transition to ongoing stage when setup is complete
+export const transitionToOngoingStage = mutation({
+  args: {
+    franchiseId: v.id("franchises"),
+  },
+  handler: async (ctx, args) => {
+    const franchise = await ctx.db.get(args.franchiseId);
+    if (!franchise) {
+      throw new Error("Franchise not found");
+    }
+
+    if (franchise.stage !== "launching") {
+      throw new Error("Can only transition from launching stage to ongoing");
+    }
+
+    // Update franchise stage to ongoing
+    await ctx.db.patch(args.franchiseId, {
+      stage: "ongoing",
+      updatedAt: Date.now(),
+    });
+
+    const now = Date.now();
+
+    // Update stage tracking
+    await ctx.db.insert("franchiseStages", {
+      franchiseId: args.franchiseId,
+      franchiserId: franchise.franchiserId,
+      currentStage: "ongoing",
+      subStage: "operational",
+      progress: 100,
+      stageStartDate: now,
+      actualCompletionDate: now,
+      notes: "Franchise is now operational and generating revenue",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      success: true,
+      newStage: "ongoing",
+      operationalDate: new Date(now).toISOString(),
+    };
+  },
+});
+
+// Check if franchise should be closed (balance is empty)
+export const checkAndCloseFranchise = mutation({
+  args: {
+    franchiseId: v.id("franchises"),
+  },
+  handler: async (ctx, args) => {
+    const franchise = await ctx.db.get(args.franchiseId);
+    if (!franchise) {
+      throw new Error("Franchise not found");
+    }
+
+    // Get franchise wallet balance
+    const franchiseWallet = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (!franchiseWallet || franchiseWallet.balance <= 0) {
+      // Update franchise stage to closed
+      await ctx.db.patch(args.franchiseId, {
+        stage: "closed",
+        updatedAt: Date.now(),
+      });
+
+      const now = Date.now();
+
+      // Update stage tracking
+      await ctx.db.insert("franchiseStages", {
+        franchiseId: args.franchiseId,
+        franchiserId: franchise.franchiserId,
+        currentStage: "closed",
+        subStage: "closing",
+        progress: 100,
+        stageStartDate: now,
+        actualCompletionDate: now,
+        notes: "Franchise closed due to empty balance",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      return {
+        success: true,
+        newStage: "closed",
+        reason: "Empty balance",
+        closedDate: new Date(now).toISOString(),
+      };
+    }
+
+    return {
+      success: false,
+      currentStage: franchise.stage,
+      balance: franchiseWallet.balance,
     };
   },
 });

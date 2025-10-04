@@ -10,12 +10,25 @@ interface MapComponentProps {
   onLocationSelect: (location: { lat: number; lng: number; address: string }) => void;
   initialCenter?: { lat: number; lng: number };
   selectedLocation?: { lat: number; lng: number; address: string } | null;
+  markers?: Array<{
+    id: string;
+    position: { lat: number; lng: number };
+    title: string;
+    status: 'available' | 'sold' | 'not_available';
+    statusInfo: { color: string; bg: string; text: string };
+    franchiseFee: number;
+    minArea: number;
+    onClick?: () => void;
+  }>;
+  zoom?: number;
 }
 
 const MapComponent = ({
   onLocationSelect,
   initialCenter = { lat: 25.2048, lng: 55.2708 },
   selectedLocation,
+  markers = [],
+  zoom = 12,
 }: MapComponentProps) => {
   const [isSelecting, setSelecting] = useState(true);
   const [mapCenter, setMapCenter] = useState(initialCenter);
@@ -35,16 +48,16 @@ const MapComponent = ({
     console.log('Map loaded successfully');
     mapRef.current = map;
     
-    // Set up map options
+    // Set up minimal map options for better performance
     map.setOptions({
       gestureHandling: 'auto',
-      disableDefaultUI: false,
+      disableDefaultUI: true, // Disable all default UI for better performance
       zoomControl: true,
-      mapTypeControl: true,
-      scaleControl: true,
-      streetViewControl: true,
-      rotateControl: true,
-      fullscreenControl: true,
+      mapTypeControl: false,
+      scaleControl: false,
+      streetViewControl: false,
+      rotateControl: false,
+      fullscreenControl: false,
     });
   }, []);
 
@@ -141,7 +154,7 @@ const MapComponent = ({
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
             center={mapCenter}
-            zoom={15}
+            zoom={zoom}
             onLoad={onMapLoad}
             onClick={isSelecting ? handleMapClick : undefined}
             onDragEnd={isSelecting ? handleDragEnd : undefined}
@@ -152,13 +165,29 @@ const MapComponent = ({
               gestureHandling: isSelecting ? 'auto' : 'none',
               draggable: isSelecting,
               zoomControl: isSelecting,
+              // Optimized styles for better performance
               styles: [
                 {
                   featureType: 'poi',
                   elementType: 'labels',
                   stylers: [{ visibility: 'off' }],
                 },
+                {
+                  featureType: 'transit',
+                  elementType: 'labels',
+                  stylers: [{ visibility: 'off' }],
+                },
+                {
+                  featureType: 'road',
+                  elementType: 'labels',
+                  stylers: [{ visibility: 'simplified' }],
+                },
               ],
+              // Performance optimizations
+              clickableIcons: false,
+              keyboardShortcuts: false,
+              scrollwheel: isSelecting,
+              disableDoubleClickZoom: !isSelecting,
             }}
           >
             {selectedLocation && (
@@ -171,6 +200,36 @@ const MapComponent = ({
                 }}
               />
             )}
+
+            {/* Location Markers */}
+            {markers.map((marker) => {
+              const getMarkerColor = (status: string) => {
+                switch (status) {
+                  case 'available': return '#10B981'; // Green
+                  case 'sold': return '#EF4444'; // Red
+                  case 'not_available': return '#6B7280'; // Gray
+                  default: return '#6B7280';
+                }
+              };
+
+              return (
+                <Marker
+                  key={marker.id}
+                  position={marker.position}
+                  title={`${marker.title} - ${marker.statusInfo.text}`}
+                  onClick={marker.onClick}
+                  icon={{
+                    url: 'data:image/svg+xml;base64,' + btoa(`
+                      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="16" cy="16" r="12" fill="${getMarkerColor(marker.status)}" stroke="white" stroke-width="3"/>
+                        <path d="M16 8L20 16L16 24L12 16L16 8Z" fill="white"/>
+                      </svg>
+                    `),
+                    scaledSize: new google.maps.Size(32, 32),
+                  }}
+                />
+              );
+            })}
           </GoogleMap>
 
           {/* Centered map pin - only show when selecting */}

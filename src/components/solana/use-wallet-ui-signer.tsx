@@ -41,8 +41,9 @@ export function useWalletUiSigner() {
     // Ensure cluster.id is a valid string and not undefined
     const clusterId = typeof safeCluster?.id === 'string' ? safeCluster.id : 'devnet'
     
-    // Always provide a fallback account to prevent hook errors
-    const safeAccount = hasValidAccount ? account : { 
+    // Only provide a fallback account if we're on the server side
+    // On the client side, if there's no valid account, we should not call the hook
+    const safeAccount = hasValidAccount ? account : (typeof window === 'undefined' ? {
       address: '11111111111111111111111111111111',
       label: 'No Account',
       publicKey: null,
@@ -59,15 +60,15 @@ export function useWalletUiSigner() {
       icon: null,
       name: 'No Account',
       standard: 'wallet-standard' as const
-    } as unknown as UiWalletAccount
+    } as unknown as UiWalletAccount : null)
     
     return { safeAccount, clusterId }
   }, [account, cluster, hasValidAccount])
 
-  // Always call the hook - React hooks must be called unconditionally
+  // Always call the hook but with safe values to prevent WalletStandardError
   const rawSigner = useWalletAccountTransactionSendingSigner(
-    safeValues.safeAccount, 
-    safeValues.clusterId as `solana:${string}`
+    hasValidAccount ? safeValues.safeAccount as UiWalletAccount : undefined,
+    hasValidAccount ? safeValues.clusterId as `solana:${string}` : undefined
   );
 
   // Check if the signer is valid and handle WalletStandardError
@@ -92,22 +93,27 @@ export function useWalletUiSigner() {
 
   // Handle hook errors and validate signer
   useEffect(() => {
+    // Don't set errors for missing wallet - this is expected behavior
     if (!hasValidAccount) {
-      setHookError(new Error('No valid wallet account connected'))
+      setHookError(null) // Clear any previous errors
       return
     }
 
     // Check if rawSigner has an error (WalletStandardError)
     if (rawSigner && typeof rawSigner === 'object' && 'error' in rawSigner) {
+      console.warn('Wallet Standard Error detected:', rawSigner.error);
       setHookError(new Error(`Wallet Standard Error: ${rawSigner.error}`))
       return
     }
 
     if (signer && typeof signer === 'object' && 'error' in signer) {
+      console.warn('Signer has error:', signer.error);
       setHookError(signer.error as Error)
     } else if (signer && typeof signer === 'object' && !('signAndSendTransactions' in signer)) {
+      console.warn('Invalid signer object - missing signAndSendTransactions method');
       setHookError(new Error('Invalid signer object - missing signAndSendTransactions method'))
     } else if (!signer && hasValidAccount) {
+      console.warn('No signer returned from hook despite valid account');
       setHookError(new Error('No signer returned from hook'))
     } else {
       setHookError(null)
@@ -126,7 +132,7 @@ export function useWalletUiSigner() {
   if (hookError || !hasValidAccount || !signer) {
     const errorMessage = hookError?.message || 'No wallet connected';
     
-    return {
+    const mockSigner = {
       signTransaction: async (tx: { toString: () => string }) => {
         console.warn('Wallet signer unavailable - transaction not actually signed', errorMessage)
         return tx
@@ -135,10 +141,18 @@ export function useWalletUiSigner() {
         console.warn('Wallet signer unavailable - transactions not actually signed', errorMessage)
         return txs
       },
-      // Add error property for debugging
-      error: hookError,
       isMock: true
+    };
+
+    // Only add error property if there's an actual error (not just missing wallet)
+    if (hookError) {
+      return {
+        ...mockSigner,
+        error: hookError
+      };
     }
+
+    return mockSigner;
   }
 
   return signer

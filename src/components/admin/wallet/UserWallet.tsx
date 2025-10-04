@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DropdownMenuContent, DropdownMenu, DropdownMenuTrigger, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import Image from 'next/image';
 
 interface UserWallet {
   id: string;
@@ -35,11 +40,96 @@ interface UserWallet {
 }
 
 export default function UserWallet() {
-  const [wallets, setWallets] = useState<UserWallet[]>([]);
   const [filteredWallets, setFilteredWallets] = useState<UserWallet[]>([]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render key
+
+  // Get current user data for fallback
+  const { userProfile } = useAuth();
+  const avatarUrl = useConvexImageUrl(userProfile?.avatar);
+
+  // Debug: Log user profile data
+  console.log('UserWallet: userProfile:', userProfile);
+  console.log('UserWallet: avatarUrl:', avatarUrl);
+
+  // Fetch real user wallet data from Convex
+  const walletsDataRaw = useQuery(api.userManagement.getAllUserWallets);
+  const walletsData = useMemo(() => walletsDataRaw || [], [walletsDataRaw]);
+  const loading = walletsDataRaw === undefined;
+
+  // Debug: Log the raw data from Convex
+  console.log('UserWallet: Raw walletsData from Convex:', walletsData);
+  console.log('UserWallet: Number of wallets found:', walletsData.length);
+  
+  // Debug: Check localStorage for wallet addresses
+  const currentUserWallet = localStorage.getItem('userWalletAddress');
+  const currentUserBalance = localStorage.getItem('userWalletBalance');
+  console.log('UserWallet: Current user wallet from localStorage:', currentUserWallet);
+  console.log('UserWallet: Current user balance from localStorage:', currentUserBalance);
+  
+  // Debug: Check all localStorage keys related to wallets
+  const walletKeys = Object.keys(localStorage).filter(key => key.includes('wallet'));
+  console.log('UserWallet: All wallet-related localStorage keys:', walletKeys);
+
+  // Enhance wallets with real-time balance (recalculate when refreshKey changes)
+  const wallets = React.useMemo(() => {
+    let enhancedWallets = walletsData.map(wallet => {
+      // For demo purposes, we'll simulate balance updates
+      // In a real implementation, this would be stored in the database
+      const balanceKey = `wallet_balance_${wallet.address}`;
+      const storedBalance = localStorage.getItem(balanceKey);
+      const balance = storedBalance ? parseFloat(storedBalance) : wallet.balance;
+      
+      console.log(`UserWallet: Wallet ${wallet.address}, balanceKey: ${balanceKey}, storedBalance: ${storedBalance}, final balance: ${balance}, refreshKey: ${refreshKey}`);
+      
+      // If this is the current user's wallet, update with real user data
+      if (wallet.address === currentUserWallet && userProfile) {
+        return {
+          ...wallet,
+          balance,
+          user: {
+            name: userProfile.firstName && userProfile.lastName 
+              ? `${userProfile.firstName} ${userProfile.lastName}`
+              : userProfile.email || wallet.user.name,
+            email: userProfile.email || wallet.user.email,
+            joinedDate: userProfile.createdAt ? new Date(userProfile.createdAt).toISOString() : wallet.user.joinedDate
+          }
+        };
+      }
+      
+      return {
+        ...wallet,
+        balance
+      };
+    });
+
+    // If no wallets found in database but we have a current user wallet, add it
+    if (enhancedWallets.length === 0 && currentUserWallet) {
+      console.log('UserWallet: No wallets found in database, adding current user wallet from localStorage');
+      const currentBalance = currentUserBalance ? parseFloat(currentUserBalance) : 0;
+      
+      enhancedWallets = [{
+        id: 'current-user',
+        address: currentUserWallet,
+        balance: currentBalance,
+        totalInvested: 0,
+        totalEarnings: 0,
+        transactionCount: 0,
+        lastActivity: new Date().toISOString(),
+        status: 'active' as 'active' | 'inactive' | 'suspended',
+        user: {
+          name: userProfile?.firstName && userProfile?.lastName 
+            ? `${userProfile.firstName} ${userProfile.lastName}`
+            : userProfile?.email || 'Current User',
+          email: userProfile?.email || 'current@user.com',
+          joinedDate: userProfile?.createdAt ? new Date(userProfile.createdAt).toISOString() : new Date().toISOString()
+        }
+      }];
+    }
+
+    return enhancedWallets;
+  }, [walletsData, refreshKey, currentUserWallet, currentUserBalance, userProfile]);
 
   const filterWallets = useCallback(() => {
     let filtered = wallets;
@@ -62,76 +152,32 @@ export default function UserWallet() {
   }, [wallets, searchTerm, statusFilter]);
 
   useEffect(() => {
-    fetchUserWallets();
-  }, []);
-
-  useEffect(() => {
     filterWallets();
   }, [wallets, searchTerm, statusFilter, filterWallets]);
 
-  const fetchUserWallets = async () => {
-    setLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data - replace with actual API
-      const mockWallets: UserWallet[] = [
-        {
-          id: '1',
-          address: 'UserWallet_001_abcdef123456',
-          balance: 2500.75,
-          totalInvested: 15000.00,
-          totalEarnings: 1250.50,
-          transactionCount: 45,
-          lastActivity: '2024-01-15T10:30:00Z',
-          status: 'active',
-          user: {
-            name: 'John Doe',
-            email: 'john.doe@example.com',
-            joinedDate: '2023-06-15T00:00:00Z'
-          }
-        },
-        {
-          id: '2',
-          address: 'UserWallet_002_ghijkl789012',
-          balance: 5000.25,
-          totalInvested: 25000.00,
-          totalEarnings: 3500.75,
-          transactionCount: 78,
-          lastActivity: '2024-01-14T15:45:00Z',
-          status: 'active',
-          user: {
-            name: 'Jane Smith',
-            email: 'jane.smith@example.com',
-            joinedDate: '2023-08-20T00:00:00Z'
-          }
-        },
-        {
-          id: '3',
-          address: 'UserWallet_003_mnopqr345678',
-          balance: 0.00,
-          totalInvested: 5000.00,
-          totalEarnings: 0.00,
-          transactionCount: 12,
-          lastActivity: '2024-01-10T09:20:00Z',
-          status: 'inactive',
-          user: {
-            name: 'Bob Johnson',
-            email: 'bob.johnson@example.com',
-            joinedDate: '2023-12-01T00:00:00Z'
-          }
-        }
-      ];
-      
-      setWallets(mockWallets);
-    } catch (error) {
-      console.error('Error fetching user wallets:', error);
-      toast.error('Failed to fetch user wallets');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Refresh wallets when localStorage changes (for balance updates)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // Force re-render when localStorage changes
+      console.log('UserWallet: Storage changed, refreshing...');
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events for same-tab updates
+    const handleBalanceUpdate = (event: CustomEvent) => {
+      console.log('UserWallet: Received walletBalanceUpdated event:', event.detail);
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('walletBalanceUpdated', handleBalanceUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('walletBalanceUpdated', handleBalanceUpdate);
+    };
+  }, []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -311,8 +357,22 @@ export default function UserWallet() {
                 <div key={wallet.id} className="border border-stone-200 dark:border-stone-700 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                        <Wallet className="h-5 w-5 text-green-600" />
+                      <div className="relative h-12 w-12 flex-shrink-0">
+                        {(wallet.id === 'current-user' || wallet.address === currentUserWallet) && avatarUrl ? (
+                          <Image
+                            src={avatarUrl}
+                            alt={wallet.user.name}
+                            width={48}
+                            height={48}
+                            loading="lazy"
+                            className="object-cover rounded-lg"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg h-12 w-12 flex items-center justify-center">
+                            <Wallet className="h-6 w-6 text-green-600" />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <h3 className="font-semibold">{wallet.user.name}</h3>
@@ -328,7 +388,7 @@ export default function UserWallet() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-semibold text-green-600">
-                          {formatCurrency(wallet.balance)}
+                          {wallet.balance.toFixed(4)} SOL
                         </p>
                         <p className="text-sm text-stone-600 dark:text-stone-400">
                           Current Balance

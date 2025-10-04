@@ -52,10 +52,10 @@ export const getBrands = query({
       ctx.db.query("industries").collect(),
     ]);
 
-    // Create lookup maps - since franchiser stores industry/category as strings (names), 
-    // we need to map by name, not by ID
-    const categoryMap = new Map(allCategories.map(cat => [cat.name, cat.name]));
-    const industryMap = new Map(allIndustries.map(ind => [ind.name, ind.name]));
+    // Create lookup maps - franchiser stores industry/category as IDs, 
+    // we need to map by ID to get the names
+    const categoryMap = new Map(allCategories.map(cat => [cat._id, cat.name]));
+    const industryMap = new Map(allIndustries.map(ind => [ind._id, ind.name]));
 
     // Get additional details for each brand
     const brandsWithDetails = await Promise.all(
@@ -80,8 +80,8 @@ export const getBrands = query({
 
         return {
           ...brand,
-          categoryName: categoryMap.get(brand.category) || brand.category,
-          industryName: industryMap.get(brand.industry) || brand.industry,
+          categoryName: categoryMap.get(brand.category as any) || brand.category,
+          industryName: industryMap.get(brand.industry as any) || brand.industry,
           franchiseCount: franchises.length,
           locationCount: locations.length,
           productCount: products.length,
@@ -146,9 +146,8 @@ export const getBrandById = query({
 // Create a new brand
 export const createBrand = mutation({
   args: {
-    ownerWalletAddress: v.string(),
+    ownerUserId: v.id("userProfiles"),
     brandWalletAddress: v.string(),
-    brandWalletSecretKey: v.optional(v.string()),
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),
     slug: v.string(),

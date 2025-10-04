@@ -139,6 +139,9 @@ export const createProperty = mutation({
       isVerified: false,
       isAvailable: true,
       contactHistory: [],
+      penaltyHistory: [],
+      totalPenalties: 0,
+      unpaidPenalties: 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -569,6 +572,326 @@ export const bulkUpdatePropertyStages = mutation({
         success: r.status === 'fulfilled',
         error: r.status === 'rejected' ? (r as PromiseRejectedResult).reason : null
       }))
+    };
+  },
+});
+
+// Impose penalty on property owner
+export const imposePenalty = mutation({
+  args: {
+    propertyId: v.id("properties"),
+    penaltyType: v.union(
+      v.literal("late_update"),
+      v.literal("false_availability"),
+      v.literal("contract_breach"),
+      v.literal("misinformation")
+    ),
+    amount: v.number(),
+    reason: v.string(),
+    imposedBy: v.string(), // Admin user ID
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { propertyId, penaltyType, amount, reason, imposedBy, notes } = args;
+    
+    const property = await ctx.db.get(propertyId);
+    if (!property) {
+      throw new Error("Property not found");
+    }
+    
+    const penalty = {
+      date: Date.now(),
+      type: penaltyType,
+      amount,
+      reason,
+      imposedBy,
+      status: "pending" as const,
+      notes,
+    };
+    
+    const newPenaltyHistory = [...(property.penaltyHistory || []), penalty];
+    const newTotalPenalties = (property.totalPenalties || 0) + amount;
+    const newUnpaidPenalties = (property.unpaidPenalties || 0) + amount;
+    
+    // Add to contact history
+    const contactEntry = {
+      date: Date.now(),
+      type: "meeting" as const,
+      notes: `Penalty imposed: ${penaltyType} - $${amount} - ${reason}`,
+      contactedBy: imposedBy,
+      outcome: "penalty_imposed",
+    };
+    
+    await ctx.db.patch(propertyId, {
+      penaltyHistory: newPenaltyHistory,
+      totalPenalties: newTotalPenalties,
+      unpaidPenalties: newUnpaidPenalties,
+      contactHistory: [...property.contactHistory, contactEntry],
+      updatedAt: Date.now(),
+    });
+    
+    return { success: true, penaltyId: penalty.date };
+  },
+});
+
+// Update penalty status
+export const updatePenaltyStatus = mutation({
+  args: {
+    propertyId: v.id("properties"),
+    penaltyDate: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("paid"),
+      v.literal("waived"),
+      v.literal("disputed")
+    ),
+    updatedBy: v.string(),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { propertyId, penaltyDate, status, updatedBy, notes } = args;
+    
+    const property = await ctx.db.get(propertyId);
+    if (!property) {
+      throw new Error("Property not found");
+    }
+    
+    const penaltyHistory = property.penaltyHistory || [];
+    const penaltyIndex = penaltyHistory.findIndex(p => p.date === penaltyDate);
+    
+    if (penaltyIndex === -1) {
+      throw new Error("Penalty not found");
+    }
+    
+    const penalty = penaltyHistory[penaltyIndex];
+    const oldStatus = penalty.status;
+    
+    // Update penalty
+    penaltyHistory[penaltyIndex] = {
+      ...penalty,
+      status,
+      notes: notes || penalty.notes,
+    };
+    
+    // Recalculate unpaid penalties
+    let newUnpaidPenalties = 0;
+    penaltyHistory.forEach(p => {
+      if (p.status === "pending" || p.status === "disputed") {
+        newUnpaidPenalties += p.amount;
+      }
+    });
+    
+    // Add to contact history
+    const contactEntry = {
+      date: Date.now(),
+      type: "meeting" as const,
+      notes: `Penalty status updated from ${oldStatus} to ${status}${notes ? ` - ${notes}` : ''}`,
+      contactedBy: updatedBy,
+      outcome: "penalty_status_updated",
+    };
+    
+    await ctx.db.patch(propertyId, {
+      penaltyHistory,
+      unpaidPenalties: newUnpaidPenalties,
+      contactHistory: [...property.contactHistory, contactEntry],
+      updatedAt: Date.now(),
+    });
+    
+    return { success: true };
+  },
+});
+
+// Check for property status violations and auto-impose penalties
+export const checkPropertyStatusViolations = mutation({
+  args: {
+    propertyId: v.id("properties"),
+    checkedBy: v.string(), // Admin user ID
+  },
+  handler: async (ctx, args) => {
+    const { propertyId, checkedBy } = args;
+    
+    const property = await ctx.db.get(propertyId);
+    if (!property) {
+      throw new Error("Property not found");
+    }
+    
+    const violations = [];
+    const now = Date.now();
+    
+    // Check for late updates (if property is marked as available but no recent updates)
+    if (property.isAvailable && property.stage === "listing") {
+      const lastUpdate = property.updatedAt;
+      const daysSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60 * 24);
+      
+      if (daysSinceUpdate > 7) { // More than 7 days without update
+        violations.push({
+          type: "late_update" as const,
+          amount: 100, // $100 penalty for late updates
+          reason: `Property not updated for ${Math.floor(daysSinceUpdate)} days`,
+        });
+      }
+    }
+    
+    // Check for false availability (if property is marked available but actually rented/sold)
+    if (property.isAvailable && (property.stage === "rented" || property.stage === "sold")) {
+      violations.push({
+        type: "false_availability" as const,
+        amount: 500, // $500 penalty for false availability
+        reason: "Property marked as available but stage indicates it's rented/sold",
+      });
+    }
+    
+    // Check for contract breach (if fundraising period exceeded without update)
+    if (property.fundraisingStartDate && property.blockagePeriod) {
+      const fundraisingEndDate = property.fundraisingStartDate + (property.blockagePeriod * 24 * 60 * 60 * 1000);
+      if (now > fundraisingEndDate && property.stage === "blocked") {
+        violations.push({
+          type: "contract_breach" as const,
+          amount: 1000, // $1000 penalty for contract breach
+          reason: "Fundraising period exceeded without proper status update",
+        });
+      }
+    }
+    
+    // Impose penalties for violations
+    const imposedPenalties = [];
+    for (const violation of violations) {
+      const result = await imposePenalty({
+        propertyId,
+        penaltyType: violation.type,
+        amount: violation.amount,
+        reason: violation.reason,
+        imposedBy: checkedBy,
+        notes: "Automatically imposed due to status violation",
+      });
+      imposedPenalties.push(result);
+    }
+    
+    return {
+      success: true,
+      violationsFound: violations.length,
+      penaltiesImposed: imposedPenalties.length,
+      violations,
+    };
+  },
+});
+
+// Get properties with penalties
+export const getPropertiesWithPenalties = query({
+  args: {
+    limit: v.optional(v.number()),
+    onlyUnpaid: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { limit = 50, onlyUnpaid = false } = args;
+    
+    let query = ctx.db.query("properties");
+    
+    if (onlyUnpaid) {
+      // This would require a more complex query in a real implementation
+      // For now, we'll get all properties and filter
+      const allProperties = await query.collect();
+      const propertiesWithUnpaidPenalties = allProperties.filter(p => (p.unpaidPenalties || 0) > 0);
+      return propertiesWithUnpaidPenalties.slice(0, limit);
+    }
+    
+    const properties = await query.order("desc").take(limit);
+    return properties.filter(p => (p.totalPenalties || 0) > 0);
+  },
+});
+
+// Get penalty statistics
+export const getPenaltyStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const allProperties = await ctx.db.query("properties").collect();
+    
+    const stats = {
+      totalProperties: allProperties.length,
+      propertiesWithPenalties: allProperties.filter(p => (p.totalPenalties || 0) > 0).length,
+      totalPenaltiesImposed: allProperties.reduce((sum, p) => sum + (p.totalPenalties || 0), 0),
+      totalUnpaidPenalties: allProperties.reduce((sum, p) => sum + (p.unpaidPenalties || 0), 0),
+      penaltiesByType: {
+        late_update: 0,
+        false_availability: 0,
+        contract_breach: 0,
+        misinformation: 0,
+      },
+      penaltiesByStatus: {
+        pending: 0,
+        paid: 0,
+        waived: 0,
+        disputed: 0,
+      },
+    };
+    
+    // Count penalties by type and status
+    allProperties.forEach(property => {
+      const penaltyHistory = property.penaltyHistory || [];
+      penaltyHistory.forEach(penalty => {
+        stats.penaltiesByType[penalty.type]++;
+        stats.penaltiesByStatus[penalty.status]++;
+      });
+    });
+    
+    return stats;
+  },
+});
+
+// Update property status with automatic penalty checking
+export const updatePropertyStatusWithPenaltyCheck = mutation({
+  args: {
+    propertyId: v.id("properties"),
+    stage: v.union(
+      v.literal("listing"),
+      v.literal("requested"),
+      v.literal("blocked"),
+      v.literal("rented"),
+      v.literal("sold")
+    ),
+    isAvailable: v.optional(v.boolean()),
+    updatedBy: v.string(),
+    notes: v.optional(v.string()),
+    checkForViolations: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { propertyId, stage, isAvailable, updatedBy, notes, checkForViolations = true } = args;
+    
+    const property = await ctx.db.get(propertyId);
+    if (!property) {
+      throw new Error("Property not found");
+    }
+    
+    // Update property stage and availability
+    await updatePropertyStage({
+      propertyId,
+      stage,
+      notes,
+      updatedBy,
+    });
+    
+    // Update availability if provided
+    if (isAvailable !== undefined) {
+      await updatePropertyAvailability({
+        propertyId,
+        isAvailable,
+        updatedBy,
+        notes,
+      });
+    }
+    
+    // Check for violations if requested
+    let violationsCheck = null;
+    if (checkForViolations) {
+      violationsCheck = await checkPropertyStatusViolations({
+        propertyId,
+        checkedBy: updatedBy,
+      });
+    }
+    
+    return {
+      success: true,
+      violationsCheck,
     };
   },
 });

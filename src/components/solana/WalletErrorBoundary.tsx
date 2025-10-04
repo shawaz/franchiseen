@@ -22,13 +22,20 @@ class WalletErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Check if it's a WalletStandardError
+    console.log('WalletErrorBoundary: Checking error:', error.message);
+    
+    // Check if it's a WalletStandardError or wallet-related error
     if (error.message.includes('WalletStandardError') || 
-        error.message.includes('No underlying Wallet Standard wallet')) {
+        error.message.includes('No underlying Wallet Standard wallet') ||
+        error.message.includes('Wallet connection error') ||
+        error.message.includes('No valid wallet account connected') ||
+        error.message.includes('Wallet signer unavailable')) {
+      console.log('WalletErrorBoundary: Catching wallet error:', error.message);
       return { hasError: true, error };
     }
     
     // For other errors, don't catch them
+    console.log('WalletErrorBoundary: Not catching non-wallet error:', error.message);
     return { hasError: false };
   }
 

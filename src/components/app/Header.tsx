@@ -1,14 +1,11 @@
 "use client";
 
-import { Search, Menu, X, PlusSquare, Filter, ChevronDown } from "lucide-react";
+import { Search, Menu, X, Filter, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { ThemeSwitcher } from "../default/theme-switcher";
-import { AccountDropdown } from "../default/account-dropdown";
-import { WalletDropdown } from "../default/wallet-dropdown";
-import { useWalletUi } from "@wallet-ui/react";
-import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
+import { AuthHeader } from "../auth/AuthHeader";
 import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -85,12 +82,10 @@ const SearchSuggestionItem = ({ franchise, onClick }: { franchise: FranchiseData
 };
 
 function Header() {
-  const { connected, account } = useWalletUi();
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchMode, setIsMobileSearchMode] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<FranchiseData[]>([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -222,41 +217,7 @@ function Header() {
   }, [searchQuery, franchisesWithStages]);
 
 
-  // Fetch balance effect
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchBalance = async () => {
-      if (!connected || !account?.address) {
-        if (isMounted) setBalance(null);
-        return;
-      }
-
-      try {
-        const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-        const publicKey = new PublicKey(account.address);
-        const balanceInLamports = await connection.getBalance(publicKey);
-        if (isMounted) {
-          setBalance(balanceInLamports / LAMPORTS_PER_SOL);
-        }
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        if (isMounted) setBalance(null);
-      }
-    };
-
-    // Initial fetch
-    fetchBalance();
-    
-    // Set up refresh interval
-    const intervalId = setInterval(fetchBalance, 30000);
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [connected, account?.address]);
+  // Balance fetching removed - now handled by auth system
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -557,25 +518,7 @@ function Header() {
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center gap-4">
                 <ThemeSwitcher />
-                {connected ? (
-                  <>
-                    {/* <Link href="/" className="p-2">
-                      <Compass className="h-5 w-5" />
-                    </Link>
-                    <Link href="/saved" className="p-2">
-                      <Heart className="h-5 w-5" />
-                    </Link> */}
-                    <Link href="/create" className="p-2">
-                      <PlusSquare className="h-5 w-5" />
-                    </Link>
-                    {/* <Link href="/updates" className="p-2">
-                      <Bell className="h-5 w-5" />
-                    </Link> */}
-                    <AccountDropdown balance={balance ?? undefined} />
-                  </>
-                ) : (
-                  <WalletDropdown />
-                )}
+                <AuthHeader />
               </div>
 
               {/* Mobile Menu Toggle */}

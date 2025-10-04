@@ -105,6 +105,13 @@ export function useAllProductCategories() {
   return useQuery(api.masterData.getAllProductCategories);
 }
 
+export function useProductCategoryById(productCategoryId: Id<"productCategories"> | undefined) {
+  return useQuery(
+    api.masterData.getProductCategoryById,
+    productCategoryId ? { productCategoryId } : "skip"
+  );
+}
+
 export function useCreateProductCategory() {
   return useMutation(api.masterData.createProductCategory);
 }

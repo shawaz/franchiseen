@@ -21,13 +21,20 @@ class WalletSignerWrapper extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Check if it's a WalletStandardError
+    console.log('WalletSignerWrapper: Checking error:', error.message);
+    
+    // Check if it's a WalletStandardError or wallet-related error
     if (error.message.includes('WalletStandardError') || 
-        error.message.includes('No underlying Wallet Standard wallet')) {
+        error.message.includes('No underlying Wallet Standard wallet') ||
+        error.message.includes('Wallet connection error') ||
+        error.message.includes('No valid wallet account connected') ||
+        error.message.includes('Wallet signer unavailable')) {
+      console.log('WalletSignerWrapper: Catching wallet error:', error.message);
       return { hasError: true, error };
     }
     
     // For other errors, don't catch them
+    console.log('WalletSignerWrapper: Not catching non-wallet error:', error.message);
     return { hasError: false };
   }
 

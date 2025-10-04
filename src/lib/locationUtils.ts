@@ -1,151 +1,185 @@
-// Utility functions for location handling
+// Utility functions for location management
 
-export interface LocationInfo {
-  country: string;
-  city?: string;
-  address: string;
+export interface SoldLocation {
+  id: string;
   lat: number;
   lng: number;
+  address: string;
+  country: string;
+  franchiseFee: number;
+  minArea: number;
+  soldAt: number;
 }
 
-/**
- * Extract country and city from a Google Places address
- * Enhanced to better match database entries
- */
-export const extractLocationInfo = (address: string): { country: string; city?: string } => {
-  console.log("Extracting location from address:", address);
+// Calculate distance between two points in kilometers using Haversine formula
+export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
+// Check if a location is within 1km of any sold location
+export const isWithinSoldRadius = (lat: number, lng: number, soldLocations: SoldLocation[]): boolean => {
+  return soldLocations.some(soldLocation => 
+    calculateDistance(lat, lng, soldLocation.lat, soldLocation.lng) < 1
+  );
+};
+
+// Extract country from address
+export const extractCountryFromAddress = (address: string): string => {
+  if (address.toLowerCase().includes('dubai') || 
+      address.toLowerCase().includes('united arab emirates') ||
+      address.toLowerCase().includes('uae')) {
+    return 'United Arab Emirates';
+  }
   
-  const parts = address.split(',').map(part => part.trim());
-  console.log("Address parts:", parts);
+  // Add more country detection logic as needed
+  const addressLower = address.toLowerCase();
   
-  // Country mapping for better matching
-  const countryMappings: Record<string, string> = {
-    'India': 'India',
-    'IN': 'India',
-    'United Arab Emirates': 'UAE',
-    'UAE': 'UAE',
-    'AE': 'UAE',
-    'United States': 'US',
-    'USA': 'US',
-    'US': 'US',
-    'United Kingdom': 'UK',
-    'UK': 'UK',
-    'GB': 'UK',
-  };
-  
-  // Common city patterns in addresses
-  const cityPatterns = [
-    'Bangalore', 'Bengaluru', 'Mumbai', 'Delhi', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur',
-    'Mangalore', 'Mangaluru', 'Mysore', 'Mysuru', 'Hubli', 'Dharwad', 'Belgaum', 'Belagavi',
-    'Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Umm Al Quwain',
-    'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego',
-    'London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Edinburgh', 'Liverpool'
+  // Check for other countries
+  const countryMappings = [
+    { keywords: ['united states', 'usa', 'us'], name: 'United States' },
+    { keywords: ['united kingdom', 'uk', 'britain'], name: 'United Kingdom' },
+    { keywords: ['canada'], name: 'Canada' },
+    { keywords: ['australia'], name: 'Australia' },
+    { keywords: ['germany'], name: 'Germany' },
+    { keywords: ['france'], name: 'France' },
+    { keywords: ['india'], name: 'India' },
+    { keywords: ['singapore'], name: 'Singapore' },
+    { keywords: ['japan'], name: 'Japan' },
   ];
   
-  let country = 'Unknown';
-  let city: string | undefined;
+  for (const mapping of countryMappings) {
+    if (mapping.keywords.some(keyword => addressLower.includes(keyword))) {
+      return mapping.name;
+    }
+  }
   
-  // Look for country in the last few parts
-  for (let i = parts.length - 1; i >= Math.max(0, parts.length - 3); i--) {
-    const part = parts[i];
-    if (countryMappings[part]) {
-      country = countryMappings[part];
+  return 'Unknown Country';
+};
+
+// Extract location info from address string
+export const extractLocationInfo = (address: string): { country: string; city?: string } => {
+  const addressLower = address.toLowerCase();
+  
+  // Extract country
+  let country = 'Unknown Country';
+  if (addressLower.includes('dubai') || 
+      addressLower.includes('united arab emirates') ||
+      addressLower.includes('uae')) {
+    country = 'United Arab Emirates';
+  } else {
+    const countryMappings = [
+      { keywords: ['united states', 'usa', 'us'], name: 'United States' },
+      { keywords: ['united kingdom', 'uk', 'britain'], name: 'United Kingdom' },
+      { keywords: ['canada'], name: 'Canada' },
+      { keywords: ['australia'], name: 'Australia' },
+      { keywords: ['germany'], name: 'Germany' },
+      { keywords: ['france'], name: 'France' },
+      { keywords: ['india'], name: 'India' },
+      { keywords: ['singapore'], name: 'Singapore' },
+      { keywords: ['japan'], name: 'Japan' },
+    ];
+    
+    for (const mapping of countryMappings) {
+      if (mapping.keywords.some(keyword => addressLower.includes(keyword))) {
+        country = mapping.name;
+        break;
+      }
+    }
+  }
+  
+  // Extract city (basic implementation)
+  let city: string | undefined;
+  const cityPatterns = [
+    /dubai/i,
+    /abu dhabi/i,
+    /sharjah/i,
+    /new york/i,
+    /london/i,
+    /toronto/i,
+    /sydney/i,
+    /berlin/i,
+    /paris/i,
+    /mumbai/i,
+    /singapore/i,
+    /tokyo/i,
+  ];
+  
+  for (const pattern of cityPatterns) {
+    const match = address.match(pattern);
+    if (match) {
+      city = match[0];
       break;
     }
   }
   
-  // If no country found in mappings, try to extract from the last part
-  if (country === 'Unknown' && parts.length > 0) {
-    const lastPart = parts[parts.length - 1];
-    // Check if the last part contains country names
-    if (lastPart.toLowerCase().includes('india')) {
-      country = 'India';
-    } else if (lastPart.toLowerCase().includes('united arab emirates') || lastPart.toLowerCase().includes('uae')) {
-      country = 'UAE';
-    } else if (lastPart.toLowerCase().includes('united states') || lastPart.toLowerCase().includes('usa')) {
-      country = 'US';
-    } else {
-      country = lastPart;
-    }
-  }
-  
-  // Look for city in all parts
-  for (const part of parts) {
-    const normalizedPart = part.replace(/\s+(City|Town|Village|District|Area|State|Province)$/i, '').trim();
-    
-    // Check if this part contains any known city
-    for (const pattern of cityPatterns) {
-      if (normalizedPart.toLowerCase().includes(pattern.toLowerCase()) ||
-          pattern.toLowerCase().includes(normalizedPart.toLowerCase())) {
-        city = pattern; // Use the standard city name
-        break;
-      }
-    }
-    
-    if (city) break;
-  }
-  
-  // If no city found with patterns, try to use the second to last part if it looks like a city
-  if (!city && parts.length >= 2) {
-    const secondLastPart = parts[parts.length - 2];
-    if (secondLastPart && 
-        !secondLastPart.match(/^\d+$/) && 
-        !secondLastPart.match(/^\d+\s*[A-Za-z]+$/) &&
-        !secondLastPart.includes('Street') &&
-        !secondLastPart.includes('Road') &&
-        !secondLastPart.includes('Avenue') &&
-        !secondLastPart.includes('Lane')) {
-      city = secondLastPart.replace(/\s+(City|Town|Village|District|Area|State|Province)$/i, '').trim();
-    }
-  }
-  
-  console.log("Extracted location info:", { country, city });
   return { country, city };
 };
 
-/**
- * Map country names to common variations for better matching
- */
+// Normalize country name to standard format
 export const normalizeCountryName = (country: string): string => {
-  const countryMap: Record<string, string> = {
-    'United States': 'US',
-    'United States of America': 'US',
-    'USA': 'US',
-    'United Arab Emirates': 'UAE',
-    'UAE': 'UAE',
-    'AE': 'UAE',
-    'United Kingdom': 'UK',
-    'UK': 'UK',
-    'GB': 'UK',
-    'Great Britain': 'UK',
-    'India': 'India',
-    'IN': 'India',
-    // Add more mappings as needed
+  const countryMappings: Record<string, string> = {
+    'usa': 'United States',
+    'us': 'United States',
+    'united states of america': 'United States',
+    'uk': 'United Kingdom',
+    'britain': 'United Kingdom',
+    'great britain': 'United Kingdom',
+    'uae': 'United Arab Emirates',
+    'united arab emirates': 'United Arab Emirates',
+    'emirates': 'United Arab Emirates',
   };
   
-  return countryMap[country] || country;
+  const normalized = countryMappings[country.toLowerCase()];
+  return normalized || country;
 };
 
-/**
- * Map city names to common variations for better matching
- */
+// Normalize city name to standard format
 export const normalizeCityName = (city: string): string => {
-  // City name mappings for better matching
-  const cityMap: Record<string, string> = {
-    'Bengaluru': 'Bangalore',
-    'Mangaluru': 'Mangalore',
-    'Mysuru': 'Mysore',
-    'Belagavi': 'Belgaum',
-    'Abu Dhabi': 'Abu Dhabi',
-    'Ras Al Khaimah': 'Ras Al Khaimah',
-    'Umm Al Quwain': 'Umm Al Quwain',
+  const cityMappings: Record<string, string> = {
+    'nyc': 'New York',
+    'ny': 'New York',
+    'new york city': 'New York',
+    'la': 'Los Angeles',
+    'los angeles': 'Los Angeles',
+    'sf': 'San Francisco',
+    'san francisco': 'San Francisco',
+    'london': 'London',
+    'toronto': 'Toronto',
+    'sydney': 'Sydney',
+    'berlin': 'Berlin',
+    'paris': 'Paris',
+    'mumbai': 'Mumbai',
+    'bombay': 'Mumbai',
+    'singapore': 'Singapore',
+    'tokyo': 'Tokyo',
+    'dubai': 'Dubai',
+    'abu dhabi': 'Abu Dhabi',
+    'sharjah': 'Sharjah',
   };
   
-  // Remove common suffixes and normalize
-  const normalizedCity = city
-    .replace(/\s+(City|Town|Village|District|Area)$/i, '')
-    .trim();
+  const normalized = cityMappings[city.toLowerCase()];
+  return normalized || city;
+};
+
+// Validate location selection (check if within sold radius)
+export const validateLocationSelection = (
+  lat: number, 
+  lng: number, 
+  soldLocations: SoldLocation[]
+): { isValid: boolean; message?: string } => {
+  if (isWithinSoldRadius(lat, lng, soldLocations)) {
+    return {
+      isValid: false,
+      message: 'This location is within 1km of an existing sold location. Please select a different location.'
+    };
+  }
   
-  // Apply city mappings
-  return cityMap[normalizedCity] || normalizedCity;
+  return { isValid: true };
 };

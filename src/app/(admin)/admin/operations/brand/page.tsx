@@ -30,7 +30,7 @@ import {
 // Types based on the database schema
 type Brand = {
   _id: string;
-  ownerWalletAddress: string;
+  ownerUserId: string;
   brandWalletAddress: string;
   logoUrl?: string;
   name: string;

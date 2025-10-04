@@ -17,24 +17,68 @@ export const getFranchiserById = query({
   },
 });
 
-// Query to get franchiser by owner wallet address
-export const getFranchiserByWallet = query({
-  args: { walletAddress: v.string() },
+// Query to get franchiser by owner user ID
+export const getFranchiserByUserId = query({
+  args: { userId: v.id("userProfiles") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("franchiser")
-      .withIndex("by_ownerWallet", (q) => q.eq("ownerWalletAddress", args.walletAddress))
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", args.userId))
       .first();
   },
 });
 
-// Query to get all franchisers by owner wallet address
-export const getAllFranchisersByWallet = query({
-  args: { walletAddress: v.string() },
+// Query to get all franchisers by owner user ID
+export const getAllFranchisersByUserId = query({
+  args: { userId: v.id("userProfiles") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("franchiser")
-      .withIndex("by_ownerWallet", (q) => q.eq("ownerWalletAddress", args.walletAddress))
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", args.userId))
+      .collect();
+  },
+});
+
+// Legacy query for backward compatibility - get franchiser by wallet address
+export const getFranchiserByWallet = query({
+  args: { walletAddress: v.string() },
+  handler: async (ctx, args) => {
+    // First get the user profile by wallet address
+    const userProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+    
+    if (!userProfile) {
+      return null;
+    }
+    
+    // Then get franchiser by user ID
+    return await ctx.db
+      .query("franchiser")
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", userProfile._id))
+      .first();
+  },
+});
+
+// Legacy query for backward compatibility - get all franchisers by wallet address
+export const getAllFranchisersByWallet = query({
+  args: { walletAddress: v.string() },
+  handler: async (ctx, args) => {
+    // First get the user profile by wallet address
+    const userProfile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
+      .first();
+    
+    if (!userProfile) {
+      return [];
+    }
+    
+    // Then get franchisers by user ID
+    return await ctx.db
+      .query("franchiser")
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", userProfile._id))
       .collect();
   },
 });
@@ -77,9 +121,8 @@ export const getFranchiserProducts = query({
 // Mutation to create a new franchiser
 export const createFranchiser = mutation({
   args: {
-    ownerWalletAddress: v.string(),
+    ownerUserId: v.id("userProfiles"),
     brandWalletAddress: v.string(),
-    brandWalletSecretKey: v.optional(v.string()),
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),
     slug: v.string(),
@@ -109,9 +152,8 @@ export const createFranchiser = mutation({
 export const createFranchiserWithDetails = mutation({
   args: {
     franchiser: v.object({
-      ownerWalletAddress: v.string(),
+      ownerUserId: v.id("userProfiles"),
       brandWalletAddress: v.string(),
-      brandWalletSecretKey: v.optional(v.string()),
       logoUrl: v.optional(v.id("_storage")),
       name: v.string(),
       slug: v.string(),

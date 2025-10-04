@@ -242,6 +242,13 @@ export const getAllProductCategories = query({
   },
 });
 
+export const getProductCategoryById = query({
+  args: { productCategoryId: v.id("productCategories") },
+  handler: async (ctx, { productCategoryId }) => {
+    return await ctx.db.get(productCategoryId);
+  },
+});
+
 // ===== BULK OPERATIONS =====
 
 export const createMultipleCountries = mutation({
