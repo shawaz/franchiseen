@@ -19,20 +19,21 @@ import { toast } from 'sonner';
 import { DropdownMenuContent, DropdownMenu, DropdownMenuTrigger, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { Id } from '../../../../convex/_generated/dataModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import Image from 'next/image';
 
 interface UserWallet {
-  id: string;
-  address: string;
+  id?: Id<"userProfiles"> | string;
+  address?: string;
   balance: number;
-  totalInvested: number;
-  totalEarnings: number;
-  transactionCount: number;
-  lastActivity: string;
-  status: 'active' | 'inactive' | 'suspended';
-  user: {
+  totalInvested?: number;
+  totalEarnings?: number;
+  transactionCount?: number;
+  lastActivity?: string;
+  status?: 'active' | 'inactive' | 'suspended';
+  user?: {
     name: string;
     email: string;
     joinedDate: string;
@@ -63,13 +64,13 @@ export default function UserWallet() {
   console.log('UserWallet: Number of wallets found:', walletsData.length);
   
   // Debug: Check localStorage for wallet addresses
-  const currentUserWallet = localStorage.getItem('userWalletAddress');
-  const currentUserBalance = localStorage.getItem('userWalletBalance');
+  const currentUserWallet = typeof window !== 'undefined' ? localStorage.getItem('userWalletAddress') : null;
+  const currentUserBalance = typeof window !== 'undefined' ? localStorage.getItem('userWalletBalance') : null;
   console.log('UserWallet: Current user wallet from localStorage:', currentUserWallet);
   console.log('UserWallet: Current user balance from localStorage:', currentUserBalance);
   
   // Debug: Check all localStorage keys related to wallets
-  const walletKeys = Object.keys(localStorage).filter(key => key.includes('wallet'));
+  const walletKeys = typeof window !== 'undefined' ? Object.keys(localStorage).filter(key => key.includes('wallet')) : [];
   console.log('UserWallet: All wallet-related localStorage keys:', walletKeys);
 
   // Enhance wallets with real-time balance (recalculate when refreshKey changes)
@@ -77,23 +78,23 @@ export default function UserWallet() {
     let enhancedWallets = walletsData.map(wallet => {
       // For demo purposes, we'll simulate balance updates
       // In a real implementation, this would be stored in the database
-      const balanceKey = `wallet_balance_${wallet.address}`;
-      const storedBalance = localStorage.getItem(balanceKey);
-      const balance = storedBalance ? parseFloat(storedBalance) : wallet.balance;
+      const balanceKey = `wallet_balance_${wallet?.address}`;
+      const storedBalance = typeof window !== 'undefined' ? localStorage.getItem(balanceKey) : null;
+      const balance = storedBalance ? parseFloat(storedBalance) : (wallet?.balance || 0);
       
-      console.log(`UserWallet: Wallet ${wallet.address}, balanceKey: ${balanceKey}, storedBalance: ${storedBalance}, final balance: ${balance}, refreshKey: ${refreshKey}`);
+      console.log(`UserWallet: Wallet ${wallet?.address}, balanceKey: ${balanceKey}, storedBalance: ${storedBalance}, final balance: ${balance}, refreshKey: ${refreshKey}`);
       
       // If this is the current user's wallet, update with real user data
-      if (wallet.address === currentUserWallet && userProfile) {
+      if (wallet?.address === currentUserWallet && userProfile) {
         return {
           ...wallet,
           balance,
           user: {
             name: userProfile.firstName && userProfile.lastName 
               ? `${userProfile.firstName} ${userProfile.lastName}`
-              : userProfile.email || wallet.user.name,
-            email: userProfile.email || wallet.user.email,
-            joinedDate: userProfile.createdAt ? new Date(userProfile.createdAt).toISOString() : wallet.user.joinedDate
+              : userProfile.email || wallet?.user?.name || 'Unknown',
+            email: userProfile.email || wallet?.user?.email || 'Unknown',
+            joinedDate: userProfile.createdAt ? new Date(userProfile.createdAt).toISOString() : wallet?.user?.joinedDate || new Date().toISOString()
           }
         };
       }
@@ -110,7 +111,7 @@ export default function UserWallet() {
       const currentBalance = currentUserBalance ? parseFloat(currentUserBalance) : 0;
       
       enhancedWallets = [{
-        id: 'current-user',
+        id: 'current-user' as Id<"userProfiles">,
         address: currentUserWallet,
         balance: currentBalance,
         totalInvested: 0,
@@ -137,9 +138,9 @@ export default function UserWallet() {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(wallet => 
-        wallet.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wallet.address.toLowerCase().includes(searchTerm.toLowerCase())
+        wallet.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        wallet.address?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -163,20 +164,23 @@ export default function UserWallet() {
       setRefreshKey(prev => prev + 1);
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom events for same-tab updates
-    const handleBalanceUpdate = (event: CustomEvent) => {
-      console.log('UserWallet: Received walletBalanceUpdated event:', event.detail);
-      setRefreshKey(prev => prev + 1);
-    };
-    
-    window.addEventListener('walletBalanceUpdated', handleBalanceUpdate);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      
+      // Also listen for custom events for same-tab updates
+      const handleBalanceUpdate = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('UserWallet: Received walletBalanceUpdated event:', customEvent.detail);
+        setRefreshKey(prev => prev + 1);
+      };
+      
+      window.addEventListener('walletBalanceUpdated', handleBalanceUpdate);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('walletBalanceUpdated', handleBalanceUpdate);
-    };
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('walletBalanceUpdated', handleBalanceUpdate);
+      };
+    }
   }, []);
 
   const formatCurrency = (amount: number) => {
@@ -277,7 +281,7 @@ export default function UserWallet() {
                   Total Invested
                 </p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {loading ? '...' : formatCurrency(wallets.reduce((sum, w) => sum + w.totalInvested, 0))}
+                  {loading ? '...' : formatCurrency(wallets.reduce((sum, w) => sum + (w.totalInvested || 0), 0))}
                 </p>
               </div>
               <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
@@ -295,7 +299,7 @@ export default function UserWallet() {
                   Total Earnings
                 </p>
                 <p className="text-2xl font-bold text-orange-600">
-                  {loading ? '...' : formatCurrency(wallets.reduce((sum, w) => sum + w.totalEarnings, 0))}
+                  {loading ? '...' : formatCurrency(wallets.reduce((sum, w) => sum + (w.totalEarnings || 0), 0))}
                 </p>
               </div>
               <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
@@ -361,7 +365,7 @@ export default function UserWallet() {
                         {(wallet.id === 'current-user' || wallet.address === currentUserWallet) && avatarUrl ? (
                           <Image
                             src={avatarUrl}
-                            alt={wallet.user.name}
+                            alt={wallet.user?.name || 'User'}
                             width={48}
                             height={48}
                             loading="lazy"
@@ -375,12 +379,12 @@ export default function UserWallet() {
                         )}
                       </div>
                       <div>
-                        <h3 className="font-semibold">{wallet.user.name}</h3>
+                        <h3 className="font-semibold">{wallet.user?.name || 'Unknown User'}</h3>
                         <p className="text-sm text-stone-600 dark:text-stone-400">
-                          {wallet.user.email}
+                          {wallet.user?.email || 'No email'}
                         </p>
                         <p className="text-xs text-stone-500 font-mono">
-                          {wallet.address}
+                          {wallet.address || 'No address'}
                         </p>
                       </div>
                     </div>
@@ -397,7 +401,7 @@ export default function UserWallet() {
                       
                       <div className="text-right">
                         <p className="font-semibold">
-                          {formatCurrency(wallet.totalInvested)}
+                          {formatCurrency(wallet.totalInvested || 0)}
                         </p>
                         <p className="text-sm text-stone-600 dark:text-stone-400">
                           Total Invested
@@ -406,7 +410,7 @@ export default function UserWallet() {
                       
                       <div className="text-right">
                         <p className="font-semibold text-orange-600">
-                          {formatCurrency(wallet.totalEarnings)}
+                          {formatCurrency(wallet.totalEarnings || 0)}
                         </p>
                         <p className="text-sm text-stone-600 dark:text-stone-400">
                           Total Earnings
@@ -415,7 +419,7 @@ export default function UserWallet() {
                       
                       <div className="text-right">
                         <p className="font-semibold">
-                          {wallet.transactionCount}
+                          {wallet.transactionCount || 0}
                         </p>
                         <p className="text-sm text-stone-600 dark:text-stone-400">
                           Transactions
@@ -423,8 +427,8 @@ export default function UserWallet() {
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        <Badge className={getStatusColor(wallet.status)}>
-                          {wallet.status}
+                        <Badge className={getStatusColor(wallet.status || 'inactive')}>
+                          {wallet.status || 'inactive'}
                         </Badge>
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />
@@ -440,10 +444,10 @@ export default function UserWallet() {
                     <div className="flex items-center justify-between text-sm text-stone-600 dark:text-stone-400">
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        Last Activity: {formatDate(wallet.lastActivity)}
+                        Last Activity: {formatDate(wallet.lastActivity || new Date().toISOString())}
                       </div>
                       <div>
-                        Joined: {formatDate(wallet.user.joinedDate)}
+                        Joined: {formatDate(wallet.user?.joinedDate || new Date().toISOString())}
                       </div>
                     </div>
                   </div>

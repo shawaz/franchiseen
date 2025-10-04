@@ -1463,12 +1463,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         <DialogContent className="sm:max-w-[500px] dark:bg-stone-900">
           <DialogHeader>
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                <Store className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
               <div>
                 <DialogTitle className="text-xl">Buy Franchise Shares</DialogTitle>
-                <p className="text-sm text-stone-500 dark:text-stone-400">Become a part of {franchise.name}</p>
               </div>
             </div>
           </DialogHeader>
@@ -1490,6 +1486,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                       const target = e.target as HTMLImageElement;
                       target.src = '/images/placeholder-logo.svg';
                     }}
+                    unoptimized
                   />
                 </div>
               </div>
@@ -1499,7 +1496,6 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center text-sm text-stone-500 dark:text-stone-400">
-                    <MapPin className="h-4 w-4 mr-1.5 flex-shrink-0" />
                     <span>
                       {franchise.location.area}, {franchise.location.city}, {franchise.location.country}
                     </span>

@@ -67,8 +67,8 @@ export function useWalletUiSigner() {
 
   // Always call the hook but with safe values to prevent WalletStandardError
   const rawSigner = useWalletAccountTransactionSendingSigner(
-    hasValidAccount ? safeValues.safeAccount as UiWalletAccount : undefined,
-    hasValidAccount ? safeValues.clusterId as `solana:${string}` : undefined
+    hasValidAccount ? safeValues.safeAccount as UiWalletAccount : safeValues.safeAccount as UiWalletAccount,
+    hasValidAccount ? safeValues.clusterId as `solana:${string}` : 'solana:devnet' as `solana:${string}`
   );
 
   // Check if the signer is valid and handle WalletStandardError

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
 
 // Query all properties with optional filtering
 export const getProperties = query({
@@ -753,18 +754,41 @@ export const checkPropertyStatusViolations = mutation({
       }
     }
     
-    // Impose penalties for violations
+    // Impose penalties for violations (inlined to avoid circular reference)
     const imposedPenalties = [];
     for (const violation of violations) {
-      const result = await imposePenalty({
-        propertyId,
-        penaltyType: violation.type,
+      const penalty = {
+        date: Date.now(),
+        type: violation.type,
         amount: violation.amount,
         reason: violation.reason,
         imposedBy: checkedBy,
+        status: "pending" as const,
         notes: "Automatically imposed due to status violation",
+      };
+      
+      const newPenaltyHistory = [...(property.penaltyHistory || []), penalty];
+      const newTotalPenalties = (property.totalPenalties || 0) + violation.amount;
+      const newUnpaidPenalties = (property.unpaidPenalties || 0) + violation.amount;
+      
+      // Add to contact history
+      const contactEntry = {
+        date: Date.now(),
+        type: "meeting" as const,
+        notes: `Penalty imposed: ${violation.type} - $${violation.amount} - ${violation.reason}`,
+        contactedBy: checkedBy,
+        outcome: "penalty_imposed",
+      };
+      
+      await ctx.db.patch(propertyId, {
+        penaltyHistory: newPenaltyHistory,
+        totalPenalties: newTotalPenalties,
+        unpaidPenalties: newUnpaidPenalties,
+        contactHistory: [...property.contactHistory, contactEntry],
+        updatedAt: Date.now(),
       });
-      imposedPenalties.push(result);
+      
+      imposedPenalties.push({ success: true, penaltyId: penalty.date });
     }
     
     return {
@@ -862,31 +886,122 @@ export const updatePropertyStatusWithPenaltyCheck = mutation({
       throw new Error("Property not found");
     }
     
-    // Update property stage and availability
-    await updatePropertyStage({
-      propertyId,
+    // Update property stage (inlined to avoid circular reference)
+    const stageContactEntry = {
+      date: Date.now(),
+      type: "meeting" as const,
+      notes: `Stage updated to: ${stage}${notes ? ` - ${notes}` : ''}`,
+      contactedBy: updatedBy,
+      outcome: stage,
+    };
+    
+    await ctx.db.patch(propertyId, {
       stage,
-      notes,
-      updatedBy,
+      contactHistory: [...property.contactHistory, stageContactEntry],
+      updatedAt: Date.now(),
     });
     
-    // Update availability if provided
+    // Update availability if provided (inlined to avoid circular reference)
     if (isAvailable !== undefined) {
-      await updatePropertyAvailability({
-        propertyId,
+      const availabilityContactEntry = {
+        date: Date.now(),
+        type: "meeting" as const,
+        notes: `Availability updated: ${isAvailable ? 'Available' : 'Unavailable'}${notes ? ` - ${notes}` : ''}`,
+        contactedBy: updatedBy,
+        outcome: isAvailable ? "available" : "unavailable",
+      };
+      
+      await ctx.db.patch(propertyId, {
         isAvailable,
-        updatedBy,
-        notes,
+        contactHistory: [...property.contactHistory, stageContactEntry, availabilityContactEntry],
+        updatedAt: Date.now(),
       });
     }
     
-    // Check for violations if requested
+    // Check for violations if requested (inlined to avoid circular reference)
     let violationsCheck = null;
     if (checkForViolations) {
-      violationsCheck = await checkPropertyStatusViolations({
-        propertyId,
-        checkedBy: updatedBy,
-      });
+      const violations = [];
+      const now = Date.now();
+      
+      // Check for late updates (if property is marked as available but no recent updates)
+      if (property.isAvailable && property.stage === "listing") {
+        const lastUpdate = property.updatedAt;
+        const daysSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60 * 24);
+        
+        if (daysSinceUpdate > 7) { // More than 7 days without update
+          violations.push({
+            type: "late_update" as const,
+            amount: 100, // $100 penalty for late updates
+            reason: `Property not updated for ${Math.floor(daysSinceUpdate)} days`,
+          });
+        }
+      }
+      
+      // Check for false availability (if property is marked available but actually rented/sold)
+      if (property.isAvailable && (property.stage === "rented" || property.stage === "sold")) {
+        violations.push({
+          type: "false_availability" as const,
+          amount: 500, // $500 penalty for false availability
+          reason: "Property marked as available but stage indicates it's rented/sold",
+        });
+      }
+      
+      // Check for contract breach (if fundraising period exceeded without update)
+      if (property.fundraisingStartDate && property.blockagePeriod) {
+        const fundraisingEndDate = property.fundraisingStartDate + (property.blockagePeriod * 24 * 60 * 60 * 1000);
+        if (now > fundraisingEndDate && property.stage === "blocked") {
+          violations.push({
+            type: "contract_breach" as const,
+            amount: 1000, // $1000 penalty for contract breach
+            reason: "Fundraising period exceeded without proper status update",
+          });
+        }
+      }
+      
+      // Impose penalties for violations (inlined to avoid circular reference)
+      const imposedPenalties = [];
+      for (const violation of violations) {
+        const penalty = {
+          date: Date.now(),
+          type: violation.type,
+          amount: violation.amount,
+          reason: violation.reason,
+          imposedBy: updatedBy,
+          status: "pending" as const,
+          notes: "Automatically imposed due to status violation",
+        };
+        
+        const newPenaltyHistory = [...(property.penaltyHistory || []), penalty];
+        const newTotalPenalties = (property.totalPenalties || 0) + violation.amount;
+        const newUnpaidPenalties = (property.unpaidPenalties || 0) + violation.amount;
+        
+        // Add to contact history
+        const penaltyContactEntry = {
+          date: Date.now(),
+          type: "meeting" as const,
+          notes: `Penalty imposed: ${violation.type} - $${violation.amount} - ${violation.reason}`,
+          contactedBy: updatedBy,
+          outcome: "penalty_imposed",
+        };
+        
+        await ctx.db.patch(propertyId, {
+          penaltyHistory: newPenaltyHistory,
+          totalPenalties: newTotalPenalties,
+          unpaidPenalties: newUnpaidPenalties,
+          contactHistory: [...property.contactHistory, penaltyContactEntry],
+          updatedAt: Date.now(),
+        });
+        
+        imposedPenalties.push({ success: true, penaltyId: penalty.date });
+      }
+      
+      violationsCheck = {
+        success: true,
+        violationsFound: violations.length,
+        penaltiesImposed: imposedPenalties.length,
+        violations,
+      };
     }
     
     return {

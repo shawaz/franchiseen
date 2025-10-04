@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // Create a new franchise
 export const createFranchise = mutation({
@@ -876,10 +877,46 @@ export const transitionToLaunchingStage = mutation({
       throw new Error("Funding not complete. Cannot transition to launching stage.");
     }
 
-    // Create franchise wallet and transfer funds from PDA
-    const walletResult = await ctx.runMutation("franchiseManagement:createFranchiseWallet", {
+    // Create franchise wallet and transfer funds from PDA (inlined to avoid circular reference)
+    // Find the funding PDA
+    const fundingPDA = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .filter((q) => q.eq(q.field("walletAddress"), q.field("walletAddress")))
+      .first();
+
+    if (!fundingPDA) {
+      throw new Error("Funding PDA not found");
+    }
+
+    // Create the actual franchise wallet
+    const franchiseWalletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
-      totalInvestment: investment.totalInvestment,
+      franchiserId: franchise.franchiserId,
+      walletAddress: `franchise_${args.franchiseId}_${Date.now()}`, // Actual franchise wallet address
+      balance: investment.totalInvestment,
+      currency: "USD",
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Transfer from funding PDA to franchise wallet
+    await ctx.db.insert("franchiseTransactions", {
+      franchiseId: args.franchiseId,
+      walletId: franchiseWalletId,
+      type: "initial_funding",
+      amount: investment.totalInvestment,
+      description: `Funding transferred from PDA to franchise wallet: $${investment.totalInvestment.toLocaleString()}`,
+      status: "completed",
+      transactionHash: `transfer_${args.franchiseId}_${Date.now()}`,
+      createdAt: Date.now(),
+    });
+
+    // Mark funding PDA as inactive
+    await ctx.db.patch(fundingPDA._id, {
+      status: "inactive",
+      updatedAt: Date.now(),
     });
 
     // Get franchiser to access brand wallet
@@ -891,7 +928,7 @@ export const transitionToLaunchingStage = mutation({
     // Transfer franchise fee to brand wallet
     const franchiseFeeTransaction = await ctx.db.insert("franchiseTransactions", {
       franchiseId: args.franchiseId,
-      walletId: walletResult.walletId,
+      walletId: franchiseWalletId,
       type: "transfer",
       amount: investment.franchiseFee,
       description: `Franchise fee transferred to brand wallet: $${investment.franchiseFee.toLocaleString()}`,
@@ -903,7 +940,7 @@ export const transitionToLaunchingStage = mutation({
     // Transfer setup cost to brand wallet (or vendor wallet if specified)
     const setupCostTransaction = await ctx.db.insert("franchiseTransactions", {
       franchiseId: args.franchiseId,
-      walletId: walletResult.walletId,
+      walletId: franchiseWalletId,
       type: "transfer",
       amount: investment.setupCost,
       description: `Setup cost transferred to brand wallet: $${investment.setupCost.toLocaleString()}`,
@@ -956,7 +993,7 @@ export const transitionToLaunchingStage = mutation({
     return {
       success: true,
       newStage: "launching",
-      franchiseWallet: walletResult.walletId,
+      franchiseWallet: franchiseWalletId,
       franchiseFeeTransferred: investment.franchiseFee,
       setupCostTransferred: investment.setupCost,
       launchDate: new Date(launchDate).toISOString(),
