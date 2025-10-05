@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Copy, Wallet, ArrowUpDown, CreditCard, RefreshCw, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -50,8 +50,6 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
     { franchiseId }
   );
 
-  // Mutation to fix invalid addresses (development only)
-  const fixInvalidAddresses = useMutation(api.franchiseWallet.fixInvalidFranchiseWalletAddresses);
 
   // Get franchise token data for token name and symbol
   const franchiseToken = useQuery(
@@ -378,8 +376,6 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
   // Note: We'll need to get createdAt from the franchise data
   // For now, let's use a default calculation
   const franchiseCreatedAt = Date.now() - (15 * 24 * 60 * 60 * 1000); // Assume 15 days ago for demo
-  const daysSinceCreation = Math.floor((Date.now() - franchiseCreatedAt) / (1000 * 60 * 60 * 24));
-  const daysRemaining = Math.max(0, 30 - daysSinceCreation);
 
   // Determine card color based on stage
   const getCardColor = () => {
@@ -397,8 +393,6 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
     switch (currentStage) {
       case 'funding':
         return {
-          title: 'Funding Phase',
-          subtitle: `${daysRemaining} days remaining`,
           progress: fundingProgress,
           goal: `$${totalInvestment.toLocaleString()}`,
           raised: `$${totalInvested.toLocaleString()}`,
@@ -406,8 +400,6 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
         };
       case 'launching':
         return {
-          title: 'Launching Phase',
-          subtitle: 'Setup in Progress',
           startDate: new Date(franchiseCreatedAt + (30 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
           endDate: new Date(franchiseCreatedAt + (75 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
           showBuyShares: false
@@ -415,26 +407,23 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
       case 'ongoing':
         const workingCapital = (franchiseWallet as { workingCapital?: number } | null)?.workingCapital || 0;
         const currentBalance = franchiseWallet?.usdBalance || 0;
-        const usedAmount = workingCapital - currentBalance;
+        const tokenSupply = franchiseToken?.totalSupply || 0;
+        const remainingToFill = Math.max(0, tokenSupply - currentBalance);
+        const progressPercentage = tokenSupply > 0 ? (currentBalance / tokenSupply) * 100 : 0;
         return {
-          title: 'Operational Phase',
-          subtitle: 'Franchise is Live',
           totalBudget: `$${workingCapital.toLocaleString()}`,
+          tokenSupply: tokenSupply,
           remainingBudget: `$${currentBalance.toLocaleString()}`,
-          usedAmount: `$${usedAmount.toLocaleString()}`,
-          remainingPercentage: workingCapital > 0 ? (currentBalance / workingCapital) * 100 : 0,
+          remainingToFill: remainingToFill,
+          remainingPercentage: progressPercentage,
           showBuyShares: false
         };
       case 'closed':
         return {
-          title: 'Closed',
-          subtitle: 'Franchise operations ended',
           showBuyShares: false
         };
       default:
         return {
-          title: 'Funding Phase',
-          subtitle: 'Active',
           showBuyShares: true
         };
     }
@@ -504,26 +493,6 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               </button>
             )}
             
-            {/* Development only: Fix invalid addresses button */}
-            {process.env.NODE_ENV === 'development' && (
-              <button
-                onClick={async () => {
-                  try {
-                    const result = await fixInvalidAddresses();
-                    toast.success(`Fixed ${result.results.filter((r: { status: string }) => r.status === 'fixed').length} addresses`);
-                    console.log('Fix results:', result);
-                  } catch (error) {
-                    toast.error('Failed to fix addresses');
-                    console.error('Fix error:', error);
-                  }
-                }}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs font-medium transition"
-                title="Fix invalid wallet addresses (dev only)"
-              >
-                Fix Addr
-              </button>
-            )}
-            
             <Badge 
               variant="default"
               className={`${
@@ -578,27 +547,29 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
 
           {/* Stage-specific content */}
           <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold">{stageContent.title}</h4>
-              <span className="text-sm text-white/80">{stageContent.subtitle}</span>
-            </div>
 
             {/* Progress Bars for All Stages */}
             {currentStage === 'funding' && (
               <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Funding Progress</span>
-                  <span>{fundingProgress.toFixed(1)}%</span>
-                </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-white transition-all duration-300"
                     style={{ width: `${Math.min(fundingProgress, 100)}%` }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-xs mt-1">
-                  <span>Raised: {stageContent.raised}</span>
-                  <span>Goal: {stageContent.goal}</span>
+              </div>
+            )}
+
+            {/* Funding Phase - Raised/Goal Info */}
+            {currentStage === 'funding' && (
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-white/10 rounded-lg p-3">
+                  <div className="text-white/80 text-xs">Raised</div>
+                  <div className="text-white font-semibold">{stageContent.raised}</div>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3 text-right">
+                  <div className="text-white/80 text-xs">Goal</div>
+                  <div className="text-white font-semibold">{stageContent.goal}</div>
                 </div>
               </div>
             )}
@@ -606,19 +577,11 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             {/* Launching Progress Bar */}
             {currentStage === 'launching' && (
               <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Launch Timeline</span>
-                  <span>Setup Phase</span>
-                </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-white transition-all duration-300"
                     style={{ width: '100%' }}
                   ></div>
-                </div>
-                <div className="flex justify-between text-xs mt-1">
-                  <span>Start: {stageContent.startDate}</span>
-                  <span>End: {stageContent.endDate}</span>
                 </div>
               </div>
             )}
@@ -626,19 +589,11 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             {/* Ongoing Progress Bar */}
             {currentStage === 'ongoing' && (
               <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Budget Utilization</span>
-                  <span>{stageContent.remainingPercentage?.toFixed(1) || '0.0'}% Remaining</span>
-                </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-white transition-all duration-300"
-                    style={{ width: `${100 - (stageContent.remainingPercentage || 0)}%` }}
+                    style={{ width: `${Math.min(stageContent.remainingPercentage || 0, 100)}%` }}
                   ></div>
-                </div>
-                <div className="flex justify-between text-xs mt-1">
-                  <span>Used: {stageContent.usedAmount}</span>
-                  <span>Remaining: {stageContent.remainingBudget}</span>
                 </div>
               </div>
             )}
@@ -670,7 +625,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
                   <div className="text-white/80 text-xs">Start Date</div>
                   <div className="text-white font-semibold">{stageContent.startDate}</div>
                 </div>
-                <div className="bg-white/10 rounded-lg p-3">
+                <div className="bg-white/10 rounded-lg p-3 text-right">
                   <div className="text-white/80 text-xs">End Date</div>
                   <div className="text-white font-semibold">{stageContent.endDate}</div>
                 </div>
@@ -681,13 +636,12 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             {currentStage === 'ongoing' && (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="bg-white/10 rounded-lg p-3">
-                  <div className="text-white/80 text-xs">Total Budget</div>
-                  <div className="text-white font-semibold">{stageContent.totalBudget}</div>
+                  <div className="text-white/80 text-xs">Total Budget (Token Supply)</div>
+                  <div className="text-white font-semibold">${stageContent.tokenSupply}</div>
                 </div>
-                <div className="bg-white/10 rounded-lg p-3">
+                <div className="bg-white/10 rounded-lg p-3 text-right">
                   <div className="text-white/80 text-xs">Remaining</div>
-                  <div className="text-white font-semibold">
-                    {stageContent.remainingBudget} ({stageContent.remainingPercentage?.toFixed(1) || '0.0'}%)
+                  <div className="text-white font-semibold">${stageContent.remainingToFill}
                   </div>
                 </div>
               </div>

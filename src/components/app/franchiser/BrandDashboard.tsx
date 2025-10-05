@@ -13,8 +13,6 @@ import {
   Box,
   MapPin,
   Receipt,
-  CheckCircle,
-  Rocket,
 } from 'lucide-react';
 import { ProductsTab } from './ProductsTab';
 import { FranchiseTab } from './FranchiseTab';
@@ -24,14 +22,11 @@ import { SetupTab } from './SetupTab';
 import { TeamTab } from './TeamTab';
 import SettingsTab from './SettingsTab';
 import { LocationTab } from './LocationTab';
-import FinanceTab from './FinanceTab';
-import ApprovalTab from './ApprovalTab';
-import LaunchTab from './LaunchTab';
 import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
 import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
-import { Id } from '../../../../convex/_generated/dataModel';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { Id } from '../../../../convex/_generated/dataModel';
 import { Badge } from '@/components/ui/badge';
 
 interface BrandDashboardProps {
@@ -145,9 +140,22 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   const { franchiseData, isLoading, error } = useFranchiseBySlug(brandSlug);
   const logoUrl = useConvexImageUrl(franchiseData?.franchiser.logoUrl);
   
+  // Get franchise locations data for the map
+  const franchisesData = useQuery(api.franchiseManagement.getFranchises, 
+    franchiseData?.franchiser._id ? { 
+      limit: 100
+    } : "skip"
+  );
+  
   // Get product image URLs
   const allProductImages = franchiseData?.products.flatMap(product => product.images) || [];
   const productImageUrls = useConvexImageUrls(allProductImages);
+
+  // Filter franchise locations for this brand
+  const brandFranchiseLocations = franchisesData?.filter(franchise => 
+    franchise.franchiserId === franchiseData?.franchiser._id
+  ) || [];
+  
 
   if (isLoading) {
     return (
@@ -178,10 +186,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'franchise', label: 'Franchise', icon: Store },
-    { id: 'approval', label: 'Approval', icon: CheckCircle },
-    { id: 'launch', label: 'Launch', icon: Rocket },
     { id: 'products', label: 'Products', icon: Box },
-    { id: 'finance', label: 'Finance', icon: CreditCard },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'locations', label: 'Locations', icon: MapPin },
     // { id: 'setup', label: 'Setup', icon: Receipt },
@@ -326,30 +331,11 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
             />
           )}
           {activeTab === 'franchise' && <FranchiseTab />}
-          {activeTab === 'approval' && <ApprovalTab franchiserId={franchiseData.franchiser._id} />}
-          {activeTab === 'launch' && <LaunchTab franchiserId={franchiseData.franchiser._id} />}
-          {activeTab === 'finance' && (
-            <FinanceTab 
-              franchiserId={franchiseData.franchiser._id}
-              initialData={{
-                minCarpetArea: franchiseData.locations[0]?.minArea,
-                franchiseFee: franchiseData.locations[0]?.franchiseFee,
-                setupCostPerSqft: franchiseData.locations[0]?.setupCost,
-                workingCapitalPerSqft: franchiseData.locations[0]?.workingCapital,
-                royaltyPercentage: (franchiseData.franchiser as { royaltyPercentage?: number }).royaltyPercentage,
-                setupBy: (franchiseData.franchiser as { setupBy?: "DESIGN_INTERIOR_BY_BRAND" | "DESIGN_INTERIOR_BY_FRANCHISEEN" | "DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN" }).setupBy,
-                estimatedMonthlyRevenue: (franchiseData.franchiser as { estimatedMonthlyRevenue?: number }).estimatedMonthlyRevenue,
-              }}
-              onUpdateFinance={(updates) => {
-                // TODO: Implement finance update callback
-                console.log('Finance updated:', updates);
-              }}
-            />
-          )}
           {activeTab === 'transactions' && <TransactionsTab franchiserId={franchiseData.franchiser._id} />}
           {activeTab === 'locations' && (
             <LocationTab 
               locations={franchiseData.locations}
+              franchiseLocations={brandFranchiseLocations}
               onUpdateLocation={(locationId, updates) => {
                 // TODO: Implement location update mutation
                 console.log('Update location:', locationId, updates);
@@ -385,9 +371,14 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
                   endTime: '18:00'
                 }
               }}
+              interiorImages={franchiseData.franchiser.interiorImages || []}
               onUpdateBrand={(updates) => {
                 // TODO: Implement brand update mutation
                 console.log('Update brand:', updates);
+              }}
+              onUpdateInteriorImages={(images) => {
+                // TODO: Implement interior images update mutation
+                console.log('Update interior images:', images);
               }}
             />
           )}

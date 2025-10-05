@@ -193,19 +193,27 @@ interface LocationData {
 
 interface LocationTabProps {
   locations: Location[];
+  franchiseLocations?: Array<Record<string, unknown>>;
   onUpdateLocation?: (locationId: string, updates: Partial<Location>) => void;
   onDeleteLocation?: (locationId: string) => void;
   onAddLocation?: (location: Omit<Location, '_id'>) => void;
 }
 
 export function LocationTab({ 
-  locations
+  locations,
+  franchiseLocations = []
 }: LocationTabProps) {
+  // Use franchise locations data
+  const effectiveFranchiseLocations = franchiseLocations;
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [locationData, setLocationData] = useState<Record<string, LocationData>>({});
   const [showMapView, setShowMapView] = useState(false);
   const [mapCenter] = useState({ lat: 25.2048, lng: 55.2708 }); // Default to Dubai
   const [mapZoom, setMapZoom] = useState(12);
+  const [radius, setRadius] = useState(1); // Default 1KM radius
+  const [selectedLocation, setSelectedLocation] = useState<{lat: number, lng: number, address: string} | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
+  const [activeInfoWindowId, setActiveInfoWindowId] = useState<string | null>(null);
 
   // Helper function to get country code
   const getCountryCode = (countryName: string): string | undefined => {
@@ -234,6 +242,75 @@ export function LocationTab({
     return selectedCountries.some(country => 
       normalizeCountryName(country) === normalizedName
     );
+  };
+
+  // Helper function to calculate distance between two points in kilometers
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Check if a location is within exclusion radius of existing locations
+  const isLocationWithinExclusionRadius = (lat: number, lng: number): { withinRadius: boolean; nearestLocation?: string } => {
+    const allExistingLocations = [
+      // Add existing locations from database
+      ...(locations || []).filter(loc => loc.coordinates),
+      // Add manually selected locations with coordinates
+      ...selectedCountries
+        .map(country => ({ ...locationData[country], country }))
+        .filter(data => data.coordinates)
+    ];
+
+    for (const location of allExistingLocations) {
+      if (location.coordinates) {
+        const distance = calculateDistance(
+          lat, lng,
+          location.coordinates.lat, location.coordinates.lng
+        );
+        
+        if (distance <= radius) {
+          return {
+            withinRadius: true,
+            nearestLocation: 'city' in location && location.city ? `${location.city}, ${location.country}` : location.country
+          };
+        }
+      }
+    }
+
+    return { withinRadius: false };
+  };
+
+  // Handle location selection from map
+  const handleLocationSelect = (location: { lat: number; lng: number; address: string }) => {
+    setSelectedLocation(location);
+    
+    // Check if location is within exclusion radius
+    const radiusCheck = isLocationWithinExclusionRadius(location.lat, location.lng);
+    
+    if (radiusCheck.withinRadius) {
+      setLocationWarning(
+        `⚠️ This location is within ${radius}KM of existing franchise "${radiusCheck.nearestLocation}". Franchise may not be available here.`
+      );
+    } else {
+      setLocationWarning(null);
+    }
+  };
+
+  const handleMarkerClick = (markerId: string) => {
+    setActiveInfoWindowId(activeInfoWindowId === markerId ? null : markerId);
+  };
+
+  const handleRemoveSoldLocation = () => {
+    // TODO: Implement actual removal mutation
+    toast.success('Sold location removed successfully!');
+    setActiveInfoWindowId(null);
   };
 
   // Handle license file upload for a country
@@ -310,24 +387,84 @@ export function LocationTab({
 
 
 
-  // Get map markers for all locations
+  // Get map markers for all locations (existing, franchise, and selected)
   const getMapMarkers = () => {
-    return selectedCountries.map(country => {
+    
+    const markers: Array<{
+      id: string;
+      position: { lat: number; lng: number };
+      title: string;
+      status: 'available' | 'sold' | 'not_available';
+      statusInfo: { color: string; bg: string; text: string };
+      franchiseFee: number;
+      minArea: number;
+    }> = [];
+
+    // Add markers for active franchise locations (funding, launching, ongoing)
+    if (effectiveFranchiseLocations && effectiveFranchiseLocations.length > 0) {
+      effectiveFranchiseLocations.forEach((franchise) => {
+        
+        const location = franchise.location as { coordinates?: { lat: number; lng: number }; city?: string; country?: string } | undefined;
+        const stage = franchise.stage as string;
+        const status = franchise.status as string;
+        const investment = franchise.investment as { franchiseFee?: number } | undefined;
+        
+        if (location?.coordinates && 
+            (stage === 'funding' || stage === 'launching' || stage === 'ongoing') &&
+            status === 'approved') {
+          const marker = {
+            id: `franchise-${franchise._id}`,
+            position: location.coordinates,
+            title: `${franchise.businessName} - ${location.city}, ${location.country}`,
+            status: 'available' as const, // Green for active franchises
+            statusInfo: getStatusInfo('available'),
+            franchiseFee: investment?.franchiseFee || 0,
+            minArea: 0, // Will be updated when we have minArea data
+          };
+          markers.push(marker);
+        }
+      });
+    }
+
+    // Add markers for existing locations from database (sold locations outside Franchiseen)
+    if (locations && locations.length > 0) {
+      locations.forEach((location) => {
+        if (location.coordinates) {
+          const status = ('status' in location ? location.status : 'available') as 'available' | 'sold' | 'not_available';
+          const statusInfo = getStatusInfo(status);
+          const marker = {
+            id: `existing-${location._id}`,
+            position: location.coordinates,
+            title: `${('city' in location && location.city) ? `${location.city}, ` : ''}${location.country}`,
+            status: status,
+            statusInfo,
+            franchiseFee: location.franchiseFee || 0,
+            minArea: location.minArea || 0,
+          };
+          markers.push(marker);
+        }
+      });
+    }
+
+    // Add markers for manually selected countries
+    selectedCountries.forEach(country => {
       const data = locationData[country];
-      if (!data?.coordinates) return null;
+      if (!data?.coordinates) return;
       
       const statusInfo = getStatusInfo(data.status);
       
-      return {
-        id: country,
+      markers.push({
+        id: `selected-${country}`,
         position: data.coordinates,
         title: country,
         status: data.status,
         statusInfo,
         franchiseFee: data.franchiseFee,
         minArea: data.minArea,
-      };
-    }).filter((marker): marker is NonNullable<typeof marker> => marker !== null);
+      });
+    });
+
+    return markers;
   };
 
   // Initialize selected countries from existing locations
@@ -414,8 +551,8 @@ export function LocationTab({
       {showMapView && (
         <div className="space-y-4">
 
-          {/* Map with Zoom Controls */}
-          <div className="space-y-2">
+          {/* Map Controls */}
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-stone-900 dark:text-stone-100">Interactive Map</h4>
               <div className="flex gap-2">
@@ -442,6 +579,53 @@ export function LocationTab({
                 </Button>
               </div>
             </div>
+
+            {/* Radius Input */}
+            <div className="flex items-center gap-4">
+              <Label htmlFor="radius" className="text-sm font-medium">
+                Exclusion Radius:
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="radius"
+                  type="number"
+                  min="0.1"
+                  max="50"
+                  step="0.1"
+                  value={radius}
+                  onChange={(e) => setRadius(parseFloat(e.target.value) || 1)}
+                  className="w-20"
+                />
+                <span className="text-sm text-stone-500">KM</span>
+              </div>
+              <p className="text-xs text-stone-500">
+                Franchises won&apos;t be available within this radius of existing locations
+              </p>
+            </div>
+
+            {/* Radius Input */}
+            <div className="flex items-center gap-4">
+              <Label htmlFor="radius" className="text-sm font-medium">
+                Exclusion Radius:
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="radius"
+                  type="number"
+                  min="0.1"
+                  max="50"
+                  step="0.1"
+                  value={radius}
+                  onChange={(e) => setRadius(parseFloat(e.target.value) || 1)}
+                  className="w-20"
+                />
+                <span className="text-sm text-stone-500">KM</span>
+              </div>
+              <p className="text-xs text-stone-500">
+                Franchises won&apos;t be available within this radius of existing locations
+              </p>
+            </div>
+
             <div className="w-full h-[500px] bg-stone-100 dark:bg-stone-800 rounded-lg overflow-hidden">
               <GoogleMapsLoader
                 loadingFallback={
@@ -460,15 +644,85 @@ export function LocationTab({
                 )}
               >
                 <MapComponent
-                  onLocationSelect={() => {}}
+                  onLocationSelect={handleLocationSelect}
                   initialCenter={mapCenter}
-                  selectedLocation={null}
+                  selectedLocation={selectedLocation}
                   markers={getMapMarkers()}
                   zoom={mapZoom}
+                  onMarkerClick={handleMarkerClick}
+                  activeInfoWindowId={activeInfoWindowId}
+                  onRemoveSoldLocation={handleRemoveSoldLocation}
                 />
               </GoogleMapsLoader>
             </div>
           </div>
+
+          {/* Selected Location Info and Warning */}
+          {(selectedLocation || locationWarning) && (
+            <div className="space-y-3">
+              {selectedLocation && (
+                <Card className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-medium text-stone-900 dark:text-stone-100 mb-2">
+                        Selected Location
+                      </h4>
+                      <p className="text-sm text-stone-600 dark:text-stone-400">
+                        <strong>Address:</strong> {selectedLocation.address}
+                      </p>
+                      <p className="text-sm text-stone-600 dark:text-stone-400">
+                        <strong>Coordinates:</strong> {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setSelectedLocation(null);
+                        setLocationWarning(null);
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      onClick={() => {
+                        // TODO: Implement mark as sold functionality
+                        toast.success('Location marked as sold!');
+                        setSelectedLocation(null);
+                        setLocationWarning(null);
+                      }}
+                      disabled={!!locationWarning}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Mark this location sold
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {locationWarning && (
+                <Card className="p-4 border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+                  <div className="flex items-start gap-3">
+                    <div className="text-orange-600 dark:text-orange-400 mt-0.5">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-orange-800 dark:text-orange-200 mb-1">
+                        Location Conflict Warning
+                      </h4>
+                      <p className="text-sm text-orange-700 dark:text-orange-300">
+                        {locationWarning}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
 
         </div>
       )}
@@ -1041,7 +1295,7 @@ export function LocationTab({
       )}
 
       {/* Map View Empty State */}
-      {selectedCountries.length === 0 && showMapView && (
+      {selectedCountries.length === 0 && (!locations || locations.length === 0) && showMapView && (
         <Card className="text-center py-12">
           <CardContent>
             <MapPin className="h-12 w-12 text-stone-400 mx-auto mb-4" />

@@ -32,6 +32,7 @@ const FranchiseeAvatar: React.FC<{
 };
 // import { useWallet } from "@solana/wallet-adapter-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +46,8 @@ import {
   Globe, 
   MapPin,
   Search,
+  Receipt,
+  TrendingUp,
 } from 'lucide-react';
 import Image from 'next/image';
 // import FranchisePOSWallet from '../FranchisePOSWallet';
@@ -61,9 +64,10 @@ import type {
   Franchisee, 
   BudgetItem, 
   MonthlyRevenue, 
-  FranchiseStoreProps,
-  TabId 
-} from "@/types/ui";
+  FranchiseStoreProps
+} from "@/types/ui"; // Updated TabId type
+
+type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' | 'transactions';
 
 // Helper function to add income records to the income table
 const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' | 'subscription', amount: number, source: string, description: string, transactionHash?: string) => {
@@ -548,8 +552,144 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     { id: 'products', label: 'Products', icon: Box },
     { id: 'franchisee', label: 'Franchisee', icon: Users },
     { id: 'finances', label: 'Finances', icon: DollarSign },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
     // { id: 'reviews', label: 'Reviews', icon: Star },
   ];
+
+  // Transactions Tab Component
+  const TransactionsTab = () => {
+    // Get user wallet to fetch transactions
+    const userWalletAddress = userWallet?.publicKey;
+    
+    // Get transactions from localStorage (similar to how it's stored in the buy tokens function)
+    const getTransactions = () => {
+      if (!userWalletAddress) return [];
+      
+      try {
+        const transactionsData = localStorage.getItem(`transactions_${userWalletAddress}`);
+        return transactionsData ? JSON.parse(transactionsData) : [];
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+        return [];
+      }
+    };
+
+    const transactions = getTransactions();
+
+    if (!userWalletAddress) {
+      return (
+        <div className="space-y-6 py-12">
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <Receipt className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-stone-800 mb-2">Wallet Not Connected</h3>
+              <p className="text-stone-600">
+                Please connect your wallet to view transaction history.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (transactions.length === 0) {
+      return (
+        <div className="space-y-6 py-12">
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <Receipt className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-stone-800 mb-2">No Transactions</h3>
+              <p className="text-stone-600">
+                Your transaction history will appear here once you make your first purchase.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Transaction History</h2>
+          <p className="text-sm text-stone-600">
+            {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found
+          </p>
+        </div>
+        
+        <div className="space-y-4">
+          {transactions.map((transaction: {
+            id?: string;
+            description?: string;
+            timestamp: string;
+            franchiseSlug?: string;
+            transactionHash?: string;
+            amount?: number;
+            status?: string;
+            sharesPurchased?: number;
+            type?: string;
+          }, index: number) => (
+            <Card key={transaction.id || index} className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    {transaction.type === 'share_purchase' ? (
+                      <TrendingUp className="h-5 w-5 text-blue-600" />
+                    ) : (
+                      <Receipt className="h-5 w-5 text-blue-600" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white">
+                      {transaction.description || 'Transaction'}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-gray-500">
+                        {new Date(transaction.timestamp).toLocaleDateString()} at{' '}
+                        {new Date(transaction.timestamp).toLocaleTimeString()}
+                      </p>
+                      {transaction.franchiseSlug && (
+                        <>
+                          <span className="text-gray-300">•</span>
+                          <p className="text-sm text-blue-600 font-medium">
+                            {transaction.franchiseSlug}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    {transaction.transactionHash && (
+                      <div className="mt-1">
+                        <p className="text-xs text-gray-400 font-mono">
+                          Hash: {transaction.transactionHash.slice(0, 8)}...{transaction.transactionHash.slice(-8)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-blue-600">
+                    -${transaction.amount?.toLocaleString() || '0'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge 
+                      variant={transaction.status === 'confirmed' ? 'default' : 'secondary'}
+                    >
+                      {transaction.status || 'pending'}
+                    </Badge>
+                    {transaction.sharesPurchased && (
+                      <Badge variant="outline">
+                        {transaction.sharesPurchased} shares
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Store tab component
   const FranchiseTab = () => {
@@ -1088,6 +1228,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       {activeTab === 'franchise' && <FranchiseTab />}
       
+      {activeTab === 'transactions' && <TransactionsTab />}
       
       {activeTab === 'products' && (
             <div className="space-y-6">

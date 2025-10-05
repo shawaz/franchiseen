@@ -9,14 +9,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useAuth } from '@/contexts/AuthContext';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { useConvexImageUrls } from '@/hooks/useConvexImageUrl';
 import { useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
+import { Plus, UploadCloud, X } from 'lucide-react';
 
 // Reserved words that cannot be used as brand URLs
 const RESERVED_WORDS = [
@@ -45,17 +46,32 @@ interface SettingsTabProps {
       endTime: string;
     };
   };
+  interiorImages?: string[];
   onUpdateBrand?: (updates: Partial<SettingsTabProps['brandData']>) => void;
+  onUpdateInteriorImages?: (images: string[]) => void;
 }
 
-export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: SettingsTabProps) {
-  const { } = useAuth();
+export default function SettingsTab({ 
+  franchiserId, 
+  brandData, 
+  interiorImages = [],
+  onUpdateBrand
+}: SettingsTabProps) {
+  // SettingsTab component for brand management
   const { industries, categories, isLoading: masterDataLoading } = useMasterData();
   const { uploadFile } = useFileUpload();
   const updateFranchiser = useMutation(api.franchises.updateFranchiser);
   
   // State for loading
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // State for interior photos
+  const [isDragging, setIsDragging] = useState(false);
+  const [interiorPhotos, setInteriorPhotos] = useState<Array<{ id: string; file: File; preview: string }>>([]);
+  const [removedExistingPhotos, setRemovedExistingPhotos] = useState<Set<number>>(new Set());
+  
+  // Get existing interior image URLs using Convex hook
+  const existingInteriorImageUrls = useConvexImageUrls((interiorImages as Id<"_storage">[]) || []);
 
   // State for validation errors
   const [validationErrors, setValidationErrors] = useState<{
@@ -82,6 +98,7 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
     logoFile: null as File | null,
     logoPreview: brandData?.logoUrl || null as string | null,
   });
+
 
   // Validation helper functions
   const validateWebsite = (website: string): boolean => {
@@ -214,6 +231,75 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
     }));
   };
 
+  // Handle interior photos upload
+  const handleInteriorFiles = async (files: File[]) => {
+    const validFiles = files.filter(file => {
+      const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      
+      if (!validTypes.includes(file.type)) {
+        toast.error(`Invalid file type: ${file.name}. Only JPG, PNG are allowed.`);
+        return false;
+      }
+      
+      if (file.size > maxSize) {
+        toast.error(`File too large: ${file.name}. Maximum size is 5MB.`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    const newPhotos = await Promise.all(validFiles.map(async (file, index) => {
+      // Create new file with brand URL as filename reference
+      const fileExtension = file.name.split('.').pop();
+      const newFileName = `${formData.brandName || 'brand'}-interior-${index + 1}.${fileExtension}`;
+      const renamedFile = new File([file], newFileName, { type: file.type });
+      
+      // Create preview URL using FileReader as base64
+      const previewUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            resolve(e.target.result as string);
+          } else {
+            reject(new Error('Failed to read file'));
+          }
+        };
+        reader.onerror = () => reject(new Error('FileReader error'));
+        reader.readAsDataURL(file);
+      });
+      
+      return {
+        id: Math.random().toString(36).substring(7),
+        file: renamedFile,
+        preview: previewUrl
+      };
+    }));
+    
+    setInteriorPhotos(prev => {
+      const updated = [...prev, ...newPhotos];
+      return updated.slice(0, 10); // Limit to 10 photos max
+    });
+  };
+
+  // Remove interior photo
+  const removeInteriorPhoto = (id: string) => {
+    setInteriorPhotos(prev => {
+      return prev.filter(photo => photo.id !== id);
+    });
+  };
+
+  // Remove existing interior photo
+  const removeExistingInteriorPhoto = (index: number) => {
+    setRemovedExistingPhotos(prev => {
+      const newSet = new Set(prev);
+      newSet.add(index);
+      return newSet;
+    });
+  };
+
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -227,10 +313,25 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
     
     try {
       let logoStorageId = null;
+      let interiorImageStorageIds: string[] = [];
       
       // Upload logo if there's a new file
       if (formData.logoFile) {
         logoStorageId = await uploadFile(formData.logoFile);
+      }
+
+      // Upload interior photos if there are new files
+      if (interiorPhotos.length > 0) {
+        const newImageStorageIds = await Promise.all(
+          interiorPhotos.map(photo => uploadFile(photo.file))
+        );
+        interiorImageStorageIds = [...interiorImageStorageIds, ...newImageStorageIds];
+      }
+
+      // Keep existing photos that weren't removed
+      if (interiorImages && interiorImages.length > 0) {
+        const keptExistingImageIds = interiorImages.filter((_, index) => !removedExistingPhotos.has(index));
+        interiorImageStorageIds = [...interiorImageStorageIds, ...keptExistingImageIds];
       }
       
       // Prepare update data
@@ -243,6 +344,7 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
         website?: string;
         logoStorageId?: string;
         logoUrl?: Id<"_storage">;
+        interiorImages?: Id<"_storage">[];
       } = {
         id: franchiserId as Id<"franchiser">,
         name: formData.brandName,
@@ -255,6 +357,11 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
       // Add logo URL if uploaded
       if (logoStorageId) {
         updateData.logoUrl = logoStorageId as Id<"_storage">;
+      }
+
+      // Add interior images if uploaded
+      if (interiorImageStorageIds.length > 0) {
+        updateData.interiorImages = interiorImageStorageIds as Id<"_storage">[];
       }
       
       // Update franchiser
@@ -318,6 +425,9 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
     <Card className="w-full py-6">
       <CardContent>
         <div className="space-y-6">
+          {/* Brand Settings Section */}
+          <div className="space-y-6">
+
           {/* Logo Upload */}
           <div className="space-y-2">
             <Label htmlFor="logo">Brand Logo *</Label>
@@ -649,6 +759,137 @@ export default function SettingsTab({ franchiserId, brandData, onUpdateBrand }: 
             >
               {isUpdating ? 'Saving...' : 'Save Changes'}
             </Button>
+          </div>
+          </div>
+
+          {/* Interior Photos Section */}
+          <div className="space-y-6 border-t pt-6">
+            <h3 className="text-lg font-semibold">Interior Photos</h3>
+            <p className="text-stone-500 text-sm">
+              Upload high-quality photos of your franchise interiors. These will be displayed to potential franchisees.
+              (Minimum 3 photos, maximum 10)
+            </p>
+            
+            <div 
+              className="border-2 border-dashed border-stone-300 dark:border-stone-700 rounded-lg p-8 text-center cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/50 transition-colors"
+              onClick={() => document.getElementById('interior-photos')?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={async (e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                const files = Array.from(e.dataTransfer.files);
+                await handleInteriorFiles(files);
+              }}
+            >
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <UploadCloud className={`w-12 h-12 ${isDragging ? 'text-yellow-600' : 'text-stone-400'}`} />
+                <p className="text-sm text-stone-600 dark:text-stone-400">
+                  <span className="font-medium text-yellow-600 hover:text-yellow-700">Click to upload</span> or drag and drop
+                </p>
+                <p className="text-xs text-stone-500">
+                  PNG, JPG, JPEG (max. 5MB each)
+                </p>
+              </div>
+              <input
+                type="file"
+                id="interior-photos"
+                className="hidden"
+                accept="image/png, image/jpeg, image/jpg"
+                multiple
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  await handleInteriorFiles(files);
+                }}
+              />
+            </div>
+
+            {/* Uploaded Photos Grid */}
+            <div className="mt-6">
+              <h4 className="text-sm font-medium mb-3">
+                Interior Photos ({(existingInteriorImageUrls?.filter((_, index) => !removedExistingPhotos.has(index)).length || 0) + interiorPhotos.length}/10)
+                {((existingInteriorImageUrls?.filter((_, index) => !removedExistingPhotos.has(index)).length || 0) + interiorPhotos.length) < 3 && (
+                  <span className="text-red-500 text-xs font-normal ml-2">
+                    Minimum 3 photos required
+                  </span>
+                )}
+              </h4>
+              {(!existingInteriorImageUrls || existingInteriorImageUrls.length === 0) && interiorPhotos.length === 0 ? (
+                <div className="text-center py-8">
+                  <UploadCloud className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-stone-600 dark:text-stone-400 mb-2">
+                    No interior photos uploaded yet
+                  </h3>
+                  <p className="text-stone-500 mb-4">
+                    Upload interior photos to showcase your franchise to potential franchisees
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {/* Existing photos */}
+                  {existingInteriorImageUrls?.map((imageUrl, index) => {
+                    if (removedExistingPhotos.has(index)) return null;
+                    return (
+                      <div key={`existing-${index}`} className="relative group">
+                        <Image
+                          src={imageUrl || ''}
+                          alt="Interior preview"
+                          width={300}
+                          height={128}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => removeExistingInteriorPhoto(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                          Existing
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* New photos */}
+                  {interiorPhotos.map((photo) => (
+                    <div key={photo.id} className="relative group">
+                      <Image
+                        src={photo.preview}
+                        alt="Interior preview"
+                        width={300}
+                        height={128}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => removeInteriorPhoto(photo.id)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <div className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                        New
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {((existingInteriorImageUrls?.filter((_, index) => !removedExistingPhotos.has(index)).length || 0) + interiorPhotos.length) < 10 && (
+                    <label 
+                      htmlFor="interior-photos" 
+                      className="border-2 border-dashed border-stone-300 dark:border-stone-700 rounded-lg flex flex-col items-center justify-center h-32 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900/50 transition-colors"
+                    >
+                      <Plus className="w-8 h-8 text-stone-400 mb-1" />
+                      <span className="text-xs text-stone-500">Add Photo</span>
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

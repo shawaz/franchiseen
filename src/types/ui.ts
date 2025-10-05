@@ -134,7 +134,7 @@ export interface TabConfig {
 }
 
 // Tab ID type for franchise store
-export type TabId = 'products' | 'franchise' | 'franchisee' | 'finances';
+export type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' | 'transactions';
 
 // Product interface for franchise store
 export interface Product {

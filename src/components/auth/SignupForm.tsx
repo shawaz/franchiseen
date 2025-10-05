@@ -370,10 +370,10 @@ export function SignupForm({ onBack, onSuccess }: SignupFormProps) {
                     <SelectValue placeholder="Select your country" />
                   </SelectTrigger>
                   <SelectContent>
-                    {countries?.map((country: { _id: string; name: string; flag?: string }) => (
-                      <SelectItem key={country._id} value={country.name}>
+                    {countries?.map((country: { _id: string; name: string; code: string; flag?: string }) => (
+                      <SelectItem key={country._id} value={country.code}>
                         {country.flag && <span className="mr-2">{country.flag}</span>}
-                        {country.name}
+                        {country.code}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -61,9 +61,22 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
     // Always show total budget/token issued as first value
     const firstValue = totalBudget || totalInvestment || 0;
     
-    // Progress bar calculation: Total Investment - Current Wallet Balance
-    const progressValue = (totalInvestment || 0) - (currentBalance || 0);
-    const progressPercentage = (totalInvestment || 0) > 0 ? (progressValue / (totalInvestment || 0)) * 100 : 0;
+    // Progress bar calculation: How much has been raised vs total investment
+    // For funding stage: show how much has been raised
+    // For other stages: show completion status
+    let progressPercentage = 0;
+    let progressLabel = "";
+    
+    if (stage === 'funding') {
+      // During funding, show raised amount vs total investment
+      const raisedAmount = (totalInvestment || 0) - (currentBalance || 0);
+      progressPercentage = (totalInvestment || 0) > 0 ? (raisedAmount / (totalInvestment || 0)) * 100 : 0;
+      progressLabel = `${formatCurrency(raisedAmount)} raised`;
+    } else {
+      // For other stages, show completion status
+      progressPercentage = 100;
+      progressLabel = "Complete";
+    }
 
     return (
       <>
@@ -79,7 +92,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
           </div>
         </div>
 
-        {/* Progress Bar - Total Investment - Current Wallet Balance */}
+        {/* Progress Bar - Funding Progress */}
         <div className="mt-2">
           <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
             <div
@@ -93,8 +106,8 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
             ></div>
           </div>
           <div className="flex justify-between text-xs mt-1">
-            <span>{formatCurrency(currentBalance || 0)} Current Wallet Balance</span>
-            <span>{formatCurrency(progressValue)} Used</span>
+            <span>{progressLabel}</span>
+            <span>{formatCurrency(totalInvestment || 0)} Goal</span>
           </div>
         </div>
 

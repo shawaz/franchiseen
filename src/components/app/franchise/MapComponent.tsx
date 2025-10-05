@@ -1,6 +1,6 @@
 "use client";
 
-import { GoogleMap, Marker } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, MapPinIcon } from 'lucide-react';
@@ -21,6 +21,9 @@ interface MapComponentProps {
     onClick?: () => void;
   }>;
   zoom?: number;
+  onMarkerClick?: (markerId: string) => void;
+  activeInfoWindowId?: string | null;
+  onRemoveSoldLocation?: (locationId: string) => void;
 }
 
 const MapComponent = ({
@@ -29,6 +32,9 @@ const MapComponent = ({
   selectedLocation,
   markers = [],
   zoom = 12,
+  onMarkerClick,
+  activeInfoWindowId,
+  onRemoveSoldLocation,
 }: MapComponentProps) => {
   const [isSelecting, setSelecting] = useState(true);
   const [mapCenter, setMapCenter] = useState(initialCenter);
@@ -213,21 +219,57 @@ const MapComponent = ({
               };
 
               return (
-                <Marker
-                  key={marker.id}
-                  position={marker.position}
-                  title={`${marker.title} - ${marker.statusInfo.text}`}
-                  onClick={marker.onClick}
-                  icon={{
-                    url: 'data:image/svg+xml;base64,' + btoa(`
-                      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="16" cy="16" r="12" fill="${getMarkerColor(marker.status)}" stroke="white" stroke-width="3"/>
-                        <path d="M16 8L20 16L16 24L12 16L16 8Z" fill="white"/>
-                      </svg>
-                    `),
-                    scaledSize: new google.maps.Size(32, 32),
-                  }}
-                />
+                <div key={marker.id}>
+                  <Marker
+                    position={marker.position}
+                    title={`${marker.title} - ${marker.statusInfo.text}`}
+                    onClick={() => {
+                      if (marker.onClick) {
+                        marker.onClick();
+                      } else if (onMarkerClick) {
+                        onMarkerClick(marker.id);
+                      }
+                    }}
+                    icon={{
+                      url: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="16" cy="16" r="12" fill="${getMarkerColor(marker.status)}" stroke="white" stroke-width="3"/>
+                          <path d="M16 8L20 16L16 24L12 16L16 8Z" fill="white"/>
+                        </svg>
+                      `),
+                      scaledSize: new google.maps.Size(32, 32),
+                    }}
+                  />
+                  {activeInfoWindowId === marker.id && (
+                    <InfoWindow
+                      position={marker.position}
+                      onCloseClick={() => onMarkerClick && onMarkerClick(marker.id)}
+                    >
+                      <div className="p-2 min-w-[200px]">
+                        <h3 className="font-semibold text-gray-900 mb-2">{marker.title}</h3>
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <p><strong>Status:</strong> <span className={`px-2 py-1 rounded text-xs ${marker.statusInfo.bg} ${marker.statusInfo.color}`}>{marker.statusInfo.text}</span></p>
+                          <p><strong>Franchise Fee:</strong> ${marker.franchiseFee.toLocaleString()}</p>
+                          <p><strong>Min Area:</strong> {marker.minArea} sq ft</p>
+                        </div>
+                        {marker.status === 'sold' && onRemoveSoldLocation && (
+                          <div className="mt-3">
+                            <Button
+                              onClick={() => {
+                                onRemoveSoldLocation(marker.id);
+                              }}
+                              size="sm"
+                              variant="outline"
+                              className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                            >
+                              Remove this sold location
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </InfoWindow>
+                  )}
+                </div>
               );
             })}
           </GoogleMap>

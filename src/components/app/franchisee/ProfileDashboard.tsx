@@ -14,7 +14,7 @@ import {
   Store,
   PieChart,
 } from 'lucide-react';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useSolana } from '@/components/solana/use-solana';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,11 +38,6 @@ export default function ProfileDashboard() {
     investorId: walletAddress || 'no-wallet'
   });
 
-  // Test data mutations
-  const createTestShares = useMutation(api.testData.createTestFranchiseShares);
-  const createTestInvoices = useMutation(api.testData.createTestInvoices);
-  const createTestTokens = useMutation(api.createTestTokens.createTestTokensForFranchises);
-  const createTestTokenHoldings = useMutation(api.createTestTokens.createTestTokenHoldings);
   const debugData = useQuery(api.testData.debugInvestorData, { 
     investorId: walletAddress || 'no-wallet'
   });
@@ -145,53 +140,6 @@ export default function ProfileDashboard() {
           
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Debug Section */}
-              <Card className="p-4 bg-blue-50 dark:bg-blue-900/20">
-                <h3 className="text-lg font-semibold mb-4">Debug Information</h3>
-                <div className="space-y-2 text-sm">
-                  <p><strong>Generated Wallet Address:</strong> {walletAddress || 'Not available'}</p>
-                  <p><strong>Connected Wallet:</strong> {account?.address || 'Not connected'}</p>
-                  <p><strong>User Profile:</strong> {userProfile ? 'Available' : 'Not available'}</p>
-                  <p><strong>Shares Count:</strong> {sharesData?.length || 0}</p>
-                  <p><strong>Debug Data:</strong> {debugData ? `${debugData.sharesCount} shares, ${debugData.invoicesCount} invoices` : 'Loading...'}</p>
-                  <p><strong>Share Statuses:</strong> {debugShares ? `${debugShares.summary.confirmedShares} confirmed, ${debugShares.summary.pendingShares} pending` : 'Loading...'}</p>
-                  <p><strong>Total Amounts:</strong> {debugShares ? `Confirmed: $${debugShares.totals.confirmedShares.amount.toLocaleString()}, All: $${debugShares.totals.allShares.amount.toLocaleString()}` : 'Loading...'}</p>
-                  {walletAddress && (
-                    <div className="flex gap-2 mt-4 flex-wrap">
-                      <button
-                        onClick={() => createTestShares({ investorId: walletAddress })}
-                        className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                      >
-                        Create Test Shares
-                      </button>
-                      <button
-                        onClick={() => createTestInvoices({ investorId: walletAddress })}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                      >
-                        Create Test Invoices
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await createTestTokens();
-                            await createTestTokenHoldings();
-                            alert('Test tokens created successfully!');
-                          } catch (error) {
-                            console.error('Error creating test tokens:', error);
-                            alert('Error creating test tokens');
-                          }
-                        }}
-                        className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
-                      >
-                        Create Test Tokens
-                      </button>
-                    </div>
-                  )}
-                  {!walletAddress && (
-                    <p className="text-red-600 mt-4">Please sign up/login to get a wallet address.</p>
-                  )}
-                </div>
-              </Card>
 
               {/* Stats Overview */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
