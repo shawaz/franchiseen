@@ -1,8 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FranchiseCardProps } from "@/types/ui";
 
@@ -25,17 +23,15 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   industryName,
   category,
   categoryName,
-  price,
   image,
-  investorsCount,
   totalInvestment,
-  totalInvested,
-  fundingProgress,
   startDate,
   endDate,
-  launchProgress,
   currentBalance,
   totalBudget,
+  sharesRemaining,
+  estimatedMonthlyRevenue,
+  currentMonthlyRevenue,
   id,
   brandSlug,
   franchiseSlug,
@@ -43,7 +39,6 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   buildingName,
   doorNumber,
 }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
   const router = useRouter();
 
   const formatCurrency = (amount: number) => {
@@ -61,111 +56,98 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
     });
   };
 
-  const calculateLaunchProgress = () => {
-    if (launchProgress !== undefined) return launchProgress;
-    if (!startDate || !endDate) return 0;
-
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
-    const now = new Date().getTime();
-
-    if (now < start) return 0;
-    if (now > end) return 100;
-
-    return Math.round(((now - start) / (end - start)) * 100);
-  };
 
   const renderCardContent = () => {
-    switch (type) {
-      case "fund":
-        const investmentProgress = totalInvestment ? ((totalInvested || 0) / totalInvestment) * 100 : 0;
-        
-        return (
-          <>
-            <div className="flex justify-between items-center mt-2">
-              <p className="font-semibold">{formatCurrency(totalInvestment || 0)}</p>
-              <div className="text-sm text-blue-600 font-medium">
-                {Math.round(investmentProgress)}% Invested
+    // Always show total budget/token issued as first value
+    const firstValue = totalBudget || totalInvestment || 0;
+    
+    // Progress bar calculation: Total Investment - Current Wallet Balance
+    const progressValue = (totalInvestment || 0) - (currentBalance || 0);
+    const progressPercentage = (totalInvestment || 0) > 0 ? (progressValue / (totalInvestment || 0)) * 100 : 0;
+
+    return (
+      <>
+        {/* First value - always show total budget/token issued */}
+        <div className="flex justify-between items-center mt-2">
+          <p className="font-semibold">{formatCurrency(firstValue)}</p>
+          <div className="text-sm font-medium">
+            {stage === 'funding' && <span className="text-blue-600">Funding</span>}
+            {stage === 'launching' && <span className="text-yellow-600">Launching</span>}
+            {stage === 'ongoing' && <span className="text-green-600">Ongoing</span>}
+            {stage === 'closed' && <span className="text-gray-600">Closed</span>}
+            {!stage && <span className="text-blue-600">Funding</span>}
+          </div>
+        </div>
+
+        {/* Progress Bar - Total Investment - Current Wallet Balance */}
+        <div className="mt-2">
+          <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+            <div
+              className={`h-2 transition-all duration-300 ${
+                stage === 'funding' ? 'bg-blue-500' :
+                stage === 'launching' ? 'bg-yellow-500' :
+                stage === 'ongoing' ? 'bg-green-500' :
+                'bg-gray-500'
+              }`}
+              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+            ></div>
+          </div>
+          <div className="flex justify-between text-xs mt-1">
+            <span>{formatCurrency(currentBalance || 0)} Current Wallet Balance</span>
+            <span>{formatCurrency(progressValue)} Used</span>
+          </div>
+        </div>
+
+        {/* Stage-specific data */}
+        <div className="mt-3 space-y-2">
+          {stage === 'funding' && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">EMR (Estimated Monthly Revenue)</span>
+                <span className="font-semibold text-green-600">{formatCurrency(estimatedMonthlyRevenue || 0)}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Shares Remaining</span>
+                <span className="font-semibold text-blue-600">{sharesRemaining || 0}</span>
+              </div>
+            </>
+          )}
+
+          {stage === 'launching' && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Start Date</span>
+                <span className="font-semibold">{startDate ? formatDate(startDate) : 'TBD'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">End Date</span>
+                <span className="font-semibold">{endDate ? formatDate(endDate) : 'TBD'}</span>
+              </div>
+            </>
+          )}
+
+          {stage === 'ongoing' && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">EMR (Estimated Monthly Revenue)</span>
+                <span className="font-semibold text-green-600">{formatCurrency(estimatedMonthlyRevenue || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">CMR (Current Monthly Revenue)</span>
+                <span className="font-semibold text-blue-600">{formatCurrency(currentMonthlyRevenue || 0)}</span>
+              </div>
+            </>
+          )}
+
+          {stage === 'closed' && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Status</span>
+              <span className="font-semibold text-gray-600">Project Completed</span>
             </div>
-            <div className="mt-2">
-              <div className="w-full bg-gray-200 h-2 ">
-                <div
-                  className="bg-blue-500 h-2 "
-                  style={{
-                    width: `${investmentProgress}%`,
-                  }}
-                ></div>
-              </div>
-              <div className="flex justify-between text-xs mt-1">
-                <span>{formatCurrency(totalInvested || 0)} raised</span>
-                <span>{formatCurrency((totalInvestment || 0) - (totalInvested || 0))} remaining</span>
-              </div>
-            </div>
-          </>
-        );
-      case "launch":
-        const progressPercent = calculateLaunchProgress();
-        return (
-          <>
-            <div className="flex justify-between items-center mt-2">
-              <p className="font-semibold">{formatCurrency(price)}</p>
-              <div className="text-sm text-yellow-600 font-medium">
-                {progressPercent}% Complete
-              </div>
-            </div>
-            {startDate && endDate && (
-              <div className="mt-2">
-                <div className="w-full bg-gray-200 h-2 ">
-                  <div
-                    className="bg-yellow-500 h-2  transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs  mt-1">
-                  <span>Start: {formatDate(startDate)}</span>
-                  <span>End: {formatDate(endDate)}</span>
-                </div>
-              </div>
-            )}
-            {/* <div className="mt-2">
-              <span className="inline-block px-2 py-1  text-xs font-medium bg-blue-100 text-blue-800">
-                Launching
-              </span>
-            </div> */}
-          </>
-        );
-      case "live":
-        const budgetProgress =
-          ((currentBalance || 150000) / (totalBudget || 300000)) * 100;
-        return (
-          <>
-            <div className="flex justify-between items-center mt-2">
-              <p className="font-semibold">{formatCurrency(price)}</p>
-              <div className="text-sm text-green-600 font-medium">
-                {formatCurrency(price)} MRR
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="w-full bg-gray-200 dark:bg-neutral-600 h-2 ">
-                <div
-                  className="bg-green-500 h-2 "
-                  style={{ width: `${budgetProgress}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between text-xs mt-1">
-                <span>{formatCurrency(fundingProgress || 0)} Remaining</span>
-                <span>{investorsCount} Franchisee</span>
-              </div>
-            </div>
-            {/* <div className="mt-2">
-              <span className="inline-block px-2 py-1  text-xs font-medium bg-purple-100 text-purple-800">
-                Outlets
-              </span>
-            </div> */}
-          </>
-        );
-    }
+          )}
+        </div>
+      </>
+    );
   };
 
   // Determine the navigation path based on franchise type
@@ -216,37 +198,35 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               <p className="text-muted-foreground">Image not available</p>
             </div>
           )}
-          <div className="flex items-center justify-between">
-
-            {/* Stage Badge */}
-          {stage && (
-            <div className="mt-2 absolute  left-4 top-3">
-              <span className={`inline-block px-4 uppercase font-bold py-2 text-xs font-medium rounded-full ${
-                stage === 'funding' 
-                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                  : stage === 'launching'
-                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
-                  : stage === 'ongoing'
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-              }`}>
-                {stage.charAt(0).toUpperCase() + stage.slice(1)}
-              </span>
-            </div>
-          )}
-           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFavorite(!isFavorite);
-            }}
-            className="absolute top-4 right-4 p-2  bg-background/80"
-          >
-            <Heart
-              size={20}
-              className={isFavorite ? "fill-destructive text-destructive" : ""}
-            />
-          </button>
-          </div>
+          {/* <div className="flex items-center justify-between">
+            {stage && (
+              <div className="mt-2 absolute  left-4 top-3">
+                <span className={`inline-block px-4 uppercase font-bold py-2 text-xs font-medium rounded-full ${
+                  stage === 'funding' 
+                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
+                    : stage === 'launching'
+                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
+                    : stage === 'ongoing'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                }`}>
+                  {stage.charAt(0).toUpperCase() + stage.slice(1)}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFavorite(!isFavorite);
+              }}
+              className="absolute top-4 right-4 p-2  bg-background/80"
+            >
+              <Heart
+                size={20}
+                className={isFavorite ? "fill-destructive text-destructive" : ""}
+              />
+            </button>
+          </div> */}
          
         </div>
         <div className="p-4">

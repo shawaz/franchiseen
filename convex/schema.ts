@@ -255,11 +255,133 @@ export default defineSchema({
     status: v.union(
       v.literal("pending"),
       v.literal("confirmed"),
-      v.literal("failed")
+      v.literal("failed"),
+      v.literal("refunded")
     ),
     purchasedAt: v.number(),
+    refundedAt: v.optional(v.number()),
+    refundTransactionHash: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_franchise", ["franchiseId"]).index("by_investor", ["investorId"]).index("by_status", ["status"]),
+
+  // SPL Token Management for Franchise Shares
+  franchiseTokens: defineTable({
+    franchiseId: v.id("franchises"),
+    tokenMint: v.string(), // SPL token mint address
+    tokenName: v.string(), // e.g., "Nike Dubai Shares"
+    tokenSymbol: v.string(), // e.g., "NIKE-DXB"
+    tokenDecimals: v.number(), // Usually 6 for shares
+    totalSupply: v.number(), // Total tokens minted
+    circulatingSupply: v.number(), // Tokens in circulation
+    sharePrice: v.number(), // Price per token in USD
+    status: v.union(
+      v.literal("created"),
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("completed"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"]).index("by_token_mint", ["tokenMint"]).index("by_status", ["status"]),
+
+  // Token Holdings for Investors
+  tokenHoldings: defineTable({
+    franchiseId: v.id("franchises"),
+    tokenMint: v.string(), // SPL token mint address
+    investorId: v.string(), // Investor's wallet address
+    balance: v.number(), // Current token balance
+    totalPurchased: v.number(), // Total tokens ever purchased
+    totalSold: v.number(), // Total tokens ever sold
+    averagePurchasePrice: v.number(), // Average price paid per token
+    lastTransactionAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"]).index("by_investor", ["investorId"]).index("by_token_mint", ["tokenMint"]).index("by_franchise_investor", ["franchiseId", "investorId"]),
+
+  // Token Transactions (mint, burn, transfer)
+  tokenTransactions: defineTable({
+    franchiseId: v.id("franchises"),
+    tokenMint: v.string(),
+    fromInvestorId: v.optional(v.string()), // null for minting
+    toInvestorId: v.optional(v.string()), // null for burning
+    amount: v.number(),
+    transactionType: v.union(
+      v.literal("mint"), // New tokens created
+      v.literal("burn"), // Tokens destroyed (refunds)
+      v.literal("transfer"), // Tokens moved between wallets
+      v.literal("purchase"), // Tokens purchased with fiat/crypto
+      v.literal("sale") // Tokens sold
+    ),
+    pricePerToken: v.optional(v.number()), // Price at time of transaction
+    totalValue: v.optional(v.number()), // amount × pricePerToken
+    solanaTransactionHash: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("failed")
+    ),
+    createdAt: v.number(),
+  }).index("by_franchise", ["franchiseId"]).index("by_token_mint", ["tokenMint"]).index("by_investor", ["toInvestorId"]).index("by_type", ["transactionType"]).index("by_status", ["status"]),
+
+  // Franchise Wallets - Each franchise gets its own Solana wallet
+  franchiseWallets: defineTable({
+    franchiseId: v.id("franchises"),
+    walletAddress: v.string(), // Solana wallet address
+    walletName: v.string(), // e.g., "Nike Dubai Franchise Wallet"
+    balance: v.number(), // Current SOL balance
+    usdBalance: v.number(), // USD equivalent
+    totalIncome: v.number(), // Total income received
+    totalExpenses: v.number(), // Total expenses paid
+    totalPayouts: v.number(), // Total payouts to investors
+    totalRoyalties: v.number(), // Total royalties paid to brand
+    monthlyRevenue: v.number(), // Current month revenue
+    monthlyExpenses: v.number(), // Current month expenses
+    transactionCount: v.number(), // Total number of transactions
+    lastActivity: v.number(), // Timestamp of last activity
+    status: v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("suspended"),
+      v.literal("maintenance")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"]).index("by_wallet_address", ["walletAddress"]).index("by_status", ["status"]),
+
+  // Franchise Wallet Transactions
+  franchiseWalletTransactions: defineTable({
+    franchiseWalletId: v.id("franchiseWallets"),
+    franchiseId: v.id("franchises"),
+    transactionType: v.union(
+      v.literal("income"), // Revenue from sales
+      v.literal("expense"), // Operational expenses
+      v.literal("payout"), // Payout to investors
+      v.literal("royalty"), // Royalty payment to brand
+      v.literal("transfer_in"), // Transfer from brand wallet
+      v.literal("transfer_out"), // Transfer to brand wallet
+      v.literal("funding"), // Initial funding
+      v.literal("refund") // Refund to investor
+    ),
+    amount: v.number(), // Amount in SOL
+    usdAmount: v.number(), // USD equivalent at time of transaction
+    description: v.string(),
+    category: v.optional(v.string()), // e.g., "rent", "utilities", "inventory"
+    solanaTransactionHash: v.string(), // Solana transaction hash for explorer
+    fromAddress: v.optional(v.string()), // Source wallet address
+    toAddress: v.optional(v.string()), // Destination wallet address
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("failed")
+    ),
+    metadata: v.optional(v.object({
+      notes: v.optional(v.string()),
+      attachments: v.optional(v.array(v.string())),
+      tags: v.optional(v.array(v.string())),
+    })),
+    createdAt: v.number(),
+  }).index("by_franchise_wallet", ["franchiseWalletId"]).index("by_franchise", ["franchiseId"]).index("by_type", ["transactionType"]).index("by_status", ["status"]).index("by_solana_hash", ["solanaTransactionHash"]),
 
   invoices: defineTable({
     franchiseId: v.id("franchises"),
@@ -500,23 +622,6 @@ export default defineSchema({
     .index("by_ownershipType", ["ownershipType"])
     .index("by_propertySubType", ["propertySubType"]),
 
-  // Franchise Wallets
-  franchiseWallets: defineTable({
-    franchiseId: v.id("franchises"),
-    franchiserId: v.id("franchiser"),
-    walletAddress: v.string(),
-    balance: v.number(),
-    currency: v.string(),
-    status: v.union(
-      v.literal("active"),
-      v.literal("inactive"),
-      v.literal("suspended")
-    ),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  }).index("by_franchise", ["franchiseId"])
-    .index("by_franchiser", ["franchiserId"])
-    .index("by_status", ["status"]),
 
   // Franchise Transactions
   franchiseTransactions: defineTable({
@@ -541,6 +646,33 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_franchise", ["franchiseId"])
     .index("by_wallet", ["walletId"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"]),
+
+  // Brand Wallet Transactions
+  brandWalletTransactions: defineTable({
+    franchiserId: v.id("franchiser"),
+    franchiseId: v.optional(v.id("franchises")),
+    type: v.union(
+      v.literal("franchise_funding_complete"),
+      v.literal("franchise_fee"),
+      v.literal("setup_cost"),
+      v.literal("revenue"),
+      v.literal("expense"),
+      v.literal("transfer")
+    ),
+    amount: v.number(),
+    description: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    transactionHash: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_franchiser", ["franchiserId"])
+    .index("by_franchise", ["franchiseId"])
     .index("by_type", ["type"])
     .index("by_status", ["status"]),
 

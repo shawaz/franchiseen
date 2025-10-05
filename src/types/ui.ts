@@ -43,6 +43,12 @@ export interface FranchiseCardProps {
   totalBudget?: number;
   activeOutlets?: number;
   
+  // Token and revenue data
+  totalShares?: number;
+  sharesRemaining?: number;
+  estimatedMonthlyRevenue?: number;
+  currentMonthlyRevenue?: number;
+  
   id: string;
   brandSlug?: string;
   franchiseSlug?: string;
@@ -91,6 +97,15 @@ export interface FranchiseDisplayData {
   totalBudget?: number;
   activeOutlets?: number;
   projectedAnnualYield?: number;
+  
+  // Token and revenue data
+  tokenName?: string;
+  tokenSymbol?: string;
+  totalShares?: number;
+  sharesRemaining?: number;
+  estimatedMonthlyRevenue?: number;
+  currentMonthlyRevenue?: number;
+  currentWalletBalance?: number;
 }
 
 // Wallet component props

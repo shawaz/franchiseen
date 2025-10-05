@@ -12,6 +12,9 @@ import {
   Settings,
   Box,
   MapPin,
+  Receipt,
+  CheckCircle,
+  Rocket,
 } from 'lucide-react';
 import { ProductsTab } from './ProductsTab';
 import { FranchiseTab } from './FranchiseTab';
@@ -21,14 +24,115 @@ import { SetupTab } from './SetupTab';
 import { TeamTab } from './TeamTab';
 import SettingsTab from './SettingsTab';
 import { LocationTab } from './LocationTab';
+import FinanceTab from './FinanceTab';
+import ApprovalTab from './ApprovalTab';
+import LaunchTab from './LaunchTab';
 import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
 import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
+import { Id } from '../../../../convex/_generated/dataModel';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { Badge } from '@/components/ui/badge';
 
 interface BrandDashboardProps {
   brandSlug: string;
 }
 
-type TabId = 'overview' | 'products' | 'franchise' | 'locations' | 'setup' | 'payouts' | 'team' | 'settings';
+
+
+// Brand Wallet Transactions Tab Component
+function TransactionsTab({ franchiserId }: { franchiserId: string }) {
+  const transactions = useQuery(
+    api.brandWallet.getBrandWalletTransactions,
+    franchiserId ? { franchiserId: franchiserId as Id<"franchiser">, limit: 50 } : "skip"
+  );
+
+  if (!transactions) {
+    return (
+      <div className="space-y-6 py-12">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+            <p className="text-stone-600">Loading transactions...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!transactions || transactions.length === 0) {
+    return (
+      <div className="space-y-6 py-12">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <Receipt className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-stone-800 mb-2">No Transactions</h3>
+            <p className="text-stone-600">
+              Brand wallet transactions will appear here once franchise funding is completed.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Brand Wallet Transactions</h2>
+        <p className="text-sm text-stone-600">
+          {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found
+        </p>
+      </div>
+      
+      <div className="space-y-4">
+        {transactions.map((transaction, index: number) => (
+          <Card key={index} className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white">
+                    {transaction.description}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-gray-500">
+                      {new Date(transaction.createdAt).toLocaleDateString()} at{' '}
+                      {new Date(transaction.createdAt).toLocaleTimeString()}
+                    </p>
+                    {transaction.franchise && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <p className="text-sm text-blue-600 font-medium">
+                          {transaction.franchise.title}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-semibold text-green-600">
+                  +${transaction.amount.toLocaleString()}
+                </p>
+                <Badge 
+                  variant={transaction.status === 'completed' ? 'default' : 'secondary'}
+                  className="mt-1"
+                >
+                  {transaction.status}
+                </Badge>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type TabId = 'overview' | 'products' | 'franchise' | 'approval' | 'launch' | 'finance' | 'transactions' | 'locations' | 'setup' | 'payouts' | 'team' | 'settings';
 
 type Tab = {
   id: TabId;
@@ -74,7 +178,11 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'franchise', label: 'Franchise', icon: Store },
+    { id: 'approval', label: 'Approval', icon: CheckCircle },
+    { id: 'launch', label: 'Launch', icon: Rocket },
     { id: 'products', label: 'Products', icon: Box },
+    { id: 'finance', label: 'Finance', icon: CreditCard },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'locations', label: 'Locations', icon: MapPin },
     // { id: 'setup', label: 'Setup', icon: Receipt },
     // { id: 'payouts', label: 'Payouts', icon: Receipt },
@@ -214,10 +322,31 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
           {activeTab === 'products' && (
             <ProductsTab 
               products={franchiseData.products} 
-              productImageUrls={productImageUrls?.filter(url => url !== null) as string[] || []} 
+              productImageUrls={productImageUrls?.filter((url: string | null) => url !== null) as string[] || []} 
             />
           )}
           {activeTab === 'franchise' && <FranchiseTab />}
+          {activeTab === 'approval' && <ApprovalTab franchiserId={franchiseData.franchiser._id} />}
+          {activeTab === 'launch' && <LaunchTab franchiserId={franchiseData.franchiser._id} />}
+          {activeTab === 'finance' && (
+            <FinanceTab 
+              franchiserId={franchiseData.franchiser._id}
+              initialData={{
+                minCarpetArea: franchiseData.locations[0]?.minArea,
+                franchiseFee: franchiseData.locations[0]?.franchiseFee,
+                setupCostPerSqft: franchiseData.locations[0]?.setupCost,
+                workingCapitalPerSqft: franchiseData.locations[0]?.workingCapital,
+                royaltyPercentage: (franchiseData.franchiser as { royaltyPercentage?: number }).royaltyPercentage,
+                setupBy: (franchiseData.franchiser as { setupBy?: "DESIGN_INTERIOR_BY_BRAND" | "DESIGN_INTERIOR_BY_FRANCHISEEN" | "DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN" }).setupBy,
+                estimatedMonthlyRevenue: (franchiseData.franchiser as { estimatedMonthlyRevenue?: number }).estimatedMonthlyRevenue,
+              }}
+              onUpdateFinance={(updates) => {
+                // TODO: Implement finance update callback
+                console.log('Finance updated:', updates);
+              }}
+            />
+          )}
+          {activeTab === 'transactions' && <TransactionsTab franchiserId={franchiseData.franchiser._id} />}
           {activeTab === 'locations' && (
             <LocationTab 
               locations={franchiseData.locations}
@@ -267,3 +396,4 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
     </div>
   );
 }
+

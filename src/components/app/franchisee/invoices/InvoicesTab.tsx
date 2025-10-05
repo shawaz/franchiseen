@@ -160,15 +160,16 @@ export default function InvoicesTab() {
     );
   }
 
-  // Show no wallet connected state
+  // Show no wallet available state
   if (!account?.address) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h3 className="text-xl font-bold text-stone-900 dark:text-white">INVOICES</h3>
-        </div>
-        <div className="text-center py-8">
-          <p className="text-gray-500">Please connect your wallet to view your invoices</p>
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <FileText className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-stone-800 mb-2">No Wallet Available</h3>
+            <p className="text-stone-600">Please sign up or login to get a wallet address and view your invoices</p>
+          </div>
         </div>
       </div>
     );

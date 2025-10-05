@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
 import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
+import FranchiseWallet from '../FranchiseWallet';
 
 // Component to handle franchisee avatar with Convex storage ID support
 const FranchiseeAvatar: React.FC<{
@@ -31,7 +32,7 @@ const FranchiseeAvatar: React.FC<{
 };
 // import { useWallet } from "@solana/wallet-adapter-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,8 +43,6 @@ import {
   Users, 
   Store, 
   Globe, 
-  Heart,
-  Share2,
   MapPin,
   Search,
 } from 'lucide-react';
@@ -55,6 +54,7 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
+import { SignupForm } from '@/components/auth/SignupForm';
 import { Id } from "../../../../../convex/_generated/dataModel";
 import type { 
   Product, 
@@ -203,7 +203,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     setupCost: convexFundraisingData.setupCost,
     workingCapital: convexFundraisingData.workingCapital,
     progressPercentage: convexFundraisingData.progressPercentage,
-    stage: convexFundraisingData.stage
+    stage: convexFundraisingData.stage,
+    status: convexFundraisingData.status || 'pending'
   } : {
     totalInvestment: franchiseData?.investment?.totalInvestment || 100000,
     invested: franchiseData?.investment?.totalInvested || 0,
@@ -215,8 +216,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     setupCost: franchiseData?.investment?.setupCost || 50000,
     workingCapital: franchiseData?.investment?.workingCapital || 30000,
     progressPercentage: 0,
-    stage: 'funding' as const
-  }, [convexFundraisingData, franchiseData?.investment]);
+    stage: 'funding' as const,
+    status: franchiseData?.status || 'pending' as const
+  }, [convexFundraisingData, franchiseData?.investment, franchiseData?.status]);
 
   // Purchase shares mutation for addInvestment function
   const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
@@ -275,24 +277,25 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // };
   
   // Shares slider state
-  const [sharesToBuy, setSharesToBuy] = useState(1);
+  const [tokensToBuy, setTokensToBuy] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<string>('All Items');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isBuySharesOpen, setIsBuySharesOpen] = useState(false);
+  const [isBuyTokensOpen, setIsBuyTokensOpen] = useState(false);
+  const [isSignupOpen, setIsSignupOpen] = useState(false);
   const platformFeePercentage = 2; // 2% platform fee
   const solToUsdRate = 150; // Current SOL to USD rate (example)
   
   // Get real data from fundraising data
   const totalShares = fundraisingData.totalShares || 100000;
   const sharePrice = fundraisingData.pricePerShare || 1;
-  const maxSharesToBuy = Math.min(fundraisingData.sharesRemaining || totalShares, totalShares);
+  const maxTokensToBuy = Math.min(fundraisingData.sharesRemaining || totalShares, totalShares);
   
-  // Reset shares to buy when modal opens or when max shares change
+  // Reset tokens to buy when modal opens or when max tokens change
   useEffect(() => {
-    if (isBuySharesOpen) {
-      setSharesToBuy(Math.min(1, maxSharesToBuy));
+    if (isBuyTokensOpen) {
+      setTokensToBuy(Math.min(1, maxTokensToBuy));
     }
-  }, [isBuySharesOpen, maxSharesToBuy]);
+  }, [isBuyTokensOpen, maxTokensToBuy]);
 
   // Get franchise PDA address for payments
   // const getFranchisePDAAddress = async () => {
@@ -572,7 +575,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         website: franchiserDetails?.website || 'www.franchise.com'
       },
       images: interiorImageUrls && interiorImageUrls.length > 0 
-        ? interiorImageUrls.filter(img => img !== null) as string[]
+        ? interiorImageUrls.filter((img: string | null) => img !== null) as string[]
         : [
         '/franchise/retail-1.png',
         '/franchise/retail-2.png',
@@ -800,14 +803,6 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     });
   }, [franchiseInvestors, fundraisingData.stage]);
 
-  // Use real fundraising data instead of hardcoded values
-  const fundingData = {
-    totalInvestment: fundraisingData.totalInvestment,
-    invested: fundraisingData.invested,
-    totalShares: fundraisingData.totalShares,
-    sharesRemaining: fundraisingData.sharesRemaining,
-    pricePerShare: fundraisingData.pricePerShare
-  };
 
   // Budget Table Component
   const BudgetTable = () => {
@@ -906,329 +901,16 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   return (
     <div className="space-y-6 py-12">
       
-      {/* Franchise Information Header */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            {/* Franchiser Logo */}
-            <div className="flex-shrink-0">
-              <div className="w-18 h-18 bg-white dark:bg-stone-700 flex items-center justify-center overflow-hidden border border-stone-200 dark:border-stone-700">
-              <Image 
-                src={logoUrl || '/logo/logo-4.svg'} 
-                alt={`${franchiserDetails?.name || 'Franchise'} logo`} 
-                width={72}
-                height={72}
-                className="object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/logo/logo-4.svg';
-                }}
-                unoptimized
-              />
-              </div>
-            </div>
-            
-            {/* Franchise Information */}
-            <div className="flex-1">
-              <div className="flex items-center space-x-4 mb-2">
-                <h1 className="text-3xl font-bold text-stone-800 dark:text-stone-200">
-                  {franchiseData?.franchiseSlug || 'Loading...'}
-                </h1>
-              </div>
-              
-              <div className="flex items-center space-x-6 text-sm text-stone-600 dark:text-stone-400">
-                <div>
-                  <span className="font-medium">Franchiser:</span> {franchiserDetails?.name || 'Loading...'}
-                </div>
-                <div>
-                  <span className="font-medium">Industry:</span> {franchiserDetails?.industryName || franchiserDetails?.industry || 'Loading...'}
-                </div>
-                <div>
-                  <span className="font-medium">Category:</span> {franchiserDetails?.categoryName || franchiserDetails?.category || 'Loading...'}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Like and Share Buttons */}
-          <div className="flex items-center space-x-3">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="flex items-center space-x-2"
-              onClick={() => {
-                // TODO: Implement like functionality
-                console.log('Like clicked');
-              }}
-            >
-              <Heart className="h-4 w-4" />
-              <span>Like</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="flex items-center space-x-2"
-              onClick={() => {
-                // TODO: Implement share functionality
-                if (navigator.share) {
-                  navigator.share({
-                    title: `${franchiseData?.franchiseSlug} - ${franchiserDetails?.name}`,
-                    text: `Check out this franchise opportunity: ${franchiserDetails?.name}`,
-                    url: window.location.href,
-                  });
-                } else {
-                  // Fallback: copy to clipboard
-                  navigator.clipboard.writeText(window.location.href);
-                  toast.success('Link copied to clipboard!');
-                }
-              }}
-            >
-              <Share2 className="h-4 w-4" />
-              <span>Share</span>
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Funding Progress - Only show if stage is funding */}
-      {fundraisingData.stage === 'funding' && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold">FUNDING</h3>
-              <Button 
-                className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                onClick={() => setIsBuySharesOpen(true)}
-              >
-                Buy Shares
-              </Button>
-            </div>
-            
-            {/* Progress Bar */}
-            <div className="h-2 bg-stone-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-green-500 transition-all duration-300"
-                  style={{ width: `${fundingData.totalShares > 0 ? (fundingData.totalShares - fundingData.sharesRemaining) / fundingData.totalShares * 100 : 0}%` }}
-                ></div>
-              </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-sm text-stone-600 dark:text-stone-400">Total Investment Target</div>
-                <div className="text-lg font-semibold">${fundingData.totalInvestment.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-stone-600 dark:text-stone-400">Amount Raised</div>
-                <div className="text-lg font-semibold text-green-600">${fundingData.invested.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-stone-600 dark:text-stone-400">Total Shares</div>
-                <div className="text-lg font-semibold">{fundingData.totalShares.toLocaleString()} shares</div>
-            </div>
-              <div>
-                <div className="text-sm text-stone-600 dark:text-stone-400">Shares Remaining</div>
-                <div className="text-lg font-semibold">{fundingData.sharesRemaining.toLocaleString()} shares</div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="text-sm text-blue-700 dark:text-blue-300">
-                <strong>Funding PDA:</strong> Investments are held in escrow until target is reached
-              </div>
-            </div>
-          </div>
-        </Card>
+      {/* Franchise Wallet */}
+      {franchiseData && (
+        <FranchiseWallet
+          franchiseId={franchiseData._id}
+          franchiseName={franchiseData.franchiseSlug}
+          franchiseLogo={logoUrl || '/logo/logo-4.svg'}
+          onBuyTokens={() => setIsBuyTokensOpen(true)}
+        />
       )}
 
-      {/* Debug Section - Only show in development */}
-      {/* {process.env.NODE_ENV === 'development' && debugStatus && (
-        <Card className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200">
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200">Debug Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium">Current Stage:</span> {debugStatus?.currentStage}
-              </div>
-              <div>
-                <span className="font-medium">Funding Progress:</span> {debugStatus?.fundingProgress?.toFixed(2)}%
-              </div>
-              <div>
-                <span className="font-medium">Total Investment:</span> ${debugStatus?.totalInvestment?.toLocaleString()}
-              </div>
-              <div>
-                <span className="font-medium">Total Invested:</span> ${debugStatus?.totalInvested?.toLocaleString()}
-              </div>
-              <div>
-                <span className="font-medium">Shares Count:</span> {debugStatus?.sharesCount}
-              </div>
-              <div>
-                <span className="font-medium">Should Transition:</span> {debugStatus?.shouldTransition ? 'Yes' : 'No'}
-              </div>
-              <div>
-                <span className="font-medium">Google Maps API Key:</span> {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? 'Present' : 'Missing'}
-            </div>
-              <div>
-                <span className="font-medium">Google Maps Loaded:</span> {typeof window !== 'undefined' && window.google?.maps ? 'Yes' : 'No'}
-              </div>
-              <div>
-                <span className="font-medium">Locations Count:</span> {(franchise as any).locations?.length || 0}
-              </div>
-            </div>
-            {debugStatus?.shouldTransition && (
-              <Button 
-                onClick={async () => {
-                  try {
-                    const result = await checkStageTransition({ franchiseId: debugStatus?.franchiseId });
-                    console.log('Stage transition result:', result);
-                    toast.success('Stage transition triggered!');
-                  } catch (error) {
-                    console.error('Error triggering stage transition:', error);
-                    toast.error('Failed to trigger stage transition');
-                  }
-                }}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white"
-              >
-                Trigger Stage Transition
-              </Button>
-            )}
-          </div>
-        </Card>
-      )} */}
-
-      {/* Launching Stage */}
-      {fundraisingData.stage === 'launching' && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">LAUNCHING</h3>
-                <p className="text-sm text-stone-600 dark:text-stone-400">Setup in Progress - 45 Day Timeline</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm text-blue-600 dark:text-blue-400">Active</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <div className="text-sm text-green-600 dark:text-green-400">Franchise Fee Transferred</div>
-                <div className="text-xl font-bold text-green-700 dark:text-green-300">${fundraisingData.franchiseFee?.toLocaleString() || '0'}</div>
-              </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="text-sm text-blue-600 dark:text-blue-400">Setup Cost Transferred</div>
-                <div className="text-xl font-bold text-blue-700 dark:text-blue-300">${fundraisingData.setupCost?.toLocaleString() || '0'}</div>
-              </div>
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <div className="text-sm text-purple-600 dark:text-purple-400">Remaining Balance</div>
-                <div className="text-xl font-bold text-purple-700 dark:text-purple-300">${fundraisingData.workingCapital?.toLocaleString() || '0'}</div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-blue-600 dark:text-blue-400">Setup Timeline</div>
-                  <div className="text-lg font-semibold">45 Days to Launch</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-blue-600 dark:text-blue-400">Status</div>
-                  <div className="text-sm font-medium">Setting up franchise</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Ongoing Stage - Show franchise balance */}
-      {fundraisingData.stage === 'ongoing' && (
-        <Card className="p-6">
-          <div className="flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">FRANCHISE OPERATIONAL</h2>
-                <p className="text-sm text-stone-600 dark:text-stone-400">Live and Generating Revenue</p>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-stone-600 dark:text-stone-400">Current Balance</div>
-                <div className="text-2xl font-bold text-green-600">${fundraisingData.workingCapital?.toLocaleString() || '0'}</div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <div className="text-sm text-green-600 dark:text-green-400">Total Invested</div>
-                <div className="text-xl font-bold text-green-700 dark:text-green-300">${fundraisingData.totalInvestment?.toLocaleString() || '0'}</div>
-              </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="text-sm text-blue-600 dark:text-blue-400">Franchise Fee</div>
-                <div className="text-xl font-bold text-blue-700 dark:text-blue-300">${fundraisingData.franchiseFee?.toLocaleString() || '0'}</div>
-              </div>
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <div className="text-sm text-purple-600 dark:text-purple-400">Setup Cost</div>
-                <div className="text-xl font-bold text-purple-700 dark:text-purple-300">${fundraisingData.setupCost?.toLocaleString() || '0'}</div>
-              </div>
-              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                <div className="text-sm text-orange-600 dark:text-orange-400">Working Capital</div>
-                <div className="text-xl font-bold text-orange-700 dark:text-orange-300">${fundraisingData.workingCapital?.toLocaleString() || '0'}</div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-green-600 dark:text-green-400">Operational Status</div>
-                  <div className="text-lg font-semibold">Franchise is Live</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-green-600 dark:text-green-400">Revenue Sharing</div>
-                  <div className="text-sm font-medium">Active</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Closed Stage */}
-      {fundraisingData.stage === 'closed' && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">FRANCHISE CLOSED</h3>
-                <p className="text-sm text-stone-600 dark:text-stone-400">Franchise has been closed</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-red-600 dark:text-red-400">Closed</span>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-              <div className="text-sm text-red-700 dark:text-red-300">
-                <strong>Reason:</strong> Franchise balance is empty or operations have been terminated
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Final Balance</div>
-                <div className="text-xl font-bold text-gray-700 dark:text-gray-300">$0</div>
-              </div>
-              <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Total Invested</div>
-                <div className="text-xl font-bold text-gray-700 dark:text-gray-300">${fundraisingData.totalInvestment?.toLocaleString() || '0'}</div>
-              </div>
-              <div className="p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Status</div>
-                <div className="text-xl font-bold text-gray-700 dark:text-gray-300">Closed</div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
       {/* Navigation Tabs */}
       <Card className="p-0">
         <div className="border-b border-stone-200 dark:border-stone-700">
@@ -1406,6 +1088,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       {activeTab === 'franchise' && <FranchiseTab />}
       
+      
       {activeTab === 'products' && (
             <div className="space-y-6">
               {/* Categories and Search */}
@@ -1511,8 +1194,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       </Card>
 
      
-      {/* Buy Shares Modal */}
-      <Dialog open={isBuySharesOpen} onOpenChange={setIsBuySharesOpen}>
+      {/* Buy Tokens Modal */}
+      <Dialog open={isBuyTokensOpen} onOpenChange={setIsBuyTokensOpen}>
         <DialogTrigger asChild>
           <div className="hidden"></div>
         </DialogTrigger>
@@ -1520,7 +1203,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           <DialogHeader>
             <div className="flex items-center space-x-3">
               <div>
-                <DialogTitle className="text-xl">Buy Franchise Shares</DialogTitle>
+                <DialogTitle className="text-xl">Buy Franchise Tokens</DialogTitle>
+                <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
+                  Each token represents 1 share in this franchise
+                </p>
               </div>
             </div>
           </DialogHeader>
@@ -1563,15 +1249,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           <div className="grid gap-4 py-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label htmlFor="shares">Select Number of Shares</Label>
-                <span className="text-sm font-medium">{sharesToBuy} shares</span>
+                <Label htmlFor="shares">Select Number of Tokens</Label>
+                <span className="text-sm font-medium">{tokensToBuy} tokens</span>
               </div>
               <Button variant="outline" className="w-full">
                 <Slider
-                  value={[sharesToBuy]}
-                  onValueChange={(value) => setSharesToBuy(value[0])}
+                  value={[tokensToBuy]}
+                  onValueChange={(value) => setTokensToBuy(value[0])}
                   min={1}
-                  max={maxSharesToBuy}
+                  max={maxTokensToBuy}
                   step={1}
                   className=""
                 />
@@ -1584,8 +1270,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  onClick={() => setSharesToBuy(prev => Math.max(1, prev - 1))}
-                  disabled={sharesToBuy <= 1}
+                  onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 1))}
+                  disabled={tokensToBuy <= 1}
                 >
                   -
                 </Button>
@@ -1593,23 +1279,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   id="shares"
                   type="number"
                   min="1"
-                  max={maxSharesToBuy}
-                  value={sharesToBuy}
-                  onChange={(e) => setSharesToBuy(Math.min(maxSharesToBuy, Math.max(1, parseInt(e.target.value) || 1)))}
+                  max={maxTokensToBuy}
+                  value={tokensToBuy}
+                  onChange={(e) => setTokensToBuy(Math.min(maxTokensToBuy, Math.max(1, parseInt(e.target.value) || 1)))}
                   className="text-center"
                 />
                 <Button 
                   variant="outline" 
                   size="icon"
-                  onClick={() => setSharesToBuy(prev => Math.min(maxSharesToBuy, prev + 1))}
-                  disabled={sharesToBuy >= maxSharesToBuy}
+                  onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 1))}
+                  disabled={tokensToBuy >= maxTokensToBuy}
                 >
                   +
                 </Button>
               </div>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Min: 1</span>
-                <span>Max: {maxSharesToBuy}</span>
+                <span>Max: {maxTokensToBuy}</span>
               </div>
             </div>
             
@@ -1617,16 +1303,16 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               <Label>Price Breakdown</Label>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span>{sharesToBuy} shares × ${sharePrice.toFixed(2)}</span>
-                  <span>${(sharesToBuy * sharePrice).toFixed(2)}</span>
+                  <span>{tokensToBuy} tokens × $1.00</span>
+                  <span>${(tokensToBuy * 1.00).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-b pb-2 mt-2">
                   <span>Platform fee ({platformFeePercentage}%)</span>
-                  <span>${((sharesToBuy * sharePrice * platformFeePercentage) / 100).toFixed(2)}</span>
+                  <span>${((tokensToBuy * 1.00 * platformFeePercentage) / 100).toFixed(2)}</span>
                 </div>
                 {/* <div className="border-t pt-2 mt-2 flex justify-between font-medium">
                   <span>Total</span>
-                  <span>${(sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)}</span>
+                  <span>${(tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)).toFixed(2)}</span>
                 </div> */}
               </div>
             </div>
@@ -1663,7 +1349,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           )}
 
           {/* No Shares Available Warning */}
-          {maxSharesToBuy <= 0 && (
+          {maxTokensToBuy <= 0 && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
@@ -1673,12 +1359,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           )}
 
           {/* Insufficient Balance Warning */}
-          {isWalletLoaded && userWallet.publicKey && userWallet.balance < (sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate && (
+          {isWalletLoaded && userWallet.publicKey && userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span className="text-sm text-red-700 dark:text-red-400">
-                  Insufficient balance. You need {((sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL but have {userWallet.balance.toFixed(4)} SOL
+                  Insufficient balance. You need {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL but have {userWallet.balance.toFixed(4)} SOL
                 </span>
               </div>
             </div>
@@ -1691,33 +1377,33 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 <p className="text-sm text-stone-600 dark:text-stone-300">Total Solana</p>
                 
                 <p className="text-sm text-stone-500 dark:text-stone-400">
-                  ≈ {((sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL
+                  ≈ {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL
                 </p>
               </div>
               <p className="text-2xl font-bold">
-                  ${(sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)} USD
+                  ${(tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)} USD
                 </p>
             </div>
           </div>
 
           <div className="flex justify-between items-center pt-2">
-            <Button variant="outline" onClick={() => setIsBuySharesOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsBuyTokensOpen(false)}>Cancel</Button>
             <Button 
               className="bg-yellow-600 hover:bg-yellow-700"
-              disabled={isProcessing || maxSharesToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
+              disabled={isProcessing || maxTokensToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
               onClick={async () => {
                 if (!isWalletLoaded || !userWallet.publicKey) {
                   toast.error('User wallet not found. Please complete your profile setup first.');
                   return;
                 }
 
-                console.log('Buy shares clicked! Starting transaction...');
+                console.log('Buy tokens clicked! Starting transaction...');
                 console.log('User wallet:', userWallet);
-                console.log('Shares to buy:', sharesToBuy);
+                console.log('Tokens to buy:', tokensToBuy);
                 console.log('Share price:', sharePrice);
 
                 // Calculate payment breakdown
-                const subtotalAmount = sharesToBuy * sharePrice;
+                const subtotalAmount = tokensToBuy * sharePrice;
                 const platformFeeAmount = subtotalAmount * (platformFeePercentage / 100);
                 const totalCost = subtotalAmount + platformFeeAmount;
                 
@@ -1798,7 +1484,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     description: `Platform fee from ${franchise.name} share purchase`,
                     transactionHash: transactionHash,
                     franchiseId: franchiseId,
-                    sharesPurchased: sharesToBuy
+                    sharesPurchased: tokensToBuy
                   };
                   
                   const platformFeeKey = `platform_fee_${Date.now()}_${franchiseId}`;
@@ -1807,7 +1493,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     key: platformFeeKey,
                     transaction: platformFeeTransaction,
                     platformFeeAmount: platformFeeAmount,
-                    sharesPurchased: sharesToBuy
+                    sharesPurchased: tokensToBuy
                   });
 
                   // Also add to income table
@@ -1815,7 +1501,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   
                   // Record the purchase in Convex using the real mutation
                   await addInvestment(
-                    sharesToBuy, 
+                    tokensToBuy, 
                     sharePrice, 
                     subtotalAmount, // Use subtotal without platform fee for consistency
                     userWallet.publicKey, 
@@ -1828,14 +1514,14 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     type: 'share_purchase',
                     amount: totalCost, // Total amount including platform fee
                     amountSOL: totalCostInSOL,
-                    description: `Purchased ${sharesToBuy} shares in ${franchise.name}`,
+                    description: `Purchased ${tokensToBuy} tokens in ${franchise.name}`,
                     franchiseSlug: franchiseId,
                     status: 'confirmed',
                     transactionHash: transactionHash,
                     timestamp: Date.now(),
                     fromAddress: userWallet.publicKey,
                     toAddress: franchisePDA.pda,
-                    sharesPurchased: sharesToBuy,
+                    sharesPurchased: tokensToBuy,
                     sharePrice: sharePrice
                   };
 
@@ -1852,18 +1538,18 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     const { updatePDASharesIssued } = await import('@/lib/franchisePDA');
                     const currentPDA = await getFranchisePDA(franchiseData._id);
                     if (currentPDA) {
-                      const newSharesIssued = currentPDA.sharesIssued + sharesToBuy;
+                      const newSharesIssued = currentPDA.sharesIssued + tokensToBuy;
                       const newTotalRaised = currentPDA.totalRaised + totalCost;
                       updatePDASharesIssued(franchiseData._id, newSharesIssued, newTotalRaised);
                     }
                   }
                   
                   // Reset form
-                  setSharesToBuy(1);
-                  setIsBuySharesOpen(false);
+                  setTokensToBuy(1);
+                  setIsBuyTokensOpen(false);
                   
                   // Show success message
-                  toast.success(`Successfully purchased ${sharesToBuy} shares for $${totalCost.toFixed(2)}! Transaction: ${transactionHash.slice(0, 8)}...`);
+                  toast.success(`Successfully purchased ${tokensToBuy} tokens for $${totalCost.toFixed(2)}! Transaction: ${transactionHash.slice(0, 8)}...`);
                   
                   // Check if funding is complete
                   if (franchiseData?._id) {
@@ -1883,10 +1569,29 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
             >
               {isProcessing ? 'Processing...' : 
                !isWalletLoaded || !userWallet.publicKey ? 'Wallet Not Ready' : 
-               userWallet.balance < (sharesToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate ? 'Insufficient Balance' :
-               'Buy Now'}
+               userWallet.balance < (tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)) / solToUsdRate ? 'Insufficient Balance' :
+               'Buy Tokens'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Signup Form Modal */}
+      <Dialog open={isSignupOpen} onOpenChange={setIsSignupOpen}>
+        <DialogContent className="sm:max-w-[600px] dark:bg-stone-900">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Sign Up to Buy Tokens</DialogTitle>
+            <DialogDescription>
+              You need to create an account to purchase franchise shares. Complete your registration below.
+            </DialogDescription>
+          </DialogHeader>
+          <SignupForm 
+            onBack={() => setIsSignupOpen(false)}
+            onSuccess={() => {
+              setIsSignupOpen(false);
+              setIsBuyTokensOpen(true);
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

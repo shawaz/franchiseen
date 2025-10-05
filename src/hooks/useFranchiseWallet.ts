@@ -1,199 +1,149 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Keypair } from '@solana/web3.js';
-import { 
-  createNewWallet, 
-  getWalletBalance, 
-  requestAirdrop, 
-  transferSOL, 
-  storeWallet, 
-  getStoredWallet,
-  generateDeterministicWallet 
-} from '@/lib/solanaWalletUtils';
-import { toast } from 'sonner';
-
-interface FranchiseWallet {
-  publicKey: string;
-  secretKey: Uint8Array;
-  keypair: Keypair;
-  balance: number;
-  isLoading: boolean;
-}
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 
 interface UseFranchiseWalletProps {
-  franchiseId?: string;
-  franchiserId?: string;
-  useDeterministic?: boolean;
+  franchiseId?: Id<"franchises"> | string; // Accept both types for backward compatibility
+  franchiseSlug?: string;
+  franchiserId?: Id<"franchiser">;
+  useDeterministic?: boolean; // For backward compatibility
 }
 
-export function useFranchiseWallet({ 
-  franchiseId, 
-  franchiserId, 
-  useDeterministic = false 
-}: UseFranchiseWalletProps = {}) {
-  const [wallet, setWallet] = useState<FranchiseWallet | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Use ref to store the latest initializeWallet function
-  const initializeWalletRef = useRef<(() => Promise<void>) | null>(null);
+interface FranchiseWallet {
+  _id: string;
+  franchiseId: Id<"franchises">;
+  franchiserId: Id<"franchiser">;
+  walletAddress: string;
+  publicKey?: string; // For backward compatibility
+  balance: number;
+  currency: string;
+  status: 'active' | 'inactive' | 'suspended';
+  isLoading?: boolean; // For backward compatibility
+  franchise?: {
+    _id: string;
+    franchiseSlug: string;
+    title: string;
+    stage: string;
+  };
+  franchiser?: {
+    _id: string;
+    name: string;
+    slug: string;
+  };
+  recentTransactions?: Array<{
+    _id: string;
+    type: string;
+    amount: number;
+    description: string;
+    status: string;
+    createdAt: number;
+  }>;
+  transactionCount?: number;
+}
 
-  // Create or retrieve wallet
-  const initializeWallet = useCallback(async () => {
-    if (!franchiseId) {
-      console.log('No franchiseId provided to useFranchiseWallet');
-      return;
-    }
+interface UseFranchiseWalletReturn {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wallet: any;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  refreshBalance?: () => void; // For backward compatibility
+}
 
-    console.log('Initializing wallet for franchiseId:', franchiseId);
-    setIsLoading(true);
-    setError(null);
+interface UseFranchiseWalletSingleReturn {
+  wallet: FranchiseWallet | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  refreshBalance?: () => void; // For backward compatibility
+}
 
-    try {
-      // Try to get existing wallet first
-      const storedWallet = getStoredWallet(franchiseId);
-      console.log('Stored wallet found:', !!storedWallet);
-      
-      if (storedWallet) {
-        console.log('Using stored wallet:', storedWallet.publicKey);
-        const keypair = Keypair.fromSecretKey(storedWallet.secretKey);
-        const balance = await getWalletBalance(storedWallet.publicKey);
-        console.log('Wallet balance:', balance);
-        
-        setWallet({
-          publicKey: storedWallet.publicKey,
-          secretKey: storedWallet.secretKey,
-          keypair,
-          balance,
-          isLoading: false
-        });
-      } else {
-        console.log('No stored wallet found, creating new one');
-        // Create new wallet
-        let newWallet;
-        
-        if (useDeterministic && franchiserId) {
-          console.log('Creating deterministic wallet');
-          newWallet = generateDeterministicWallet(franchiseId, franchiserId);
-        } else {
-          console.log('Creating random wallet');
-          newWallet = createNewWallet();
-        }
+export function useFranchiseWallet({ franchiseId, franchiseSlug, franchiserId }: UseFranchiseWalletProps = {}): UseFranchiseWalletReturn {
+  // Get wallet by franchise ID
+  const walletById = useQuery(
+    api.franchiseManagement.getFranchiseWallet,
+    franchiseId ? { franchiseId: franchiseId as Id<"franchises"> } : "skip"
+  );
 
-        console.log('New wallet created:', newWallet.publicKey);
+  // Get wallet by franchise slug
+  const walletBySlug = useQuery(
+    api.franchiseManagement.getFranchiseWalletBySlug,
+    franchiseSlug ? { franchiseSlug } : "skip"
+  );
 
-        // Store the wallet
-        storeWallet(newWallet.publicKey, newWallet.secretKey, franchiseId);
-        console.log('Wallet stored for franchiseId:', franchiseId);
+  // Get all wallets for franchiser
+  const walletsByFranchiser = useQuery(
+    api.franchiseManagement.getFranchiseWalletsByFranchiser,
+    franchiserId ? { franchiserId } : "skip"
+  );
 
-        // Get initial balance
-        const balance = await getWalletBalance(newWallet.publicKey);
-        console.log('Initial wallet balance:', balance);
+  // Determine which data to return
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let wallet: any = null;
+  let isLoading = false;
+  const error: string | null = null;
 
-        setWallet({
-          publicKey: newWallet.publicKey,
-          secretKey: newWallet.secretKey,
-          keypair: newWallet.keypair,
-          balance,
-          isLoading: false
-        });
+  if (franchiseId) {
+    wallet = walletById || null;
+    isLoading = walletById === undefined;
+  } else if (franchiseSlug) {
+    wallet = walletBySlug || null;
+    isLoading = walletBySlug === undefined;
+  } else if (franchiserId) {
+    wallet = walletsByFranchiser ? walletsByFranchiser.filter(w => w !== null) : null;
+    isLoading = walletsByFranchiser === undefined;
+  }
 
-        toast.success('New franchise wallet created!');
-      }
-    } catch (err) {
-      console.error('Error initializing wallet:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize wallet';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [franchiseId, franchiserId, useDeterministic]);
+  // Mock refetch function (Convex handles this automatically)
+  const refetch = () => {
+    // Convex queries automatically refetch when dependencies change
+  };
 
-  // Store the latest initializeWallet function in ref
-  initializeWalletRef.current = initializeWallet;
+  const refreshBalance = () => {
+    // For backward compatibility - same as refetch
+    refetch();
+  };
 
-  // Refresh wallet balance
-  const refreshBalance = useCallback(async () => {
-    if (!wallet) return;
-
-    setIsLoading(true);
-    try {
-      const balance = await getWalletBalance(wallet.publicKey);
-      setWallet(prev => prev ? { ...prev, balance, isLoading: false } : null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh balance';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wallet]);
-
-  // Request airdrop (for devnet testing)
-  const requestAirdropToWallet = useCallback(async (amount: number = 1) => {
-    if (!wallet) return;
-
-    setIsLoading(true);
-    try {
-      const signature = await requestAirdrop(wallet.publicKey, amount);
-      if (signature) {
-        toast.success(`${amount} SOL airdropped to franchise wallet!`);
-        await refreshBalance();
-      } else {
-        toast.error('Failed to request airdrop');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to request airdrop';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wallet, refreshBalance]);
-
-  // Transfer SOL to this wallet
-  const transferToWallet = useCallback(async (
-    fromKeypair: Keypair, 
-    amount: number, 
-    network: 'devnet' | 'mainnet-beta' = 'devnet'
-  ) => {
-    if (!wallet) return;
-
-    setIsLoading(true);
-    try {
-      const signature = await transferSOL(fromKeypair, wallet.publicKey, amount, network);
-      if (signature) {
-        toast.success(`${amount} SOL transferred to franchise wallet!`);
-        await refreshBalance();
-        return signature;
-      } else {
-        toast.error('Failed to transfer SOL');
-        return null;
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to transfer SOL';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wallet, refreshBalance]);
-
-  // Initialize wallet when franchiseId changes
-  useEffect(() => {
-    if (franchiseId && initializeWalletRef.current) {
-      initializeWalletRef.current();
-    }
-  }, [franchiseId]); // Stable dependency array
+  // Add compatibility properties to wallet if it exists
+  // For franchiseId queries, we expect a single wallet object, not an array
+  const walletWithCompatibility = wallet && !Array.isArray(wallet) ? {
+    ...wallet,
+    publicKey: wallet.walletAddress, // Use walletAddress as publicKey for compatibility
+    isLoading: isLoading
+  } : null;
 
   return {
-    wallet,
+    wallet: walletWithCompatibility,
     isLoading,
     error,
-    initializeWallet,
-    refreshBalance,
-    requestAirdropToWallet,
-    transferToWallet
+    refetch,
+    refreshBalance
+  };
+}
+
+// Hook specifically for single franchise wallet (for backward compatibility)
+export function useFranchiseWalletSingle({ franchiseId, franchiseSlug, useDeterministic }: { franchiseId?: string; franchiseSlug?: string; useDeterministic?: boolean } = {}): UseFranchiseWalletSingleReturn {
+  const { wallet, isLoading, error, refetch, refreshBalance } = useFranchiseWallet({ franchiseId, franchiseSlug, useDeterministic });
+  
+  return {
+    wallet: Array.isArray(wallet) ? null : wallet,
+    isLoading,
+    error,
+    refetch,
+    refreshBalance
+  };
+}
+
+// Hook specifically for franchise wallet transactions
+export function useFranchiseWalletTransactions(franchiseId?: Id<"franchises">, limit?: number) {
+  const transactions = useQuery(
+    api.franchiseManagement.getFranchiseWalletTransactions,
+    franchiseId ? { franchiseId, limit } : "skip"
+  );
+
+  return {
+    transactions: transactions || [],
+    isLoading: transactions === undefined,
+    error: null
   };
 }

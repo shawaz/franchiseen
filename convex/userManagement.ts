@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 import { 
   generateWalletWithEncryptedPrivateKey, 
   generateUserKey,
@@ -86,10 +87,13 @@ export const createUserProfile = mutation({
       updatedAt: Date.now(),
     });
 
+    // Convert private key bytes to base58 for display
+    const privateKeyBase58 = bs58.encode(walletData.privateKeyBytes);
+    
     return { 
       profileId, 
       walletAddress: walletData.publicKey,
-      privateKey: Array.from(walletData.privateKeyBytes) // Convert Uint8Array to regular array for Convex
+      privateKey: privateKeyBase58 // Return base58-encoded private key for display
     };
   },
 });

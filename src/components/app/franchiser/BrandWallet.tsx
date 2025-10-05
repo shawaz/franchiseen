@@ -9,6 +9,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { useSolPrice } from '@/lib/coingecko';
 
 interface BrandWalletProps {
   franchiserId?: Id<"franchiser">;
@@ -26,7 +27,7 @@ const FALLBACK_RPC_URLS = [
   'https://devnet.helius-rpc.com/?api-key=',
   'https://rpc.ankr.com/solana_devnet',
 ];
-const DEMO_RATE = 150.50; // SOL to AED rate (this should be fetched from an API in production)
+// SOL to USD rate will be fetched from CoinGecko API
 
 const BrandWallet: React.FC<BrandWalletProps> = ({
   franchiserId,
@@ -40,8 +41,17 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [walletAddress, setWalletAddress] = useState<string>('');
-  const [isDemoBalance, setIsDemoBalance] = useState<boolean>(false);
   const [connection] = useState<Connection>(new Connection(SOLANA_RPC_URL));
+  
+  // Get SOL to USD price from CoinGecko
+  const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
+
+  // Get brand wallet balance from database
+  const brandWalletBalance = useQuery(
+    api.brandWallet.getBrandWalletBalance,
+    franchiserId ? { franchiserId } : "skip"
+  );
+
   
   // Fetch real balance from Solana network
   const fetchBalance = useCallback(async (address: string) => {
@@ -49,7 +59,6 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
     if (!address || address.startsWith('brand_') || address.length < 32) {
       // This is a brand identifier, not a real Solana address
       setBalance(0);
-      setIsDemoBalance(true);
       return;
     }
     
@@ -61,7 +70,6 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
         const balanceInLamports = await connection.getBalance(publicKey);
         const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
         setBalance(balanceInSol);
-        setIsDemoBalance(false);
         return;
       } catch (error) {
         console.warn('Primary RPC failed:', error);
@@ -74,7 +82,6 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
             const balanceInLamports = await fallbackConnection.getBalance(publicKey);
             const balanceInSol = balanceInLamports / LAMPORTS_PER_SOL;
             setBalance(balanceInSol);
-            setIsDemoBalance(false);
             console.log(`Successfully fetched balance using fallback RPC: ${rpcUrl}`);
             return;
           } catch (fallbackError) {
@@ -92,17 +99,14 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
         } else if (error instanceof Error && error.message.includes('Invalid public key')) {
           console.warn('Invalid public key format');
           setBalance(0);
-          setIsDemoBalance(false);
           return;
         }
         
-        setBalance(0.5); // Demo balance
-        setIsDemoBalance(true);
+        setBalance(0); // Demo balance
       }
     } catch (error) {
       console.error('Error fetching balance:', error);
       setBalance(0);
-      setIsDemoBalance(true);
     }
   }, [connection]);
 
@@ -156,7 +160,12 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
   };
 
   const formatAmount = (sol: number) => {
-    return `${(sol * DEMO_RATE).toFixed(2)} AED`;
+    const usdPrice = solToUsdPrice || 150.0; // Fallback price if CoinGecko fails
+    return `$${(sol * usdPrice).toFixed(2)} USD`;
+  };
+
+  const formatUsdAmount = (usd: number) => {
+    return `$${usd.toFixed(2)} USD`;
   };
 
   const copyWalletAddress = () => {
@@ -192,11 +201,11 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
   return (
     <div className={className}>
       {/* Brand Header */}
-      <div className="p-3 sm:p-4 bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700 rounded-t-lg">
+      <div className="p-3 sm:p-4 bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Brand Logo */}
-            <div className="w-10 h-10 rounded overflow-hidden bg-white/20 flex items-center justify-center">
+            <div className="w-10 h-10 overflow-hidden bg-white/20 flex items-center justify-center">
               {business?.logoUrl ? (
                 <Image
                   src={business.logoUrl}
@@ -249,41 +258,49 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
       </div>
 
       {/* Wallet Card */}
-      <div className="bg-gradient-to-br from-yellow-600 via-yellow-700 to-yellow-800 text-white overflow-hidden rounded-b-lg">
+      <div className="bg-gradient-to-br from-yellow-600 via-yellow-700 to-yellow-800 text-white overflow-hidden">
         <div className="p-4 sm:p-6">
           {/* Balance Display */}
           <div>
             <div className="grid grid-cols-2 gap-4">
-              {/* AED Balance */}
+              {/* USD Balance */}
               <div>
                 <div className="text-yellow-100 text-xs mb-1">
-                  AED Balance
+                  USD Balance
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold">
-                  {loading ? '...' : formatAmount(balance)}
+                  {loading || priceLoading ? '...' : (
+                    brandWalletBalance?.balance ? 
+                      formatUsdAmount(brandWalletBalance.balance) : 
+                      formatAmount(balance)
+                  )}
                 </div>
                 <div className="text-yellow-200 text-xs mt-1">
-                  {DEMO_RATE.toFixed(2)} AED/SOL
-                  {isDemoBalance && (
+                  {priceError ? 'Price unavailable' : `$${(solToUsdPrice || 150.0).toFixed(2)} USD/SOL`}
+                  {/* {(brandWalletBalance?.balance || 0) > 0 ? (
+                    <span className="block text-yellow-300 font-semibold">
+                      (From Franchise Funding)
+                    </span>
+                  ) : isDemoBalance && (
                     <span className="block text-yellow-300 font-semibold">
                       (Demo - RPC Access Restricted)
                     </span>
-                  )}
+                  )} */}
                 </div>
               </div>
               {/* SOL Balance */}
               <div className="text-right">
                 <div className="text-yellow-100 text-xs mb-1">SOL Balance</div>
                 <div className="text-2xl sm:text-3xl font-bold">
-                  {loading ? '...' : formatSol(balance)}
+                  {loading ? '...' : formatSol((brandWalletBalance?.balance || 0) / (solToUsdPrice || 150.0))}
                 </div>
                 <div className="text-yellow-200 text-xs mt-1">
                   Updated: {new Date().toLocaleTimeString()}
-                  {isDemoBalance && (
+                  {/* {(brandWalletBalance?.balance || 0) > 0 && (
                     <span className="block text-yellow-300 font-semibold">
-                      (Demo)
+                      (From Franchise Funding)
                     </span>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
@@ -318,27 +335,10 @@ const BrandWallet: React.FC<BrandWalletProps> = ({
               <span className="text-xs font-medium">WITHDRAW</span>
             </button>
           </div>
-          
-          {/* Wallet Info */}
-          {!walletAddress && (
-            <div className="mt-4 p-3 bg-white/10 rounded-lg">
-              <p className="text-yellow-100 text-xs text-center">
-                No wallet address available. Please ensure the franchiser has a registered wallet.
-              </p>
-            </div>
-          )}
-          {walletAddress && (
-            <div className="mt-4 p-3 bg-white/10 rounded-lg">
-              <p className="text-yellow-100 text-xs text-center">
-                {walletData?.hasSecretKey
-                  ? 'Brand wallet active. This wallet is managed by the system for franchise transactions.'
-                  : 'System wallet active. This wallet is managed by the platform for franchise transactions.'
-                }
-              </p>
-            </div>
-          )}
+
         </div>
       </div>
+
     </div>
   );
 };

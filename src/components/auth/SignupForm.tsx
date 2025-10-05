@@ -20,9 +20,10 @@ import { PrivateKeyDisplay } from "./PrivateKeyDisplay";
 
 interface SignupFormProps {
   onBack?: () => void;
+  onSuccess?: () => void;
 }
 
-export function SignupForm({ onBack }: SignupFormProps) {
+export function SignupForm({ onBack, onSuccess }: SignupFormProps) {
   const [step, setStep] = useState<"email" | "profile" | "wallet">("email");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -38,7 +39,7 @@ export function SignupForm({ onBack }: SignupFormProps) {
   const [userId, setUserId] = useState<Id<"users"> | null>(null);
   const [generatedWallet, setGeneratedWallet] = useState<{
     walletAddress: string;
-    privateKey: Uint8Array;
+    privateKey: string;
   } | null>(null);
 
   const { setUserEmail } = useAuth();
@@ -116,7 +117,7 @@ export function SignupForm({ onBack }: SignupFormProps) {
       if (result.walletAddress && result.privateKey) {
         setGeneratedWallet({
           walletAddress: result.walletAddress,
-          privateKey: new Uint8Array(result.privateKey)
+          privateKey: result.privateKey // Now it's an encrypted string, not an array
         });
         setStep("wallet");
       } else {
@@ -139,9 +140,15 @@ export function SignupForm({ onBack }: SignupFormProps) {
     localStorage.setItem("userEmail", email);
     localStorage.setItem("isAuthenticated", "true");
     localStorage.setItem("userWalletAddress", generatedWallet!.walletAddress);
-    localStorage.setItem("userPrivateKey", JSON.stringify(Array.from(generatedWallet!.privateKey)));
+    localStorage.setItem("userPrivateKey", generatedWallet!.privateKey); // Store as encrypted string
     setUserEmail(email);
-    window.location.href = "/account";
+    
+    // If onSuccess callback is provided, use it instead of redirecting
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      window.location.href = "/account";
+    }
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

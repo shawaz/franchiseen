@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Id } from '../../../../convex/_generated/dataModel';
 import FranchiseStore from './store/FranchiseStore';
 import FranchiseWallet from './FranchiseWallet';
 
@@ -29,13 +30,13 @@ export default function FranchiseExample({ franchiseId, franchiserId }: Franchis
           {/* Franchise Wallet Component */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-3">Franchise Wallet</h3>
-            <FranchiseWallet 
-              franchiseId={franchiseId}
-              business={{
-                name: "Example Franchise",
-                logoUrl: "/logo/logo-4.svg"
-              }}
-            />
+            {franchiseId && (
+              <FranchiseWallet 
+                franchiseId={franchiseId as Id<"franchises">}
+                franchiseName="Example Franchise"
+                franchiseLogo="/logo/logo-4.svg"
+              />
+            )}
           </div>
 
           {/* Franchise Store Component */}

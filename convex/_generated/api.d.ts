@@ -19,15 +19,23 @@ import type * as auth from "../auth.js";
 import type * as authActions from "../authActions.js";
 import type * as brandManagement from "../brandManagement.js";
 import type * as brandWallet from "../brandWallet.js";
+import type * as createTestTokens from "../createTestTokens.js";
+import type * as debugFranchiseWallets from "../debugFranchiseWallets.js";
+import type * as debugShares from "../debugShares.js";
 import type * as files from "../files.js";
+import type * as fixFranchiseWalletBalances from "../fixFranchiseWalletBalances.js";
+import type * as franchiseApproval from "../franchiseApproval.js";
 import type * as franchiseManagement from "../franchiseManagement.js";
 import type * as franchiseStoreQueries from "../franchiseStoreQueries.js";
+import type * as franchiseWallet from "../franchiseWallet.js";
 import type * as franchises from "../franchises.js";
 import type * as investments from "../investments.js";
 import type * as leadsManagement from "../leadsManagement.js";
 import type * as masterData from "../masterData.js";
 import type * as propertyManagement from "../propertyManagement.js";
 import type * as seedData from "../seedData.js";
+import type * as testData from "../testData.js";
+import type * as tokenManagement from "../tokenManagement.js";
 import type * as userManagement from "../userManagement.js";
 
 /**
@@ -45,15 +53,23 @@ declare const fullApi: ApiFromModules<{
   authActions: typeof authActions;
   brandManagement: typeof brandManagement;
   brandWallet: typeof brandWallet;
+  createTestTokens: typeof createTestTokens;
+  debugFranchiseWallets: typeof debugFranchiseWallets;
+  debugShares: typeof debugShares;
   files: typeof files;
+  fixFranchiseWalletBalances: typeof fixFranchiseWalletBalances;
+  franchiseApproval: typeof franchiseApproval;
   franchiseManagement: typeof franchiseManagement;
   franchiseStoreQueries: typeof franchiseStoreQueries;
+  franchiseWallet: typeof franchiseWallet;
   franchises: typeof franchises;
   investments: typeof investments;
   leadsManagement: typeof leadsManagement;
   masterData: typeof masterData;
   propertyManagement: typeof propertyManagement;
   seedData: typeof seedData;
+  testData: typeof testData;
+  tokenManagement: typeof tokenManagement;
   userManagement: typeof userManagement;
 }>;
 export declare const api: FilterApi<

@@ -17,6 +17,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useSolana } from '@/components/solana/use-solana';
+import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
 
@@ -38,14 +39,26 @@ interface Transaction {
 
 export default function TransactionsTab() {
   const { account } = useSolana();
+  const { userProfile } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Use the wallet address from user profile (generated wallet) instead of connected wallet
+  const walletAddress = userProfile?.walletAddress;
+
   // Get shares data to create transaction history
   const sharesData = useQuery(api.franchiseManagement.getSharesByInvestor, { 
-    investorId: account?.address || 'no-wallet'
+    investorId: walletAddress || 'no-wallet'
+  });
+
+  // Debug logging
+  console.log('TransactionsTab Debug:', {
+    walletAddress,
+    connectedWallet: account?.address,
+    sharesData: sharesData,
+    sharesCount: sharesData?.length || 0
   });
 
   // Load transactions from localStorage and convert shares to transactions
@@ -53,22 +66,22 @@ export default function TransactionsTab() {
     const loadTransactions = () => {
       try {
         // Get transactions from localStorage
-        const storedTransactions = localStorage.getItem(`transactions_${account?.address}`);
+        const storedTransactions = localStorage.getItem(`transactions_${walletAddress}`);
         const parsedTransactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
 
         // Convert shares data to transactions
         const shareTransactions: Transaction[] = sharesData?.map(share => ({
-          id: share._id,
+            id: share._id,
           type: 'share_purchase' as const,
-          amount: share.totalAmount,
-          amountSOL: share.totalAmount / 150, // Convert USD to SOL (approximate)
+            amount: share.totalAmount,
+            amountSOL: share.totalAmount / 150, // Convert USD to SOL (approximate)
           description: `Purchased ${share.sharesPurchased} shares in ${share.franchise?.franchiseSlug || 'Unknown Franchise'}`,
-          franchiseSlug: share.franchise?.franchiseSlug,
+            franchiseSlug: share.franchise?.franchiseSlug,
           status: 'confirmed' as const,
           transactionHash: share.transactionHash,
           timestamp: share.purchasedAt,
-          sharesPurchased: share.sharesPurchased,
-          sharePrice: share.sharePrice,
+            sharesPurchased: share.sharesPurchased,
+            sharePrice: share.sharePrice,
           toAddress: 'franchise_pda'
         })) || [];
 
@@ -85,7 +98,7 @@ export default function TransactionsTab() {
     };
 
     loadTransactions();
-  }, [account?.address, sharesData]);
+  }, [walletAddress, sharesData]);
 
   // Add a new transaction (for testing/demo purposes)
   const addTestTransaction = () => {
@@ -107,7 +120,7 @@ export default function TransactionsTab() {
     setTransactions(updatedTransactions);
     
     // Save to localStorage
-    localStorage.setItem(`transactions_${account?.address}`, JSON.stringify(updatedTransactions));
+    localStorage.setItem(`transactions_${walletAddress}`, JSON.stringify(updatedTransactions));
   };
 
   // Filter transactions based on search and type filter
@@ -170,6 +183,21 @@ export default function TransactionsTab() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading transactions...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show no wallet available state
+  if (!walletAddress) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <ArrowUpDown className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg font-medium">No Wallet Available</p>
+            <p className="text-gray-400 text-sm mt-1">Please sign up or login to get a wallet address and view your transactions</p>
           </div>
         </div>
       </div>

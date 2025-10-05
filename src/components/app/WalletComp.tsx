@@ -4,6 +4,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import { useSolPrice } from '@/lib/coingecko';
 
 interface WalletCompProps {
   onAddMoney?: () => void;
@@ -17,7 +18,7 @@ interface WalletCompProps {
 // Demo data
 const DEMO_BALANCE = 12.75;
 const DEMO_WALLET = 'HjZ5j...8Xy9z';
-const DEMO_RATE = 150.50; // SOL to AED rate
+// SOL to USD rate will be fetched from CoinGecko API
 
 export function WalletComp({
   onAddMoney,
@@ -30,12 +31,16 @@ export function WalletComp({
   const [balance] = React.useState<number>(DEMO_BALANCE);
   const [loading] = React.useState<boolean>(false);
   
+  // Get SOL to USD price from CoinGecko
+  const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
+  
   const formatSol = (value: number) => {
     return value.toFixed(2) + ' SOL';
   };
 
   const formatAmount = (sol: number) => {
-    return `${(sol * DEMO_RATE).toFixed(2)} AED`;
+    const usdPrice = solToUsdPrice || 150.0; // Fallback price if CoinGecko fails
+    return `$${(sol * usdPrice).toFixed(2)} USD`;
   };
 
   const handleAction = (action: string) => {
@@ -95,16 +100,16 @@ export function WalletComp({
           {/* Balance Display */}
           <div className="mb-6">
             <div className="grid grid-cols-2 gap-4">
-              {/* AED Balance */}
+              {/* USD Balance */}
               <div>
                 <div className="text-yellow-100 text-xs mb-1">
-                  AED Balance
+                  USD Balance
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold">
-                  {loading ? '...' : formatAmount(balance)}
+                  {loading || priceLoading ? '...' : formatAmount(balance)}
                 </div>
                 <div className="text-yellow-200 text-xs mt-1">
-                  {DEMO_RATE.toFixed(2)} AED/SOL
+                  {priceError ? 'Price unavailable' : `$${(solToUsdPrice || 150.0).toFixed(2)} USD/SOL`}
                 </div>
               </div>
               {/* SOL Balance */}

@@ -10,7 +10,7 @@ import { Copy, Eye, EyeOff, Download, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PrivateKeyDisplayProps {
-  privateKey: Uint8Array;
+  privateKey: string;
   walletAddress: string;
   onContinue: () => void;
 }

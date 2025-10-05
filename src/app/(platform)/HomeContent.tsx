@@ -104,8 +104,10 @@ function HomeContent() {
     }
 
 
-    // Start with all franchises
-    let currentFranchises = franchisesWithStages || [];
+    // Start with all franchises and filter out pending/approval stage franchises
+    let currentFranchises = (franchisesWithStages || []).filter(f => 
+      f.status !== 'pending' // Exclude franchises in approval stage
+    );
     
     console.log('HomeContent - Total franchises:', currentFranchises.length);
     console.log('HomeContent - Franchise stages:', currentFranchises.map(f => f.stage));

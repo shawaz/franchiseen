@@ -10,9 +10,11 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useParams } from 'next/navigation';
 import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
+import { useFranchiseWalletSingle } from '@/hooks/useFranchiseWallet';
 import { SoldLocationsModal } from './SoldLocationsModal';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { DollarSign, Wallet } from 'lucide-react';
 
 export interface Franchise {
   id: string;
@@ -29,6 +31,47 @@ export interface Franchise {
   sharesIssued: number;
   sharesSold: number;
   totalInvestment: number;
+}
+
+// Component to display franchise wallet balance
+function FranchiseWalletCell({ franchiseId, stage }: { franchiseId: string; stage: string }) {
+  const { wallet, isLoading } = useFranchiseWalletSingle({ franchiseId });
+
+  if (stage === 'funding') {
+    return (
+      <div className="flex items-center text-sm text-stone-500">
+        <Wallet className="mr-1 h-3 w-3" />
+        <span>Not created yet</span>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center text-sm text-stone-500">
+        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600 mr-1"></div>
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
+  if (!wallet) {
+    return (
+      <div className="flex items-center text-sm text-red-500">
+        <Wallet className="mr-1 h-3 w-3" />
+        <span>No wallet found</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center text-sm">
+      <DollarSign className="mr-1 h-3 w-3 text-green-600" />
+      <span className="font-medium text-green-600">
+        ${wallet.balance?.toLocaleString() || '0'}
+      </span>
+    </div>
+  );
 }
 
 
@@ -156,6 +199,7 @@ export function FranchiseTab() {
                 <TableHead>Shares Issued</TableHead>
                 <TableHead>Shares Sold</TableHead>
                 <TableHead>Total Investment</TableHead>
+                <TableHead>Wallet Balance</TableHead>
                 <TableHead className="text-right">Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -199,6 +243,9 @@ export function FranchiseTab() {
                     <div className="font-medium">
                       ${franchise.totalInvestment.toLocaleString()}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <FranchiseWalletCell franchiseId={franchise.id} stage={franchise.stage} />
                   </TableCell>
                   <TableCell className="text-right">{getStatusBadge(franchise.status)}</TableCell>
                   <TableCell className="text-right">

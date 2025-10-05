@@ -8,6 +8,7 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/
 import { Button } from '../../ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import { useSolPrice } from '@/lib/coingecko';
 
 interface WalletProps {
   onAddMoney?: () => void;
@@ -15,7 +16,7 @@ interface WalletProps {
 }
 
 // Demo data
-const DEMO_RATE = 200.00; // SOL to AED rate
+// SOL to USD rate will be fetched from CoinGecko API
 
 const UserWallet: React.FC<WalletProps> = ({
   onAddMoney,
@@ -34,6 +35,9 @@ const UserWallet: React.FC<WalletProps> = ({
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState<boolean>(false);
   const [lastAirdropTime, setLastAirdropTime] = useState<number | null>(null);
   const [nextAirdropIn, setNextAirdropIn] = useState<number | null>(null);
+  
+  // Get SOL to USD price from CoinGecko
+  const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
 
   // List of reliable RPC endpoints to try (memoized to prevent recreation on every render)
   const MAINNET_RPC_ENDPOINTS = useMemo(() => [
@@ -263,7 +267,8 @@ const UserWallet: React.FC<WalletProps> = ({
   };
 
   const formatAmount = (sol: number) => {
-    return `${(sol * DEMO_RATE).toFixed(2)} USDT`;
+    const usdPrice = solToUsdPrice || 150.0; // Fallback price if CoinGecko fails
+    return `$${(sol * usdPrice).toFixed(2)} USD`;
   };
 
   const copyWalletAddress = () => {
@@ -354,16 +359,16 @@ const UserWallet: React.FC<WalletProps> = ({
               </div>
             )} */}
             <div className="grid grid-cols-2 gap-4">
-              {/* USDT Balance */}
+              {/* USD Balance */}
               <div>
                 <div className="text-yellow-100 text-xs mb-1">
-                  USDT Balance
+                  USD Balance
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold">
-                  {loading ? '...' : formatAmount(balance)}
+                  {loading || priceLoading ? '...' : formatAmount(balance)}
                 </div>
                 <div className="text-yellow-200 text-xs mt-1">
-                  {DEMO_RATE.toFixed(2)} USDT/SOL
+                  {priceError ? 'Price unavailable' : `$${(solToUsdPrice || 150.0).toFixed(2)} USD/SOL`}
                 </div>
               </div>
               {/* SOL Balance */}

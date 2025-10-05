@@ -123,3 +123,76 @@ export const getFranchiserByWallet = query({
     };
   },
 });
+
+/**
+ * Get brand wallet transactions for a franchiser
+ */
+export const getBrandWalletTransactions = query({
+  args: {
+    franchiserId: v.id("franchiser"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const transactions = await ctx.db
+      .query("brandWalletTransactions")
+      .withIndex("by_franchiser", (q) => q.eq("franchiserId", args.franchiserId))
+      .order("desc")
+      .take(args.limit || 50);
+
+    // Get franchise details for transactions that have franchiseId
+    const transactionsWithDetails = await Promise.all(
+      transactions.map(async (transaction) => {
+        let franchise = null;
+        if (transaction.franchiseId) {
+          franchise = await ctx.db.get(transaction.franchiseId);
+        }
+
+        return {
+          ...transaction,
+          franchise: franchise ? {
+            _id: franchise._id,
+            franchiseSlug: franchise.franchiseSlug,
+            title: franchise.franchiseSlug
+          } : null
+        };
+      })
+    );
+
+    return transactionsWithDetails;
+  },
+});
+
+/**
+ * Get brand wallet balance (sum of all transactions)
+ */
+export const getBrandWalletBalance = query({
+  args: {
+    franchiserId: v.id("franchiser"),
+  },
+  handler: async (ctx, args) => {
+    const transactions = await ctx.db
+      .query("brandWalletTransactions")
+      .withIndex("by_franchiser", (q) => q.eq("franchiserId", args.franchiserId))
+      .filter((q) => q.eq(q.field("status"), "completed"))
+      .collect();
+
+    // Calculate total balance (incoming - outgoing)
+    let balance = 0;
+    for (const transaction of transactions) {
+      if (transaction.type === "franchise_funding_complete" || 
+          transaction.type === "franchise_fee" || 
+          transaction.type === "setup_cost" ||
+          transaction.type === "revenue") {
+        balance += transaction.amount;
+      } else if (transaction.type === "expense" || transaction.type === "transfer") {
+        balance -= transaction.amount;
+      }
+    }
+
+    return {
+      balance,
+      transactionCount: transactions.length,
+      lastTransaction: transactions.length > 0 ? transactions[0] : null
+    };
+  },
+});

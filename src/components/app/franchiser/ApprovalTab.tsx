@@ -1,476 +1,407 @@
 "use client";
 
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, AlertCircle, AlertCircleIcon } from 'lucide-react';
-import Image from 'next/image';
-import { useQuery } from 'convex/react';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { useParams } from 'next/navigation';
-import { useFranchiseBySlug } from '@/hooks/useFranchiseBySlug';
+import { Id } from '../../../../convex/_generated/dataModel';
+import { 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  MapPin, 
+  Building2, 
+  DollarSign,
+  Users,
+  Calendar,
+  FileText,
+  AlertCircle
+} from 'lucide-react';
+import { generateRealFranchiseWallet, generateMockFranchiseWallet, shouldUseRealWallets } from '@/lib/realWalletGenerator';
+import { toast } from 'sonner';
 
-export type FranchiseStatus = 
-  | 'property_approval' 
-  | 'brand_approval' 
-  | 'funding' 
-  | 'launching' 
-  | 'live' 
-  | 'closed' 
-  | 'rejected';
-
-export interface Investment {
-  total: number;
-  amountInvested: number;
-  investmentPercentage: number;
-  sharesTotal: number;
-  sharesPurchased: number;
-  carpetArea: number;
+interface ApprovalTabProps {
+  franchiserId: string;
 }
 
-export interface FranchiseApplication {
-  id: string;
-  name: string;
-  location: string;
-  phone: string;
-  email: string;
-  status: FranchiseStatus;
-  image: string;
-  appliedDate: string;
-  investment: Investment;
-  website?: string;
-  franchiseeName?: string;
-  revenue?: number;
-  profit?: number;
-  realEstate: {
-    contactName: string;
-    contactEmail: string;
-    contactPhone: string;
-    location: string;
-    status: 'verified' | 'pending_verification' | 'rejected';
-  };
-  documents: {
-    businessPlan: string;
-    financialStatement: string;
-    kyc: string;
-  };
-}
-
-// Dummy franchise applications data
-
-export function ApprovalTab() {
-  const params = useParams();
-  const brandSlug = params.brandSlug as string;
-  
-  // Get franchiser data to get the franchiser ID
-  const { franchiseData } = useFranchiseBySlug(brandSlug);
-  const franchiserId = franchiseData?.franchiser._id;
-  
-  // Get franchises for this brand
-  const franchisesData = useQuery(api.franchiseManagement.getFranchisesByFranchiser, 
-    franchiserId ? { franchiserId } : "skip"
-  );
-
-  const [selectedApp, setSelectedApp] = useState<FranchiseApplication | null>(null);
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [investmentAmount, setInvestmentAmount] = useState('');
+export default function ApprovalTab({ franchiserId }: ApprovalTabProps) {
+  const [selectedFranchise, setSelectedFranchise] = useState<{
+    _id: string;
+    franchiseSlug: string;
+    businessName: string;
+    franchiser?: { name: string };
+    location?: { city: string; state: string; country: string };
+    investment?: { totalInvestment: number };
+  } | null>(null);
+  const [modalType, setModalType] = useState<'approve' | 'reject' | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Transform franchise data to application format
-  const applications: FranchiseApplication[] = franchisesData?.map((franchise) => ({
-    id: franchise._id,
-    name: franchise.franchiseSlug,
-    location: franchise.address,
-    phone: franchise.franchiseeContact.phone,
-    email: franchise.franchiseeContact.email,
-    status: franchise.status === 'pending' ? 'property_approval' : 
-            franchise.status === 'approved' ? 'brand_approval' :
-            franchise.status === 'active' ? 'live' : 'closed',
-    image: '/franchise/retail-1.png',
-    appliedDate: new Date(franchise.createdAt).toISOString().split('T')[0],
-    investment: {
-      total: 0, // Will be populated from investment data if needed
-      amountInvested: 0,
-      investmentPercentage: 100,
-      sharesTotal: 0,
-      sharesPurchased: 0,
-      carpetArea: franchise.sqft,
-    },
-    franchiseeName: franchise.franchiseeContact.name,
-    realEstate: {
-      contactName: franchise.landlordContact?.name || 'N/A',
-      contactEmail: franchise.landlordContact?.email || 'N/A',
-      contactPhone: franchise.landlordContact?.phone || 'N/A',
-      location: franchise.address,
-      status: franchise.status === 'pending' ? 'pending_verification' : 
-              franchise.status === 'approved' ? 'verified' : 'verified',
-    },
-    documents: {
-      businessPlan: 'https://example.com/business-plan.pdf',
-      financialStatement: 'https://example.com/financial.pdf',
-      kyc: 'https://example.com/kyc.pdf',
-    },
-  })) || [];
-
-  const filteredApplications = applications.filter(app => {
-    if (statusFilter === 'all') return true;
-    return app.status === statusFilter;
+  // Get pending franchises
+  const pendingFranchises = useQuery(api.franchiseApproval.getPendingFranchises, {
+    franchiserId: franchiserId as Id<"franchiser">
   });
 
-  const handleApprove = (application: FranchiseApplication) => {
-    setSelectedApp(application);
-    setInvestmentAmount(application.investment.amountInvested.toString());
-    setIsApproveDialogOpen(true);
+  // Approval mutations
+  const approveFranchise = useMutation(api.franchiseApproval.approveFranchiseAndCreateToken);
+  const rejectFranchise = useMutation(api.franchiseApproval.rejectFranchise);
+  
+
+  const handleApprove = async (franchiseId: string) => {
+    setIsProcessing(true);
+    try {
+      // Find the franchise to get its details
+      const franchise = pendingFranchises?.find(f => f._id === franchiseId);
+      if (!franchise) {
+        throw new Error('Franchise not found');
+      }
+
+      // Generate a real wallet address
+      let walletAddress;
+      if (shouldUseRealWallets()) {
+        const walletData = generateRealFranchiseWallet(franchiseId, franchise.franchiseSlug);
+        walletAddress = walletData.walletAddress;
+        console.log('Generated real wallet:', walletAddress);
+      } else {
+        const walletData = generateMockFranchiseWallet(franchiseId, franchise.franchiseSlug);
+        walletAddress = walletData.walletAddress;
+        console.log('Generated mock wallet:', walletAddress);
+      }
+
+      const result = await approveFranchise({
+        franchiseId: franchiseId as Id<"franchises">,
+        approvedBy: 'brand-admin', // In real app, this would be the current user
+        walletAddress: walletAddress, // Pass the generated wallet address
+      });
+      
+      console.log('Approval result:', result);
+      
+      if (result.success) {
+        let message = 'Franchise approved successfully!';
+        if (result.walletCreated) {
+          message += ' Wallet created.';
+        } else {
+          message += ' Note: Wallet creation failed.';
+          if (result.walletCreationError) {
+            console.error('Wallet creation error details:', result.walletCreationError);
+          }
+        }
+        if (result.tokenCreated) {
+          message += ' Token created.';
+        }
+        toast.success(message);
+      } else {
+        toast.error('Approval failed');
+      }
+      
+      setSelectedFranchise(null);
+    } catch (error) {
+      console.error('Error approving franchise:', error);
+      toast.error('Failed to approve franchise: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleReject = (application: FranchiseApplication) => {
-    setSelectedApp(application);
-    setRejectionReason('');
-    setIsRejectDialogOpen(true);
-  };
-
-  const confirmApprove = () => {
-    if (!selectedApp) return;
-    
-    const amount = parseFloat(investmentAmount);
-    const amountInvested = selectedApp.investment.amountInvested;
-    const total = selectedApp.investment.total;
-    
-    if (isNaN(amount) || amount < amountInvested || amount > total) {
-      alert(`Investment amount must be between $${amountInvested.toLocaleString()} and $${total.toLocaleString()}`);
+  const handleReject = async (franchiseId: string) => {
+    if (!rejectionReason.trim()) {
+      toast.error('Please provide a reason for rejection');
       return;
     }
 
-
-
-    setIsApproveDialogOpen(false);
-    setSelectedApp(null);
+    setIsProcessing(true);
+    try {
+      await rejectFranchise({
+        franchiseId: franchiseId as Id<"franchises">,
+        rejectedBy: 'brand-admin', // In real app, this would be the current user
+        reason: rejectionReason,
+      });
+      
+      toast.success('Franchise rejected successfully');
+      setSelectedFranchise(null);
+      setRejectionReason('');
+    } catch (error) {
+      console.error('Error rejecting franchise:', error);
+      toast.error('Failed to reject franchise. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const confirmReject = () => {
-    if (!selectedApp) return;
-    
+  if (!pendingFranchises) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+          <p className="text-stone-600">Loading pending franchises...</p>
+        </div>
+      </div>
+    );
+  }
 
-    setIsRejectDialogOpen(false);
-    setSelectedApp(null);
-  };
+
+  if (pendingFranchises.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-stone-800 mb-2">No Pending Approvals</h3>
+          <p className="text-stone-600">
+            All franchise applications have been processed. New applications will appear here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-        <div>
-          <h2 className="text-2xl font-bold">Franchise Applications</h2>
-          {/* <p className="text-sm text-gray-500 mt-1">
-            {statusFilter === 'all' 
-              ? 'Showing all applications' 
-              : `Showing ${statusFilter.replace('_', ' ')} applications`}
-          </p> */}
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="text-sm text-gray-500">Filter by status:</div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Applications</SelectItem>
-              <SelectItem value="property_approval">
-                <div className="flex items-center">
-                  <Clock className="h-3.5 w-3.5 mr-2 text-amber-500" />
-                  Property Approval
-                </div>
-              </SelectItem>
-              <SelectItem value="brand_approval">
-                <div className="flex items-center">
-                  <Clock className="h-3.5 w-3.5 mr-2 text-blue-500" />
-                  Brand Approval
-                </div>
-              </SelectItem>
-              <SelectItem value="funding">
-                <div className="flex items-center">
-                  <AlertCircle className="h-3.5 w-3.5 mr-2 text-indigo-500" />
-                  Funding
-                </div>
-              </SelectItem>
-              <SelectItem value="launching">
-                <div className="flex items-center">
-                  <AlertCircle className="h-3.5 w-3.5 mr-2 text-purple-500" />
-                  Launching
-                </div>
-              </SelectItem>
-              <SelectItem value="live">
-                <div className="flex items-center">
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-green-500" />
-                  Live
-                </div>
-              </SelectItem>
-              <SelectItem value="closed">
-                <div className="flex items-center">
-                  <XCircle className="h-3.5 w-3.5 mr-2 text-gray-500" />
-                  Closed
-                </div>
-              </SelectItem>
-              <SelectItem value="rejected">
-                <div className="flex items-center">
-                  <XCircle className="h-3.5 w-3.5 mr-2 text-red-500" />
-                  Rejected
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Franchise Approvals</h2>
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+          {pendingFranchises.length} pending
+        </Badge>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[300px]">Franchise</TableHead>
-                <TableHead>Carpet Area</TableHead>
-                <TableHead>Investment</TableHead>
-                <TableHead>Invested</TableHead>
-                <TableHead>Share Purchased</TableHead>
+      <div className="grid gap-4">
+        {pendingFranchises.map((franchise) => (
+          <Card key={franchise._id} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Building2 className="h-5 w-5 text-blue-500" />
+        <div>
+                    <CardTitle className="text-lg">{franchise.businessName}</CardTitle>
+                    <p className="text-sm text-gray-500">ID: {franchise.franchiseSlug}</p>
+        </div>
+                </div>
+                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Pending
+                </Badge>
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Location Information */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900 flex items-center">
+                    <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                    Location Details
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Address:</span>
+                      <p className="font-medium">{franchise.address}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Building:</span>
+                      <p className="font-medium">{franchise.buildingName}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Door Number:</span>
+                      <p className="font-medium">{franchise.doorNumber}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Area:</span>
+                      <p className="font-medium">{franchise.sqft} sq ft</p>
+                    </div>
+                  </div>
+                </div>
 
-                <TableHead className="w-[150px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredApplications.map((app) => (
-                <TableRow key={app.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-4">
-                      <div className="relative h-12 w-12 overflow-hidden rounded-md bg-stone-100">
-                        <Image
-                          src={app.image}
-                          alt={app.name}
-                          width={100}
-                          height={100}
-                          className="h-full w-full object-cover"
-                        />
+                {/* Investment Information */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900 flex items-center">
+                    <DollarSign className="h-4 w-4 mr-2 text-green-500" />
+                    Investment Details
+                  </h4>
+                  {franchise.investment && (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Total Investment:</span>
+                        <span className="font-medium">${franchise.investment.totalInvestment?.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Franchise Fee:</span>
+                        <span className="font-medium">${franchise.investment.franchiseFee?.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Setup Cost:</span>
+                        <span className="font-medium">${franchise.investment.setupCost?.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Working Capital:</span>
+                        <span className="font-medium">${franchise.investment.workingCapital?.toLocaleString()}</span>
+                </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Total Shares:</span>
+                        <span className="font-medium">{franchise.investment.sharesIssued?.toLocaleString()}</span>
+                </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Share Price:</span>
+                        <span className="font-medium">$1.00</span>
+                </div>
+                </div>
+                  )}
+                </div>
+
+                {/* Contact Information */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900 flex items-center">
+                    <Users className="h-4 w-4 mr-2 text-purple-500" />
+                    Contact Details
+                  </h4>
+                  {franchise.franchiseeContact && (
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Name:</span>
+                        <p className="font-medium">{franchise.franchiseeContact.name}</p>
+        </div>
+                      <div>
+                        <span className="text-gray-500">Phone:</span>
+                        <p className="font-medium">{franchise.franchiseeContact.phone}</p>
                       </div>
                       <div>
-                        <p className="font-medium">{app.name}</p>
-                        {/* <div className="flex items-center text-sm text-stone-500">
-                          <MapPin className="mr-1 h-3 w-3" />
-                          <span>{app.realEstate.status}</span>
-                        </div> */}
+                        <span className="text-gray-500">Email:</span>
+                        <p className="font-medium">{franchise.franchiseeContact.email}</p>
                       </div>
                     </div>
-                  </TableCell>
-                  
-                  <TableCell className="text-center">{app.id === 'app1' ? '1,500' : app.id === 'app2' ? '1,800' : app.id === 'app3' ? '2,000' : app.id === 'app4' ? '2,200' : app.id === 'app5' ? '2,500' : app.id === 'app6' ? '3,000' : '1,200'} SQFT</TableCell>
-                  <TableCell className="text-center">${app.investment.total.toLocaleString()}</TableCell>
-                  <TableCell className="text-center">${app.investment.amountInvested.toLocaleString()}</TableCell>
-                  <TableCell className="text-center">
-                  <div >
-                      {Math.floor(app.investment.amountInvested / (app.investment.total / 1000))}/{Math.floor(app.investment.total / 1000)}K
+                  )}
+                  {franchise.landlordContact && (
+                    <div className="mt-3 pt-3 border-t">
+                      <h5 className="font-medium text-gray-700 mb-2">Landlord Contact</h5>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-gray-500">Phone:</span>
+                          <p className="font-medium">{franchise.landlordContact.phone}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Email:</span>
+                          <p className="font-medium">{franchise.landlordContact.email}</p>
+                        </div>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      {app.status === 'property_approval' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-amber-600 hover:bg-amber-50"
-                          disabled
-                        >
-                          <AlertCircleIcon className="h-4 w-4 mr-1" />
-                          Confirming Property
-                        </Button>
-                      )}
-                      
-                      {app.status === 'brand_approval' && (
-                        <>
+                  )}
+                </div>
+              </div>
+
+              {/* Application Date */}
+              <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                <div className="flex items-center text-sm text-gray-500">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Applied on {new Date(franchise.createdAt).toLocaleDateString()}
+                </div>
+                <div className="flex space-x-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="text-green-600 border-green-200 hover:bg-green-50"
-                            onClick={() => handleApprove(app)}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-1" />
-                            Approve
+                    onClick={() => {
+                      setSelectedFranchise({
+                        _id: franchise._id,
+                        franchiseSlug: franchise.franchiseSlug,
+                        businessName: franchise.businessName,
+                        franchiser: undefined, // Not available in the query result
+                        location: franchise.location ? {
+                          city: franchise.location.city || '',
+                          state: franchise.location.state || '',
+                          country: franchise.location.country
+                        } : undefined,
+                        investment: franchise.investment ? { totalInvestment: franchise.investment.totalInvestment } : undefined
+                      });
+                      setModalType('approve');
+                    }}
+                    className="border-green-600 text-green-600 hover:bg-green-50"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Review
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleApprove(franchise._id)}
+                    disabled={isProcessing}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Approve & Create Token
                           </Button>
                           <Button 
-                            variant="outline" 
+                    variant="destructive"
                             size="sm" 
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                            onClick={() => handleReject(app)}
+                    onClick={() => {
+                      setSelectedFranchise({
+                        _id: franchise._id,
+                        franchiseSlug: franchise.franchiseSlug,
+                        businessName: franchise.businessName,
+                        franchiser: undefined,
+                        location: franchise.location ? {
+                          city: franchise.location.city || '',
+                          state: franchise.location.state || '',
+                          country: franchise.location.country
+                        } : undefined,
+                        investment: franchise.investment ? { totalInvestment: franchise.investment.totalInvestment } : undefined
+                      });
+                      setModalType('reject');
+                    }}
+                    disabled={isProcessing}
                           >
                             <XCircle className="h-4 w-4 mr-1" />
                             Reject
                           </Button>
-                        </>
-                      )}
-                      
-                      {app.status === 'funding' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-indigo-600 hover:bg-indigo-50"
-                          disabled
-                        >
-                          <AlertCircleIcon className="h-4 w-4 mr-1" />
-                          Fundraising
-                        </Button>
-                      )}
-                      
-                      {app.status === 'launching' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-purple-600 hover:bg-purple-50"
-                          disabled
-                        >
-                          <AlertCircleIcon className="h-4 w-4 mr-1" />
-                          Launching
-                        </Button>
-                      )}
-                      
-                      {app.status === 'live' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-green-600 hover:bg-green-50"
-                          disabled
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Live
-                        </Button>
-                      )}
-                      
-                      {app.status === 'closed' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-gray-600 hover:bg-gray-50"
-                          disabled
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Closed
-                        </Button>
-                      )}
-                      
-                      {app.status === 'rejected' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-600 hover:bg-red-50"
-                          disabled
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Rejected
-                        </Button>
-                      )}
-                      
-                      
+                </div>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
         </CardContent>
       </Card>
+        ))}
+      </div>
 
-      {/* Approve Dialog */}
-      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve Franchise Application</DialogTitle>
-            <DialogDescription>
-              Set the investment amount for {selectedApp?.name}. The minimum required is ${selectedApp?.investment.amountInvested.toLocaleString()} (5%).
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="investment">Investment Amount (USD)</Label>
-              <Input
-                id="investment"
-                type="number"
-                value={investmentAmount}
-                onChange={(e) => setInvestmentAmount(e.target.value)}
-                min={selectedApp?.investment.amountInvested}
-                max={selectedApp?.investment.total}
-                step="1000"
-              />
-              <p className="text-sm text-stone-500 mt-1">
-                Min: ${selectedApp?.investment.amountInvested.toLocaleString()} (5%) | 
-                Max: ${selectedApp?.investment.total.toLocaleString()} (100%)
+      {/* Rejection Modal */}
+      {selectedFranchise && modalType === 'reject' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center text-red-600">
+                <AlertCircle className="h-5 w-5 mr-2" />
+                Reject Franchise Application
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">
+                Please provide a reason for rejecting this franchise application:
               </p>
-              
-              {parseFloat(investmentAmount || '0') === selectedApp?.investment.total && (
-                <div className="mt-2 p-2 bg-green-50 text-green-700 text-sm rounded-md flex items-start">
-                  <CheckCircle2 className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Full investment selected. This franchise will move to Launching stage.</span>
-                </div>
-              )}
-              
-              {parseFloat(investmentAmount || '0') < (selectedApp?.investment.total || 0) && 
-               parseFloat(investmentAmount || '0') >= (selectedApp?.investment.amountInvested || 0) && (
-                <div className="mt-2 p-2 bg-blue-50 text-blue-700 text-sm rounded-md flex items-start">
-                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Partial investment selected. This franchise will move to Funding stage to raise the remaining amount.</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmApprove}>
-              Confirm Approval
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Dialog */}
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Franchise Application</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to reject the application for {selectedApp?.name}?
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="rejectionReason">Reason for Rejection (Optional)</Label>
-              <Input
-                id="rejectionReason"
+              <Textarea
+                placeholder="Enter rejection reason..."
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Provide a reason for rejection"
+                className="mb-4"
+                rows={4}
               />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
+              <div className="flex space-x-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedFranchise(null);
+                    setModalType(null);
+                    setRejectionReason('');
+                  }}
+                >
               Cancel
             </Button>
             <Button 
               variant="destructive" 
-              onClick={confirmReject}
+                  onClick={() => handleReject(selectedFranchise._id)}
+                  disabled={isProcessing || !rejectionReason.trim()}
             >
-              Reject Application
+                  {isProcessing ? 'Processing...' : 'Reject Application'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

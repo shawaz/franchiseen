@@ -22,7 +22,6 @@ import {
   Users,
 } from 'lucide-react';
 import Image from 'next/image';
-import FranchiseWallet from './FranchiseWallet';
 
 
 export default function FranchiseDashboard() {
@@ -44,7 +43,6 @@ export default function FranchiseDashboard() {
 
   return (
     <div className="space-y-6 py-12">
-      <FranchiseWallet />
       {/* Navigation Tabs */}
       <Card className="p-0">
         <div className="border-b border-gray-200 dark:border-gray-700">

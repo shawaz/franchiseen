@@ -6,6 +6,7 @@ import React from 'react'
 import { ClusterUiChecker } from '@/features/cluster/ui/cluster-ui-checker'
 import { AccountUiChecker } from '@/features/account/ui/account-ui-checker'
 import { useGoogleMapsPreload } from '@/hooks/useGoogleMapsPreload'
+import { RouteGuard } from '../auth/RouteGuard'
 
 export function AppLayout({
   children,
@@ -24,7 +25,9 @@ export function AppLayout({
           <ClusterUiChecker>
             <AccountUiChecker />
           </ClusterUiChecker>
-          {children}
+          <RouteGuard>
+            {children}
+          </RouteGuard>
         </main>
       </div>
       <Toaster closeButton />

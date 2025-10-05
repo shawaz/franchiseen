@@ -211,8 +211,6 @@ const FranchiseCreateInner: React.FC = () => {
   // Convex mutations
   const generateFranchiseSlug = useMutation(api.franchiseManagement.generateFranchiseSlug);
   const createFranchise = useMutation(api.franchiseManagement.createFranchise);
-  const updateFranchiseStatus = useMutation(api.franchiseManagement.updateFranchiseStatus);
-  const updateFranchiseStage = useMutation(api.franchiseManagement.updateFranchiseStage);
   // Removed payment-related mutations - no longer needed
   const createProperty = useMutation(api.propertyManagement.createProperty);
   const updatePropertyStage = useMutation(api.propertyManagement.updatePropertyStage);
@@ -1233,7 +1231,7 @@ const FranchiseCreateInner: React.FC = () => {
                       franchiserSlug: formData.selectedBusiness.slug
                     });
 
-                    // Create franchise record with auto-approval
+                    // Create franchise record (pending approval)
                     const franchiseId = await createFranchise({
                       franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
                       franchiseeId: 'demo-user', // Demo user ID since no wallet connection
@@ -1279,17 +1277,8 @@ const FranchiseCreateInner: React.FC = () => {
                       },
                     });
 
-                    // Auto-approve the franchise
-                    await updateFranchiseStatus({
-                      franchiseId: franchiseId as Id<"franchises">,
-                      status: 'approved',
-                    });
-
-                    // Set the franchise stage to funding
-                    await updateFranchiseStage({
-                      franchiseId: franchiseId as Id<"franchises">,
-                      stage: 'funding',
-                    });
+                    // Keep franchise as pending for approval
+                    // Status will be set to 'approved' and stage to 'funding' when approved in BrandDashboard
 
                     // Create property record for admin management
                     const propertyId = await createProperty({
@@ -1317,17 +1306,17 @@ const FranchiseCreateInner: React.FC = () => {
                       priority: 'medium',
                     });
 
-                    // Update property stage to "rented" since franchise is auto-approved
+                    // Update property stage to "requested" since franchise needs approval
                     await updatePropertyStage({
                       propertyId,
-                      stage: 'rented',
+                      stage: 'requested',
                       franchiseId: franchiseId as Id<"franchises">,
                       franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
-                      notes: 'Property auto-approved for franchise creation',
-                      updatedBy: 'system-auto-approval',
+                      notes: 'Property requested for franchise approval',
+                      updatedBy: 'system-pending-approval',
                     });
 
-                    toast.success('Franchise created successfully!');
+                    toast.success('Franchise application submitted successfully! It will be reviewed by the brand team.');
                     // Navigate to franchise account page
                     router.push(`/${formData.selectedBusiness.slug}/${franchiseSlug}`);
                     
