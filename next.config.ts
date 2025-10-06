@@ -37,28 +37,8 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Enable CORS for Google Maps API
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-          {
-            key: 'Access-Control-Allow-Headers',
-            value: 'X-Requested-With, Content-Type, Authorization',
-          },
-        ],
-      },
-    ];
-  },
+  // Note: CORS headers are handled by Vercel's built-in configuration
+  // Removing custom CORS headers to avoid conflicts with Vercel deployment
 };
 
 export default nextConfig;
