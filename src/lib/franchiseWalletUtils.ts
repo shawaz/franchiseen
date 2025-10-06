@@ -1,8 +1,10 @@
 import { Keypair, PublicKey, Connection } from '@solana/web3.js';
 import bs58 from 'bs58';
 
-// Solana RPC endpoint - you can configure this
-const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+import { getBestRpcUrl } from './solanaConfig';
+
+// Solana RPC endpoint - using Helius RPC for better performance
+const SOLANA_RPC_URL = getBestRpcUrl('mainnet');
 
 /**
  * Generate a new Solana wallet for a franchise
