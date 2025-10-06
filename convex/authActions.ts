@@ -42,7 +42,7 @@ export const sendOTP = action({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Franchiseen <noreply@franchiseen.com>", // Use verified domain
+        from: "Franchiseen <onboarding@resend.dev>", // Use Resend's verified domain
         to: [email],
         subject: "Your Franchiseen Verification Code",
         html: `
@@ -98,7 +98,7 @@ export const sendSignupOTP = action({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Franchiseen <noreply@franchiseen.com>", // Use verified domain
+        from: "Franchiseen <onboarding@resend.dev>", // Use Resend's verified domain
         to: [email],
         subject: "Your Franchiseen Verification Code",
         html: `

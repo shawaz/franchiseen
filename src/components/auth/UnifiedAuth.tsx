@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Mail } from "lucide-react";
-import { useMutation, useAction } from "convex/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Mail, Upload, User, Copy, Check, Download } from "lucide-react";
+import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import { hashOTP } from "@/utils/crypto";
 import { Separator } from "../ui/separator";
 
@@ -32,14 +36,42 @@ export function UnifiedAuth({
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  
+  // Profile creation state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [country, setCountry] = useState("");
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
+  
+  // Wallet state
+  const [generatedWallet, setGeneratedWallet] = useState<{
+    walletAddress: string;
+    privateKey: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  
+  // Flow state
+  const [currentStep, setCurrentStep] = useState<"email" | "otp" | "profile" | "wallet">("email");
+  const [userId, setUserId] = useState<Id<"users"> | null>(null);
+
+  // Debug current step changes
+  React.useEffect(() => {
+    console.log("Current step changed to:", currentStep);
+  }, [currentStep]);
 
   const { setUserEmail } = useAuth();
   const sendOTP = useAction(api.authActions.sendOTP);
   const sendSignupOTP = useAction(api.authActions.sendSignupOTP);
   const verifyOTP = useMutation(api.auth.verifyOTP);
+  const createUserProfile = useMutation(api.userManagement.createUserProfile);
+  const { uploadFile } = useFileUpload();
+  
+  // Load countries from master data
+  const countries = useQuery(api.masterData.getAllCountries);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,10 +81,11 @@ export function UnifiedAuth({
     try {
       if (isSignUp) {
         await sendSignupOTP({ email });
+        setCurrentStep("otp");
       } else {
         await sendOTP({ email });
+        setCurrentStep("otp");
       }
-      setOtpSent(true);
     } catch (error) {
       console.error("Auth error:", error);
       if (isSignUp) {
@@ -78,13 +111,27 @@ export function UnifiedAuth({
 
     try {
       const hashedCode = await hashOTP(otpCode);
-      await verifyOTP({ email, code: otpCode, hashedCode });
-      // Success - store user session and redirect
+      const result = await verifyOTP({ email, code: otpCode, hashedCode });
+      
+      if (isSignUp) {
+        // For signup, continue to profile creation
+        console.log("Signup OTP verified, proceeding to profile creation");
+        console.log("Result:", result);
+        setUserId(result.userId);
+        // Don't set userEmail in AuthContext yet to avoid triggering profile query
+        // localStorage.setItem("userEmail", email);
+        localStorage.setItem("isAuthenticated", "true");
+        // setUserEmail(email);
+        console.log("Setting current step to profile");
+        setCurrentStep("profile");
+      } else {
+        // For login, proceed normally
       localStorage.setItem("userEmail", email);
       localStorage.setItem("isAuthenticated", "true");
       setUserEmail(email);
       onSuccess?.();
       window.location.href = "/";
+      }
     } catch (error) {
       console.error("OTP verification error:", error);
       setError("Invalid verification code. Please check the code and try again.");
@@ -115,9 +162,304 @@ export function UnifiedAuth({
     }
   };
 
-  if (otpSent) {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatar(file);
+      const url = URL.createObjectURL(file);
+      setAvatarUrl(url);
+    }
+  };
+
+  const handleProfileCreation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      let avatarStorageId = undefined;
+      if (avatar) {
+        avatarStorageId = await uploadFile(avatar);
+      }
+
+      if (!userId) {
+        throw new Error("User ID not found. Please try signing up again.");
+      }
+
+      const result = await createUserProfile({
+        userId,
+        firstName,
+        lastName,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth).getTime() : undefined,
+        country: country || undefined,
+        avatar: avatarStorageId,
+      });
+
+      // Store wallet information and show private key display
+      if (result.walletAddress && result.privateKey) {
+        setGeneratedWallet({
+          walletAddress: result.walletAddress,
+          privateKey: result.privateKey
+        });
+        setCurrentStep("wallet");
+      } else {
+        // Fallback if no wallet data
+        localStorage.removeItem("signupUserId");
+        onSuccess?.();
+        window.location.href = "/";
+      }
+    } catch (error) {
+      console.error("Profile creation error:", error);
+      setError("Failed to create profile. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleWalletContinue = () => {
+    // Set userEmail in AuthContext now that profile is complete
+    localStorage.setItem("userEmail", email);
+    setUserEmail(email);
+    // Clean up signup data and redirect to home page
+    localStorage.removeItem("signupUserId");
+    onSuccess?.();
+    window.location.href = "/";
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
+
+  const downloadWalletFile = () => {
+    if (!generatedWallet || !email) return;
+    
+    const walletData = {
+      email: email,
+      walletAddress: generatedWallet.walletAddress,
+      privateKey: generatedWallet.privateKey,
+      createdAt: new Date().toISOString(),
+      platform: "Franchiseen"
+    };
+    
+    const blob = new Blob([JSON.stringify(walletData, null, 2)], { 
+      type: 'application/json' 
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `franchiseen-wallet-${email.split('@')[0]}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Profile Creation Step
+  if (currentStep === "profile") {
+    console.log("Rendering profile creation step");
+    console.log("Current step:", currentStep);
+    console.log("User ID:", userId);
     return (
-      <>
+      <Card className="w-full max-w-md bg-background border shadow-lg">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+            <User className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <CardTitle className="text-xl">Complete Your Profile</CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Almost there! Please provide some additional information to complete your account setup.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleProfileCreation} className="space-y-4">
+            <FieldGroup>
+              {/* Avatar Upload */}
+              <Field>
+                <FieldLabel>Profile Picture (Optional)</FieldLabel>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    {avatarUrl ? (
+                      <AvatarImage src={avatarUrl} alt="Profile" />
+                    ) : (
+                      <AvatarFallback>
+                        <User className="h-8 w-8" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                      id="avatar-upload"
+                    />
+                    <label
+                      htmlFor="avatar-upload"
+                      className="flex items-center gap-2 px-3 py-2 border border-input rounded-md cursor-pointer hover:bg-accent"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload Photo
+                    </label>
+                  </div>
+                </div>
+              </Field>
+
+              {/* First Name */}
+              <Field>
+                <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+                <Input
+                  id="firstName"
+                  type="text"
+                  placeholder="Enter your first name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+              </Field>
+
+              {/* Last Name */}
+              <Field>
+                <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+                <Input
+                  id="lastName"
+                  type="text"
+                  placeholder="Enter your last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </Field>
+
+              {/* Date of Birth */}
+              <Field>
+                <FieldLabel htmlFor="dateOfBirth">Date of Birth (Optional)</FieldLabel>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                />
+              </Field>
+
+              {/* Country */}
+              <Field>
+                <FieldLabel htmlFor="country">Country (Optional)</FieldLabel>
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries?.map((country) => (
+                      <SelectItem key={country._id} value={country.name}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Field>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Complete Setup
+                </Button>
+              </Field>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Wallet Display Step
+  if (currentStep === "wallet" && generatedWallet) {
+    return (
+      <Card className="w-full max-w-lg bg-background border shadow-lg">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+            <span className="text-2xl">🎉</span>
+          </div>
+          <CardTitle className="text-green-600 dark:text-green-400 text-xl">Account Created Successfully!</CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Your Solana wallet has been generated. Please save your private key securely.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <FieldLabel className="text-sm font-medium text-foreground mb-2 block">Wallet Address</FieldLabel>
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md border">
+                <code className="flex-1 text-sm font-mono break-all text-foreground">{generatedWallet.walletAddress}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(generatedWallet.walletAddress, 'address')}
+                  className="shrink-0"
+                >
+                  {copiedField === 'address' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel className="text-sm font-medium text-red-600 dark:text-red-400 mb-2 block">Private Key (Keep Secret!)</FieldLabel>
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-md border border-red-200 dark:border-red-800">
+                <code className="flex-1 text-sm font-mono break-all text-red-700 dark:text-red-300">{generatedWallet.privateKey}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(generatedWallet.privateKey, 'privateKey')}
+                  className="shrink-0"
+                >
+                  {copiedField === 'privateKey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Alert variant="destructive" className="border-red-200 dark:border-red-800">
+            <AlertDescription className="text-red-700 dark:text-red-300">
+              <strong>⚠️ Important:</strong> Save your private key securely. We cannot recover it if lost. 
+              Never share it with anyone.
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex flex-col gap-3">
+            <Button 
+              onClick={downloadWalletFile} 
+              variant="outline" 
+              className="w-full"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Wallet File
+            </Button>
+            
+            <Button onClick={handleWalletContinue} className="w-full">
+              Continue to Dashboard
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // OTP Verification Step
+  if (currentStep === "otp") {
+    return (
         <Card className="w-full border-0 shadow-none bg-transparent">
           <CardContent className="p-0">
             <FieldGroup>
@@ -168,14 +510,11 @@ export function UnifiedAuth({
                   >
                     Didn&apos;t receive the code? Resend
                   </Button>
-                  
                 </div>
               </form>
             </FieldGroup>
           </CardContent>
         </Card>
-        
-      </>
     );
   }
 

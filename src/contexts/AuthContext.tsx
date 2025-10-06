@@ -43,8 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = () => {
       const hasSession = localStorage.getItem("isAuthenticated") === "true";
-      const hasProfile = !!userProfile;
-      setIsAuthenticated(hasSession && hasProfile);
+      // User is authenticated if they have a session, even without a complete profile
+      setIsAuthenticated(hasSession);
     };
     
     checkAuth();

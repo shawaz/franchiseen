@@ -428,9 +428,9 @@ function Header() {
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between ">
             {/* Logo */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-1/3">
             <Link 
               href="/" 
               className="flex items-center"
@@ -507,7 +507,7 @@ function Header() {
             </div>
 
             {/* Right Navigation */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-end gap-4 w-1/3">
               {/* Mobile Search Toggle */}
               <button
                 className="p-2 rounded-full md:hidden"
