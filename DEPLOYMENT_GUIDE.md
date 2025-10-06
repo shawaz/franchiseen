@@ -8,16 +8,6 @@
 - Fixed TypeScript errors in components
 - Cleaned up unused imports and variables
 
-## Why Use Helius RPC?
-
-🚀 **Helius RPC Benefits:**
-- **10x faster** than default Solana RPC endpoints
-- **Higher rate limits** (1000+ requests/second)
-- **Enhanced APIs** (getAsset, getAssetProof, etc.)
-- **Webhook support** for real-time updates
-- **Better reliability** with 99.9% uptime
-- **Advanced features** like compressed NFTs support
-
 ## Required Environment Variables
 
 You need to set these environment variables in your Vercel dashboard:
@@ -39,13 +29,8 @@ You need to set these environment variables in your Vercel dashboard:
    NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY=your_uploadcare_public_key
    ```
 
-4. **Solana Configuration (Helius RPC Recommended):**
+4. **Solana Configuration:**
    ```
-   # Helius RPC (Recommended for better performance)
-   NEXT_PUBLIC_HELIUS_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY
-   NEXT_PUBLIC_HELIUS_DEVNET_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY
-   
-   # Fallback RPC endpoints
    NEXT_PUBLIC_SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
    NEXT_PUBLIC_SOLANA_DEVNET_RPC_URL=https://api.devnet.solana.com
    NEXT_PUBLIC_USE_REAL_WALLETS=false
@@ -55,19 +40,6 @@ You need to set these environment variables in your Vercel dashboard:
    ```
    NEXT_PUBLIC_APP_ENV=production
    ```
-
-## How to Get Helius API Key
-
-1. **Sign up at [Helius](https://helius.dev/)**
-2. **Create a new project**
-3. **Copy your API key** from the dashboard
-4. **Use the RPC URLs** provided by Helius
-
-**Example Helius RPC URLs:**
-```
-Mainnet: https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY
-Devnet: https://devnet.helius-rpc.com/?api-key=YOUR_API_KEY
-```
 
 ## How to Set Environment Variables in Vercel
 
