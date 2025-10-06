@@ -74,7 +74,6 @@ export default function ApprovalTab({ franchiserId }: ApprovalTabProps) {
       const result = await approveFranchise({
         franchiseId: franchiseId as Id<"franchises">,
         approvedBy: 'brand-admin', // In real app, this would be the current user
-        walletAddress: walletAddress, // Pass the generated wallet address
       });
       
       console.log('Approval result:', result);
@@ -83,11 +82,6 @@ export default function ApprovalTab({ franchiserId }: ApprovalTabProps) {
         let message = 'Franchise approved successfully!';
         if (result.walletCreated) {
           message += ' Wallet created.';
-        } else {
-          message += ' Note: Wallet creation failed.';
-          if (result.walletCreationError) {
-            console.error('Wallet creation error details:', result.walletCreationError);
-          }
         }
         if (result.tokenCreated) {
           message += ' Token created.';

@@ -290,12 +290,7 @@ function HomeContent() {
   };
 
   return (
-    <div className="min-h-screen py-6">
-      <div className="container mx-auto py-6 pt-20 md:pt-6">
-        {/* Tab Content */}
-        <div>{renderTabContent()}</div>
-      </div>
-    </div>
+        <div className="min-h-screen py-12">{renderTabContent()}</div>
   );
 }
 

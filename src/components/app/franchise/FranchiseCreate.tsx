@@ -136,14 +136,14 @@ const FranchiserLogo: React.FC<{
         onClick={onSelect}
       >
         {/* Mobile: Stack vertically, Desktop: Horizontal */}
-        <div className="flex flex-col sm:flex-row sm:items-center">
+        <div className="flex items-center">
           {/* Logo section */}
-          <div className="flex items-center mb-3 sm:mb-0 sm:mr-4">
+          <div className="flex items-center mb-0 mr-4">
             <FranchiserLogo business={business} size="md" />
           </div>
           
           {/* Content section */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between w-full">
+          <div className="flex sm:items-center gap-2 sm:justify-between w-full">
             <div className="flex-1">
               <h4 className="font-medium text-sm sm:text-base">{business.name}</h4>
               <p className="text-xs sm:text-sm text-stone-600 mt-1">
@@ -655,12 +655,12 @@ const FranchiseCreateInner: React.FC = () => {
   };
 
   return (
-
-      <Card className="w-full max-w-4xl mx-auto my-4 sm:my-12 py-4 sm:py-6">
-        <CardContent>
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+    <div className="min-h-screen bg-stone-100 dark:bg-stone-900">
+      <Card className="w-full max-w-4xl mx-auto my-6 sm:my-12 py-0 sm:py-6 min-h-screen sm:min-h-0 rounded-none sm:rounded-lg">
+        <CardContent className="p-4 sm:p-6 w-full">
+        <div className="flex justify-between items-center mb-6 gap-4">
           <h2 className="text-xl sm:text-2xl font-bold">Create Franchise</h2>
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center justify-end gap-2 sm:gap-4">
             {[
               { step: 1 },
               { step: 2 },
@@ -694,7 +694,7 @@ const FranchiseCreateInner: React.FC = () => {
         </div>
 
         {/* Step Content */}
-        <div className="mb-6 min-h-[400px]">
+        <div className="mb-6 min-h-[300px] sm:min-h-[400px]">
           {currentStep === 1 && (
             <div>
 
@@ -758,7 +758,7 @@ const FranchiseCreateInner: React.FC = () => {
                   </Button>
                 </div>
 
-              <div className="w-full h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden rounded-lg">
+              <div className="w-full h-[500px] sm:h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden rounded-none sm:rounded-lg">
                 <GoogleMapsLoader
                   loadingFallback={
                     <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-800 dark:to-stone-900">
@@ -792,59 +792,7 @@ const FranchiseCreateInner: React.FC = () => {
                   />
                 </GoogleMapsLoader>
               </div>
-              {/* {selectedLocation && (
-                <div className="mt-4 space-y-2">
-                  <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      <strong>Selected Location:</strong> {selectedLocation.address}
-                    </p>
-                  </div>
-                  {locationInfo && (
-                    <div className="p-3 bg-stone-50 dark:bg-stone-900/20 border border-stone-200 dark:border-stone-800 rounded-md">
-                      <p className="text-sm text-stone-700 dark:text-stone-300">
-                        <strong>Extracted:</strong> {locationInfo.country}{locationInfo.city && `, ${locationInfo.city}`}
-                      </p>
-                      {locationInfo.country === 'Unknown' && (
-                        <div className="mt-2">
-                          <p className="text-xs text-orange-600 dark:text-orange-400 mb-2">
-                            Location parsing failed. Please manually select:
-                          </p>
-                          <div className="flex gap-2">
-                            <select
-                              value={manualLocationOverride?.country || ''}
-                              onChange={(e) => setManualLocationOverride(prev => ({ 
-                                country: e.target.value, 
-                                city: prev?.city 
-                              }))}
-                              className="text-xs px-2 py-1 border rounded"
-                            >
-                              <option value="">Select Country</option>
-                              <option value="India">India</option>
-                              <option value="UAE">UAE</option>
-                              <option value="US">US</option>
-                              <option value="UK">UK</option>
-                            </select>
-                            <select
-                              value={manualLocationOverride?.city || ''}
-                              onChange={(e) => setManualLocationOverride(prev => ({ 
-                                country: prev?.country || '', 
-                                city: e.target.value 
-                              }))}
-                              className="text-xs px-2 py-1 border rounded"
-                            >
-                              <option value="">Select City (Optional)</option>
-                              <option value="Bangalore">Bangalore</option>
-                              <option value="Mangalore">Mangalore</option>
-                              <option value="Dubai">Dubai</option>
-                              <option value="Abu Dhabi">Abu Dhabi</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )} */}
+          
             </div>
           )}
 
@@ -853,8 +801,8 @@ const FranchiseCreateInner: React.FC = () => {
               <div className="mb-4 mt-4">
                 <div className="flex flex-col space-y-2">
                   {/* Mobile: Stack vertically, Desktop: Horizontal */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 gap-2">
-                    <div className="relative w-full flex-1 items-center">
+                  <div className="flex items-stretch space-y-2 sm:space-y-0 sm:space-x-2 gap-2">
+                    <div className="relative hidden sm:block w-full flex-1 items-center">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
                       <Input
                         placeholder="Search businesses..."
@@ -894,7 +842,7 @@ const FranchiseCreateInner: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="space-y-4 max-h-[450px] overflow-y-auto pr-2 -mr-2">
+              <div className="space-y-4 max-h-[350px] sm:max-h-[450px] overflow-y-auto pr-2 -mr-2">
                 {franchisersLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500 mx-auto mb-4"></div>
@@ -994,7 +942,7 @@ const FranchiseCreateInner: React.FC = () => {
                 <div className="grid grid-cols-4 gap-4">
                 <div className="col-span-1">
                     <label className="block text-sm font-medium text-stone-700 mb-1">
-                      Carpet Area (sq ft)
+                      Area (sq ft)
                     </label>
                     <Input
                       type="number"
@@ -1193,7 +1141,7 @@ const FranchiseCreateInner: React.FC = () => {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex flex-col sm:flex-row justify-between pt-4 border-t gap-4">
+        <div className="flex justify-between sm:pt-4 sm:border-t gap-4">
           <div>
             {currentStep > 1 && (
               <Button
@@ -1337,7 +1285,7 @@ const FranchiseCreateInner: React.FC = () => {
         </div>
         </CardContent>
       </Card>
-
+    </div>
   );
 };
 

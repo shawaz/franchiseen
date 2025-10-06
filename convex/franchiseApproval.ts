@@ -55,14 +55,13 @@ export const getPendingFranchises = query({
   },
 });
 
-// Approve franchise and create token
+// Approve franchise and create token only (wallet created when funding is complete)
 export const approveFranchiseAndCreateToken = mutation({
   args: {
     franchiseId: v.id("franchises"),
     approvedBy: v.string(), // Admin or brand user who approved
-    walletAddress: v.optional(v.string()), // Wallet address from frontend
   },
-  handler: async (ctx, { franchiseId, approvedBy, walletAddress }) => {
+  handler: async (ctx, { franchiseId, approvedBy }) => {
     const now = Date.now();
 
     // Get franchise details
@@ -90,6 +89,7 @@ export const approveFranchiseAndCreateToken = mutation({
     });
 
     // Create SPL token for the franchise
+    let tokenCreated = false;
     try {
       const tokenName = `${franchise.businessName} Tokens`;
       // Create a shorter, more readable token symbol (e.g., NIKE09, MCD15)
@@ -114,51 +114,11 @@ export const approveFranchiseAndCreateToken = mutation({
         updatedAt: now,
       });
 
+      tokenCreated = true;
       console.log(`Token created successfully for franchise ${franchise.franchiseSlug}`);
     } catch (error) {
       console.error("Failed to create franchise token:", error);
       // Continue with approval even if token creation fails
-    }
-
-    // Create franchise wallet
-    let walletCreationResult = null;
-    let walletCreationError = null;
-    try {
-      // Use the wallet address provided from frontend, or generate one if not provided
-      let finalWalletAddress = walletAddress;
-      
-      if (!finalWalletAddress) {
-        // Fallback: generate wallet address using the existing mock generator
-        finalWalletAddress = generateMockSolanaAddress();
-      }
-      
-      // Create the franchise wallet record directly
-      const walletId = await ctx.db.insert("franchiseWallets", {
-        franchiseId: franchiseId,
-        walletAddress: finalWalletAddress,
-        walletName: `${franchise.businessName} Wallet`,
-        balance: 0, // Start with 0 SOL balance
-        usdBalance: 0, // Start with 0 USD balance
-        totalIncome: 0,
-        totalExpenses: 0,
-        totalPayouts: 0,
-        totalRoyalties: 0,
-        monthlyRevenue: 0,
-        monthlyExpenses: 0,
-        transactionCount: 0,
-        lastActivity: now,
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      });
-      
-      const walletResult = { walletId, walletAddress: finalWalletAddress };
-      
-      walletCreationResult = walletResult;
-    } catch (error) {
-      walletCreationError = error;
-      console.error("Failed to create franchise wallet:", error);
-      // Continue with approval even if wallet creation fails
     }
 
     // Update property stage if exists
@@ -176,15 +136,10 @@ export const approveFranchiseAndCreateToken = mutation({
 
     return {
       success: true,
-      message: "Franchise approved and token created successfully",
+      message: "Franchise approved and token created successfully. Wallet will be created when funding is complete.",
       franchiseId,
-      tokenCreated: true,
-      walletCreated: !!walletCreationResult,
-      walletCreationResult,
-      walletCreationError: walletCreationError ? {
-        message: walletCreationError instanceof Error ? walletCreationError.message : 'Unknown error',
-        stack: walletCreationError instanceof Error ? walletCreationError.stack : undefined
-      } : null,
+      tokenCreated,
+      walletCreated: false, // Wallet will be created when funding is complete
     };
   },
 });

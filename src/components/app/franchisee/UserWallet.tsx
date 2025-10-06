@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
-import { ArrowUpDown, Copy, ArrowUpRight, ArrowDownLeft, RotateCw } from 'lucide-react';
+import { ArrowUpDown, Copy, ArrowDownLeft, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
 import { Button } from '../../ui/button';
@@ -278,9 +278,6 @@ const UserWallet: React.FC<WalletProps> = ({
     }
   };
 
-  const handleSendSOL = () => {
-    toast.info('This is a demo. Send SOL functionality is disabled.');
-  };
 
 
   return (
@@ -392,7 +389,7 @@ const UserWallet: React.FC<WalletProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {isDevnet && connected && (
               <button
                 onClick={requestAirdrop}
@@ -434,13 +431,13 @@ const UserWallet: React.FC<WalletProps> = ({
               <span className="text-xs font-medium">TRANSFER</span>
             </button>
 
-            <button
+            {/* <button
               onClick={handleSendSOL}
               className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-4 "
             >
               <ArrowUpRight className="h-4 w-4" />
               <span className="text-xs font-medium">WITHDRAW (Not Available In Demo)</span>
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

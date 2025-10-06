@@ -3,12 +3,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Upload, User } from "lucide-react";
+import { Loader2, Upload, User } from "lucide-react";
 import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -200,200 +206,257 @@ export function SignupForm({ onBack, onSuccess }: SignupFormProps) {
   if (step === "email") {
     if (otpSent) {
       return (
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle>Verify your email</CardTitle>
-            <CardDescription>
-              We&apos;ve sent a verification code to <strong>{email}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleOtpVerification} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp">Verification Code</Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  placeholder="Enter 6-digit code"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  maxLength={6}
-                  required
-                />
-              </div>
-              
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+        <>
+          <Card className="w-full border-0 shadow-none bg-transparent">
+            <CardContent className="p-0">
+              <FieldGroup>
+                <div className="flex flex-col items-center gap-2 text-center mb-6">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <h1 className="text-2xl font-bold">Verify your email</h1>
+                  <p className="text-muted-foreground text-balance">
+                    We&apos;ve sent a verification code to <strong>{email}</strong>
+                  </p>
+                </div>
+                
+                <form onSubmit={handleOtpVerification} className="space-y-4">
+                  <Field>
+                    <FieldLabel htmlFor="otp">Verification Code</FieldLabel>
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder="Enter 6-digit code"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      maxLength={6}
+                      required
+                    />
+                  </Field>
+                  
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Verify & Continue
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                  <Field>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Verify & Continue
+                    </Button>
+                  </Field>
+                </form>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+          
+          <FieldDescription className="text-center text-xs">
+            By continuing, you agree to our{" "}
+            <a href="#" className="underline underline-offset-2 hover:no-underline">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="#" className="underline underline-offset-2 hover:no-underline">
+              Privacy Policy
+            </a>.
+          </FieldDescription>
+        </>
       );
     }
 
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader className="text-center">
-          <CardTitle>Create your account</CardTitle>
-        <CardDescription>
-          Enter your email to get started
-        </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleEmailSignup} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+      <>
+        <Card className="w-full border-0 shadow-none bg-transparent">
+          <CardContent className="p-0">
+            <form onSubmit={handleEmailSignup}>
+              <FieldGroup>
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <h1 className="text-2xl font-bold">Create your account</h1>
+                  <p className="text-muted-foreground text-balance">
+                    Enter your email to get started
+                  </p>
+                </div>
+                
+                <Field>
+                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </Field>
+                
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Account
-            </Button>
+                <Field>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Account
+                  </Button>
+                </Field>
 
-            {onBack && (
-              <div className="text-center">
-                <Button
+                <FieldDescription className="text-center">
+                Don&apos;t have an account?{" "}
+                <button 
                   type="button"
-                  variant="ghost"
                   onClick={onBack}
-                  className="text-sm"
+                  className="underline underline-offset-2 hover:no-underline"
                 >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to sign in
-                </Button>
-              </div>
-            )}
-          </form>
-        </CardContent>
-      </Card>
+                  Sign up
+                </button>
+              </FieldDescription>
+              <FieldSeparator />
+        
+        <FieldDescription className="text-center text-xs">
+          By creating an account, you agree to our{" "}<br />
+          <a href="#" className="underline underline-offset-2 hover:no-underline">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="#" className="underline underline-offset-2 hover:no-underline">
+            Privacy Policy
+          </a>.
+        </FieldDescription>
+
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+        
+      </>
     );
   }
 
   // Render profile step
   if (step === "profile") {
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader className="text-center">
-          <CardTitle>Complete your profile</CardTitle>
-          <CardDescription>
-            Tell us a bit about yourself to get started
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleProfileCreation} className="space-y-4">
-            {/* Avatar Upload */}
-            <div className="flex flex-col items-center space-y-2">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={avatarUrl} />
-                <AvatarFallback>
-                  <User className="h-8 w-8" />
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <Input
-                  id="avatar"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                  className="hidden"
-                />
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => document.getElementById('avatar')?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Avatar
-                </Button>
-              </div>
-            </div>
+      <>
+        <Card className="w-full border-0 shadow-none bg-transparent">
+          <CardContent className="p-0">
+            <form onSubmit={handleProfileCreation}>
+              <FieldGroup>
+                <div className="flex flex-col items-center gap-2 text-center mb-6">
+                  <h1 className="text-2xl font-bold">Complete your profile</h1>
+                  <p className="text-muted-foreground text-balance">
+                    Tell us a bit about yourself to get started
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  placeholder="First name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  placeholder="Last name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+                {/* Avatar Upload */}
+                <div className="flex flex-col items-center space-y-4 mb-6">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback>
+                      <User className="h-8 w-8" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <Input
+                      id="avatar"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => document.getElementById('avatar')?.click()}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Avatar
+                    </Button>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries?.map((country: { _id: string; name: string; code: string; flag?: string }) => (
-                      <SelectItem key={country._id} value={country.code}>
-                        {country.flag && <span className="mr-2">{country.flag}</span>}
-                        {country.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+                <div className="grid grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+                    <Input
+                      id="firstName"
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+                    <Input
+                      id="lastName"
+                      placeholder="Last name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
+                  </Field>
+                </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Complete Setup
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="dateOfBirth">Date of Birth</FieldLabel>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="country">Country</FieldLabel>
+                    <Select value={country} onValueChange={setCountry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries?.map((country: { _id: string; name: string; code: string; flag?: string }) => (
+                          <SelectItem key={country._id} value={country.code}>
+                            {country.flag && <span className="mr-2">{country.flag}</span>}
+                            {country.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+                
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Field>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Complete Setup
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+        
+        <FieldDescription className="text-center text-xs">
+          By completing your profile, you agree to our{" "}
+          <a href="#" className="underline underline-offset-2 hover:no-underline">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="#" className="underline underline-offset-2 hover:no-underline">
+            Privacy Policy
+          </a>.
+        </FieldDescription>
+      </>
     );
   }
 

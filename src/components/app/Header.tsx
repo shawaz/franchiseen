@@ -1,11 +1,12 @@
 "use client";
 
-import { Search, Menu, X, Filter, ChevronDown } from "lucide-react";
+import { Search, X, Filter, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { ThemeSwitcher } from "../default/theme-switcher";
 import { AuthHeader } from "../auth/AuthHeader";
+import { HamburgerMenu } from "./HamburgerMenu";
 import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -521,10 +522,8 @@ function Header() {
                 <AuthHeader />
               </div>
 
-              {/* Mobile Menu Toggle */}
-              <button className="p-2 rounded-full md:hidden">
-                <Menu className="h-6 w-6" />
-              </button>
+              {/* Mobile Hamburger Menu */}
+              <HamburgerMenu />
             </div>
           </div>
         )}

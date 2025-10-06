@@ -201,14 +201,85 @@ export const checkAndTransitionFranchiseStage = mutation({
       : 0;
 
     if (fundingProgress >= 100 && franchise.stage === "funding") {
+      const now = Date.now();
+      
+      // Create franchise wallet with working capital
+      let walletCreated = false;
+      let walletCreationError = null;
+      try {
+        // Generate wallet address
+        const walletAddress = `franchise_wallet_${args.franchiseId}_${now}`;
+        
+        // Create the franchise wallet record
+        const walletId = await ctx.db.insert("franchiseWallets", {
+          franchiseId: args.franchiseId,
+          walletAddress: walletAddress,
+          walletName: `${franchise.businessName} Wallet`,
+          balance: 0, // Start with 0 SOL balance
+          usdBalance: investment.workingCapital, // Working capital in USD
+          totalIncome: 0,
+          totalExpenses: 0,
+          totalPayouts: 0,
+          totalRoyalties: 0,
+          monthlyRevenue: 0,
+          monthlyExpenses: 0,
+          transactionCount: 0,
+          lastActivity: now,
+          status: "active",
+          createdAt: now,
+          updatedAt: now,
+        });
+        
+        walletCreated = true;
+        console.log(`Franchise wallet created successfully for ${franchise.franchiseSlug} with working capital: $${investment.workingCapital}`);
+      } catch (error) {
+        walletCreationError = error;
+        console.error("Failed to create franchise wallet:", error);
+        // Continue with stage transition even if wallet creation fails
+      }
+
+      // Transfer franchise fee and setup cost to brand wallet
+      let brandWalletTransactionsCreated = 0;
+      try {
+        // Transfer franchise fee to brand wallet
+        await ctx.db.insert("brandWalletTransactions", {
+          franchiserId: franchise.franchiserId,
+          franchiseId: args.franchiseId,
+          type: "franchise_fee",
+          amount: investment.franchiseFee,
+          description: `Franchise fee received from ${franchise.franchiseSlug}: $${investment.franchiseFee.toLocaleString()}`,
+          status: "completed",
+          transactionHash: `franchise_fee_${args.franchiseId}_${now}`,
+          createdAt: now,
+        });
+        brandWalletTransactionsCreated++;
+
+        // Transfer setup cost to brand wallet
+        await ctx.db.insert("brandWalletTransactions", {
+          franchiserId: franchise.franchiserId,
+          franchiseId: args.franchiseId,
+          type: "setup_cost",
+          amount: investment.setupCost,
+          description: `Setup cost received from ${franchise.franchiseSlug}: $${investment.setupCost.toLocaleString()}`,
+          status: "completed",
+          transactionHash: `setup_cost_${args.franchiseId}_${now}`,
+          createdAt: now,
+        });
+        brandWalletTransactionsCreated++;
+
+        console.log(`Brand wallet transactions created: franchise fee ($${investment.franchiseFee}) and setup cost ($${investment.setupCost})`);
+      } catch (error) {
+        console.error("Failed to create brand wallet transactions:", error);
+        // Continue with stage transition even if brand wallet transactions fail
+      }
+
       // Update franchise stage to launching
       await ctx.db.patch(args.franchiseId, {
         stage: "launching",
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
 
       // Create setup table entry with 45-day launch timeline
-      const now = Date.now();
       const launchDate = now + (45 * 24 * 60 * 60 * 1000); // 45 days from now
 
       await ctx.db.insert("franchiseSetup", {
@@ -231,6 +302,16 @@ export const checkAndTransitionFranchiseStage = mutation({
         success: true,
         newStage: "launching",
         setupCreated: true,
+        walletCreated,
+        walletCreationError: walletCreationError ? {
+          message: walletCreationError instanceof Error ? walletCreationError.message : 'Unknown error',
+        } : null,
+        brandWalletTransactionsCreated,
+        fundDistribution: {
+          franchiseFee: investment.franchiseFee,
+          setupCost: investment.setupCost,
+          workingCapital: investment.workingCapital,
+        },
         launchDate: new Date(launchDate).toISOString(),
       };
     }

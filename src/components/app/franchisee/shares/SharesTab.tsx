@@ -6,6 +6,7 @@ import { api } from '../../../../../convex/_generated/api';
 import { useRouter } from 'next/navigation';
 import { useSolana } from '@/components/solana/use-solana';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
+import { useAuth } from '@/contexts/AuthContext';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
 interface FranchiseShare {
@@ -30,11 +31,29 @@ interface FranchiseShare {
 export default function SharesTab() {
   const router = useRouter();
   const { account } = useSolana();
+  const { userProfile } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Use the wallet address from user profile (generated wallet) instead of connected wallet
+  const walletAddress = userProfile?.walletAddress;
   
   // Get shares data from Convex
   const sharesData = useQuery(api.franchiseManagement.getSharesByInvestor, { 
-    investorId: account?.address || 'no-wallet' // Use actual wallet address
+    investorId: walletAddress || 'no-wallet' // Use generated wallet address
+  });
+
+  // Debug logging
+  console.log('SharesTab Debug:', {
+    walletAddress,
+    connectedWallet: account?.address,
+    sharesData: sharesData,
+    sharesCount: sharesData?.length || 0,
+    userProfile: userProfile,
+    franchiseStages: sharesData?.map(share => ({
+      franchiseSlug: share.franchise?.franchiseSlug,
+      status: share.franchise?.status,
+      stage: share.franchise?.stage
+    }))
   });
 
   // Group shares by franchise and aggregate data
@@ -65,9 +84,10 @@ export default function SharesTab() {
       // Aggregate data for existing franchise
       existing.invested += share.totalAmount;
       existing.totalShares += share.sharesPurchased;
-      // Keep the most recent stage (assuming later shares have more current status)
-      existing.stage = share.franchise?.status === 'active' ? 'Live' : 
-                      share.franchise?.status === 'approved' ? 'Launching' : 'Funding';
+      // Keep the most recent stage (use actual stage field)
+      existing.stage = share.franchise?.stage === 'ongoing' ? 'Live' : 
+                      share.franchise?.stage === 'launching' ? 'Launching' : 
+                      share.franchise?.stage === 'closed' ? 'Closed' : 'Funding';
     } else {
       // Create new franchise entry
       franchiseSharesMap.set(franchiseSlug, {
@@ -81,8 +101,9 @@ export default function SharesTab() {
           city: share.franchise?.address?.split(',')[1]?.trim() || 'Unknown City',
           country: share.franchise?.address?.split(',').pop()?.trim() || 'Unknown Country'
         },
-        stage: share.franchise?.status === 'active' ? 'Live' : 
-               share.franchise?.status === 'approved' ? 'Launching' : 'Funding',
+        stage: share.franchise?.stage === 'ongoing' ? 'Live' : 
+               share.franchise?.stage === 'launching' ? 'Launching' : 
+               share.franchise?.stage === 'closed' ? 'Closed' : 'Funding',
         invested: share.totalAmount,
         earned: 0, // This would need to be calculated from actual earnings
         isOfferActive: true, // This would be determined by business logic
@@ -117,15 +138,15 @@ export default function SharesTab() {
     );
   }
 
-  // Show no wallet connected state
-  if (!account?.address) {
+  // Show no wallet available state
+  if (!walletAddress) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">My Franchise Shares</h2>
         </div>
         <div className="text-center py-8">
-          <p className="text-gray-500">Please connect your wallet to view your shares</p>
+          <p className="text-gray-500">Please sign up or login to get a wallet address and view your shares</p>
         </div>
       </div>
     );
@@ -234,7 +255,12 @@ export default function SharesTab() {
                     {franchise.location.area}, {franchise.location.city}, {franchise.location.country}
                   </td> */}
                   <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-stone-500">
-                    <span className="inline-flex items-center  bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${
+                      franchise.stage === 'Live' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                      franchise.stage === 'Launching' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
+                      franchise.stage === 'Closed' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' :
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    }`}>
                       {franchise.stage}
                     </span>
                   </td>

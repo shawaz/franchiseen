@@ -216,12 +216,12 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               <div className="mt-2 absolute  left-4 top-3">
                 <span className={`inline-block px-4 uppercase font-bold py-2 text-xs font-medium rounded-full ${
                   stage === 'funding' 
-                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
+                    ? 'bg-purple-100 text-purple-800 '
                     : stage === 'launching'
-                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
+                    ? 'bg-orange-100 text-orange-800 '
                     : stage === 'ongoing'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800 '
                 }`}>
                   {stage.charAt(0).toUpperCase() + stage.slice(1)}
                 </span>

@@ -104,8 +104,10 @@ export function FranchiseTab() {
     } : "skip"
   );
 
-  // Mutation to update franchise status
-  const updateFranchiseStatus = useMutation(api.franchiseManagement.updateFranchiseStatus);
+  // Mutations for franchise management
+  const approveFranchise = useMutation(api.franchiseApproval.approveFranchiseAndCreateToken);
+  const rejectFranchise = useMutation(api.franchiseApproval.rejectFranchise);
+  const transitionToOngoingStage = useMutation(api.franchiseManagement.transitionToOngoingStage);
 
   // Sold locations state
   const [soldLocations, setSoldLocations] = useState<SoldLocation[]>([]);
@@ -248,10 +250,11 @@ export function FranchiseTab() {
                     className="text-red-600 border-red-600 hover:bg-red-50"
                     onClick={async () => {
                       try {
-                      await updateFranchiseStatus({
-                        franchiseId: franchise.id as Id<"franchises">,
-                        status: 'rejected'
-                      });
+                        await rejectFranchise({
+                          franchiseId: franchise.id as Id<"franchises">,
+                          rejectedBy: 'brand-admin', // In real app, this would be the current user
+                          reason: 'Rejected by brand admin', // In real app, this would be from a form
+                        });
                         toast.success(`Franchise ${franchise.name} rejected successfully!`);
                         setApprovalModal({ open: false, franchise: null });
                       } catch (error) {
@@ -268,20 +271,33 @@ export function FranchiseTab() {
                   className="bg-green-600 hover:bg-green-700"
                   onClick={async () => {
                     try {
-                      await updateFranchiseStatus({
+                      const result = await approveFranchise({
                         franchiseId: franchise.id as Id<"franchises">,
-                        status: 'approved'
+                        approvedBy: 'brand-admin', // In real app, this would be the current user
                       });
-                      toast.success(`Franchise ${franchise.name} approved successfully!`);
+                      
+                      console.log('Approval result:', result);
+                      
+                      if (result.success) {
+                        let message = `Franchise ${franchise.name} approved successfully!`;
+                        if (result.tokenCreated) {
+                          message += ' Token created.';
+                        }
+                        message += ' Wallet will be created when funding is complete.';
+                        toast.success(message);
+                      } else {
+                        toast.error('Approval failed');
+                      }
+                      
                       setApprovalModal({ open: false, franchise: null });
                     } catch (error) {
                       console.error('Error approving franchise:', error);
-                      toast.error('Failed to approve franchise. Please try again.');
+                      toast.error('Failed to approve franchise: ' + (error instanceof Error ? error.message : 'Unknown error'));
                     }
                   }}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve Franchise
+                  Approve & Create Token
                 </Button>
               </div>
             </div>
@@ -386,9 +402,22 @@ export function FranchiseTab() {
                 <Button 
                   type="button"
                   className="bg-orange-600 hover:bg-orange-700"
-                  onClick={() => {
-                    toast.success(`Franchise ${franchise.name} launched successfully!`);
-                    setLaunchModal({ open: false, franchise: null });
+                  onClick={async () => {
+                    try {
+                      const result = await transitionToOngoingStage({
+                        franchiseId: franchise.id as Id<"franchises">,
+                      });
+                      
+                      if (result.success) {
+                        toast.success(`Franchise ${franchise.name} launched successfully!`);
+                        setLaunchModal({ open: false, franchise: null });
+                      } else {
+                        toast.error('Failed to launch franchise. Please try again.');
+                      }
+                    } catch (error) {
+                      console.error('Error launching franchise:', error);
+                      toast.error('Failed to launch franchise: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                    }
                   }}
                 >
                   <Rocket className="w-4 h-4 mr-2" />
