@@ -190,8 +190,8 @@ function HomeContent() {
       });
     }
 
-    // Filter franchises based on search query
-    const filteredFranchises = searchQuery 
+    // Filter franchises based on search query and status
+    const filteredFranchises = (searchQuery 
       ? currentFranchises.filter((franchise) => {
           const query = searchQuery.toLowerCase();
           return (
@@ -202,7 +202,11 @@ function HomeContent() {
             franchise.address?.toLowerCase().includes(query)
           );
         })
-      : currentFranchises;
+      : currentFranchises
+    ).filter(franchise => {
+      // Hide pending and rejected franchises from home page
+      return franchise.status !== 'pending' && franchise.status !== 'rejected';
+    });
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

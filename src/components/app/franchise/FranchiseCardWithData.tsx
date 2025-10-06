@@ -33,10 +33,10 @@ interface FranchiseCardWithDataProps {
 
 const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise }) => {
   // Get fundraising data for this specific franchise
-  const fundraisingData = useFranchiseFundraisingData(franchise._id.toString());
+  const fundraisingData = useFranchiseFundraisingData(franchise.title); // franchise.title is the franchiseSlug
   
   // Get franchise wallet data for launching and ongoing stages
-  const franchiseWallet = useFranchiseWallet({ franchiseId: franchise._id.toString() });
+  const { wallet: franchiseWallet } = useFranchiseWallet({ franchiseId: franchise._id });
   
   // Get franchise token data
   const franchiseToken = useQuery(api.tokenManagement.getFranchiseToken, { 
@@ -51,9 +51,20 @@ const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise
   const categoryData = useCategoryById(franchise.franchiser?.category as Id<"categories"> | undefined);
   const industryData = useIndustryById(franchise.franchiser?.industry as Id<"industries"> | undefined);
 
+
   // Calculate stage-specific data
   const totalBudget = franchise.investment?.totalInvestment || 500000;
-  const currentWalletBalance = (franchiseWallet as { usdBalance?: number } | null)?.usdBalance || 0;
+  
+  // For funding stage, use raised amount from fundraising data
+  // For launching/ongoing stages, use franchise wallet balance
+  let currentWalletBalance = 0;
+  if (franchise.stage === 'funding') {
+    // Use raised amount for funding stage
+    currentWalletBalance = fundraisingData?.totalInvested || 0;
+  } else {
+    // Use franchise wallet balance for launching/ongoing stages
+    currentWalletBalance = (franchiseWallet as { usdBalance?: number } | null)?.usdBalance || 0;
+  }
   const totalShares = franchiseToken?.totalSupply || franchise.investment?.sharesIssued || 100000;
   const sharesRemaining = totalShares - (fundraisingData?.sharesIssued || 0);
   const estimatedMonthlyRevenue = (franchise.franchiser as { estimatedMonthlyRevenue?: number } | undefined)?.estimatedMonthlyRevenue || 0;

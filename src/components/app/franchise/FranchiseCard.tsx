@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { FranchiseCardProps } from "@/types/ui";
+import { Heart } from "lucide-react";
+import { useState } from "react";
 
 // Helper function to validate URLs
 const isValidUrl = (url: string): boolean => {
@@ -40,7 +42,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
   doorNumber,
 }) => {
   const router = useRouter();
-
+  const [isFavorite, setIsFavorite] = useState(false);
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -65,54 +67,16 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
     // For funding stage: show how much has been raised
     // For other stages: show completion status
     let progressPercentage = 0;
-    let progressLabel = "";
     
-    if (stage === 'funding') {
-      // During funding, show raised amount vs total investment
-      const raisedAmount = (totalInvestment || 0) - (currentBalance || 0);
-      progressPercentage = (totalInvestment || 0) > 0 ? (raisedAmount / (totalInvestment || 0)) * 100 : 0;
-      progressLabel = `${formatCurrency(raisedAmount)} raised`;
-    } else {
-      // For other stages, show completion status
-      progressPercentage = 100;
-      progressLabel = "Complete";
-    }
+    // For all stages, show progress based on current balance vs total investment
+    const raisedAmount = currentBalance || 0; // Current balance is what has been raised
+    progressPercentage = (totalInvestment || 0) > 0 ? (raisedAmount / (totalInvestment || 0)) * 100 : 0;
+
 
     return (
       <>
-        {/* First value - always show total budget/token issued */}
-        <div className="flex justify-between items-center mt-2">
-          <p className="font-semibold">{formatCurrency(firstValue)}</p>
-          <div className="text-sm font-medium">
-            {stage === 'funding' && <span className="text-blue-600">Funding</span>}
-            {stage === 'launching' && <span className="text-yellow-600">Launching</span>}
-            {stage === 'ongoing' && <span className="text-green-600">Ongoing</span>}
-            {stage === 'closed' && <span className="text-gray-600">Closed</span>}
-            {!stage && <span className="text-blue-600">Funding</span>}
-          </div>
-        </div>
-
-        {/* Progress Bar - Funding Progress */}
-        <div className="mt-2">
-          <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-            <div
-              className={`h-2 transition-all duration-300 ${
-                stage === 'funding' ? 'bg-blue-500' :
-                stage === 'launching' ? 'bg-yellow-500' :
-                stage === 'ongoing' ? 'bg-green-500' :
-                'bg-gray-500'
-              }`}
-              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-xs mt-1">
-            <span>{progressLabel}</span>
-            <span>{formatCurrency(totalInvestment || 0)} Goal</span>
-          </div>
-        </div>
-
-        {/* Stage-specific data */}
-        <div className="mt-3 space-y-2">
+       {/* Stage-specific data */}
+       <div className="mt-3 space-y-2">
           {stage === 'funding' && (
             <>
               <div className="flex justify-between text-sm">
@@ -159,6 +123,42 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
             </div>
           )}
         </div>
+        
+
+        {/* Progress Bar - Funding Progress */}
+        <div className="mt-2">
+          {/* <div className="flex justify-between text-sm mb-2">
+            <span>{progressLabel}</span>
+            <span>{formatCurrency(totalInvestment || 0)} Goal</span>
+          </div> */}
+          <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+            <div
+              className={`h-2 transition-all duration-300 ${
+                stage === 'funding' ? 'bg-blue-500' :
+                stage === 'launching' ? 'bg-yellow-500' :
+                stage === 'ongoing' ? 'bg-green-500' :
+                'bg-gray-500'
+              }`}
+              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+            ></div>
+          </div>
+          
+        </div>
+
+        {/* First value - show total budget and current balance */}
+        <div className="flex justify-between items-center mt-2">
+          <p className="font-semibold">{formatCurrency(firstValue)}</p>
+          <p className="font-semibold">{formatCurrency(currentBalance || 0)}</p>
+          {/* <div className="text-sm font-medium">
+            {stage === 'funding' && <span className="text-blue-600">Funding</span>}
+            {stage === 'launching' && <span className="text-yellow-600">Launching</span>}
+            {stage === 'ongoing' && <span className="text-green-600">Ongoing</span>}
+            {stage === 'closed' && <span className="text-gray-600">Closed</span>}
+            {!stage && <span className="text-blue-600">Funding</span>}
+          </div> */}
+        </div>
+
+       
       </>
     );
   };
@@ -211,7 +211,7 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               <p className="text-muted-foreground">Image not available</p>
             </div>
           )}
-          {/* <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
             {stage && (
               <div className="mt-2 absolute  left-4 top-3">
                 <span className={`inline-block px-4 uppercase font-bold py-2 text-xs font-medium rounded-full ${
@@ -232,14 +232,14 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
                 e.stopPropagation();
                 setIsFavorite(!isFavorite);
               }}
-              className="absolute top-4 right-4 p-2  bg-background/80"
+              className="absolute rounded-full border border-border cursor-pointer top-4 right-4 p-2  bg-background/80"
             >
               <Heart
                 size={20}
                 className={isFavorite ? "fill-destructive text-destructive" : ""}
               />
             </button>
-          </div> */}
+          </div>
          
         </div>
         <div className="p-4">

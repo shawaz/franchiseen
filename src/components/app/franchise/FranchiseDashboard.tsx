@@ -2,6 +2,9 @@
 
 import React from 'react';
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useQuery } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 import { Card } from '@/components/ui/card';
 import {
   TrendingUp,
@@ -22,10 +25,19 @@ import {
   Users,
 } from 'lucide-react';
 import Image from 'next/image';
+import FranchiseWallet from './FranchiseWallet';
 
 
 export default function FranchiseDashboard() {
+  const params = useParams();
+  const franchiseSlug = params?.franchiseSlug as string;
   const [activeTab, setActiveTab] = useState<'overview' | 'budget' | 'stock' | 'income' | 'expense' | 'salaries' | 'tax' | 'earnings' | 'payouts' | 'transactions' | 'settings'>('overview');
+
+  // Get franchise by slug to get the actual ID
+  const franchise = useQuery(api.franchiseManagement.getFranchiseBySlug, 
+    franchiseSlug ? { franchiseSlug } : "skip"
+  );
+  const franchiseId = franchise?._id;
 
 
   const tabs = [
@@ -43,6 +55,7 @@ export default function FranchiseDashboard() {
 
   return (
     <div className="space-y-6 py-12">
+      {franchiseId && <FranchiseWallet franchiseId={franchiseId} />}
       {/* Navigation Tabs */}
       <Card className="p-0">
         <div className="border-b border-gray-200 dark:border-gray-700">
