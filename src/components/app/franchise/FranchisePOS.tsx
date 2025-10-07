@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 import { Card } from '@/components/ui/card';
+import { useConvexImageUrls } from '@/hooks/useConvexImageUrl';
+import { toast } from 'sonner';
 import {
   Receipt,
   ShoppingCart,
@@ -24,15 +29,18 @@ import {
   Eye,
   Banknote
 } from 'lucide-react';
-import FranchisePOSWallet from './FranchisePOSWallet';
+import Image from 'next/image';
+import FranchiseWallet from './FranchiseWallet';
 
 // Interfaces for cashier operations
 interface MenuItem {
-  id: string;
+  _id: string;
   name: string;
   category: string;
   price: number;
-  image?: string;
+  images: string[];
+  stockQuantity: number;
+  minStockLevel?: number;
   available: boolean;
 }
 
@@ -70,12 +78,12 @@ interface Table {
 // Mock data generators
 const generateMockMenuItems = (): MenuItem[] => {
   return [
-    { id: '1', name: 'Fish & Chips', category: 'Breakfast', price: 7.5, available: true },
-    { id: '2', name: 'Roast Chicken', category: 'Main Course', price: 12.90, available: true },
-    { id: '3', name: 'Lemonade', category: 'Beverages', price: 3.50, available: true },
-    { id: '4', name: 'Cappuccino', category: 'Beverages', price: 4.25, available: true },
-    { id: '5', name: 'Apple Pie', category: 'Desserts', price: 5.75, available: true },
-    { id: '6', name: 'Caesar Salad', category: 'Salads', price: 8.90, available: true }
+    { _id: '1', name: 'Fish & Chips', category: 'Breakfast', price: 7.5, images: [], stockQuantity: 10, minStockLevel: 2, available: true },
+    { _id: '2', name: 'Roast Chicken', category: 'Main Course', price: 12.90, images: [], stockQuantity: 8, minStockLevel: 3, available: true },
+    { _id: '3', name: 'Lemonade', category: 'Beverages', price: 3.50, images: [], stockQuantity: 15, minStockLevel: 5, available: true },
+    { _id: '4', name: 'Cappuccino', category: 'Beverages', price: 4.25, images: [], stockQuantity: 20, minStockLevel: 5, available: true },
+    { _id: '5', name: 'Apple Pie', category: 'Desserts', price: 5.75, images: [], stockQuantity: 6, minStockLevel: 2, available: true },
+    { _id: '6', name: 'Caesar Salad', category: 'Salads', price: 8.90, images: [], stockQuantity: 12, minStockLevel: 3, available: true }
   ];
 };
 
@@ -164,6 +172,9 @@ const generateMockOrders = (): Order[] => {
 };
 
 export default function FranchisePOS() {
+  const params = useParams();
+  const franchiseSlug = params?.franchiseSlug as string;
+  
   type TabId = 'billing' | 'orders' | 'procurement' | 'inventory' | 'accounting';
   const [activeTab, setActiveTab] = useState<TabId>('billing');
   const [currentOrder, setCurrentOrder] = useState<OrderItem[]>([]);
@@ -171,13 +182,50 @@ export default function FranchisePOS() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [orderType, setOrderType] = useState<'counter' | 'table'>('table');
 
-  // Generate mock data
-  const mockMenuItems = generateMockMenuItems();
+  // Get franchise and products data
+  const franchise = useQuery(api.franchiseManagement.getFranchiseBySlug, 
+    franchiseSlug ? { franchiseSlug } : "skip"
+  );
+  
+  const products = useQuery(api.franchiseStoreQueries.getFranchiserProductsByFranchiseSlug,
+    franchiseSlug ? { franchiseSlug } : "skip"
+  );
+
+  // Get product image URLs
+  const allProductImages = products?.flatMap(product => product.images) || [];
+  const productImageUrls = useConvexImageUrls(allProductImages);
+
+  // Mutations for POS operations
+  const updateProductStock = useMutation(api.franchises.updateProductStock);
+  const addFranchiseWalletTransaction = useMutation(api.franchiseWallet.addFranchiseWalletTransaction);
+
+  // Helper function to get product image URL
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getProductImageUrl = (product: { images: any[] }, index = 0) => {
+    if (product.images && product.images.length > index && productImageUrls) {
+      const imageIndex = allProductImages.indexOf(product.images[index]);
+      return productImageUrls[imageIndex];
+    }
+    return null;
+  };
+
+  // Convert products to menu items
+  const menuItems: MenuItem[] = products?.map(product => ({
+    _id: product._id,
+    name: product.name,
+    category: product.categoryName || product.category,
+    price: product.price,
+    images: product.images,
+    stockQuantity: product.stockQuantity,
+    minStockLevel: product.minStockLevel,
+    available: product.stockQuantity > 0 && product.status === 'active'
+  })) || [];
+
+  // Generate mock data for tables and orders (keeping these for now)
   const mockTables = generateMockTables();
   const mockOrders = generateMockOrders();
 
   // State management
-  const [menuItems] = useState<MenuItem[]>(mockMenuItems);
   const [tables] = useState<Table[]>(mockTables);
   const [orders] = useState<Order[]>(mockOrders);
 
@@ -197,10 +245,24 @@ export default function FranchisePOS() {
   ];
 
   const addToOrder = (menuItem: MenuItem) => {
-    const existingItem = currentOrder.find(item => item.menuItem.id === menuItem.id);
+    // Check if item is available and in stock
+    if (!menuItem.available || menuItem.stockQuantity <= 0) {
+      toast.error(`${menuItem.name} is out of stock`);
+      return;
+    }
+
+    const existingItem = currentOrder.find(item => item.menuItem._id === menuItem._id);
+    const currentQuantity = existingItem ? existingItem.quantity : 0;
+    
+    // Check if adding one more would exceed stock
+    if (currentQuantity + 1 > menuItem.stockQuantity) {
+      toast.error(`Only ${menuItem.stockQuantity} ${menuItem.name} available in stock`);
+      return;
+    }
+
     if (existingItem) {
       setCurrentOrder(currentOrder.map(item =>
-        item.menuItem.id === menuItem.id
+        item.menuItem._id === menuItem._id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
@@ -214,15 +276,15 @@ export default function FranchisePOS() {
   };
 
   const removeFromOrder = (menuItemId: string) => {
-    const existingItem = currentOrder.find(item => item.menuItem.id === menuItemId);
+    const existingItem = currentOrder.find(item => item.menuItem._id === menuItemId);
     if (existingItem && existingItem.quantity > 1) {
       setCurrentOrder(currentOrder.map(item =>
-        item.menuItem.id === menuItemId
+        item.menuItem._id === menuItemId
           ? { ...item, quantity: item.quantity - 1 }
           : item
       ));
     } else {
-      setCurrentOrder(currentOrder.filter(item => item.menuItem.id !== menuItemId));
+      setCurrentOrder(currentOrder.filter(item => item.menuItem._id !== menuItemId));
     }
   };
 
@@ -240,10 +302,75 @@ export default function FranchisePOS() {
     item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Process order and update stock
+  const processOrder = async () => {
+    if (currentOrder.length === 0) {
+      toast.error('No items in order');
+      return;
+    }
+
+    if (!franchise?._id) {
+      toast.error('Franchise not found');
+      return;
+    }
+
+    try {
+      // Update stock for each item in the order
+      for (const orderItem of currentOrder) {
+        const newStockQuantity = orderItem.menuItem.stockQuantity - orderItem.quantity;
+        await updateProductStock({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          productId: orderItem.menuItem._id as any,
+          stockQuantity: newStockQuantity
+        });
+      }
+
+      // Add transaction to franchise wallet
+      const orderTotal = total;
+      const orderNumber = `#${Date.now().toString().slice(-6)}`;
+      const tableInfo = selectedTable ? `Table: ${tables.find(t => t.id === selectedTable)?.number}` : 'Counter Order';
+      
+      await addFranchiseWalletTransaction({
+        franchiseId: franchise._id,
+        transactionType: 'income',
+        amount: orderTotal,
+        usdAmount: orderTotal, // Assuming USD for now
+        description: `POS Sale ${orderNumber} - ${tableInfo}`,
+        category: 'Sales',
+        solanaTransactionHash: `pos_sale_${orderNumber}_${Date.now()}`,
+        status: 'confirmed',
+      });
+
+      toast.success(`Order processed successfully! Total: $${orderTotal.toFixed(2)}`);
+      
+      // Clear current order
+      setCurrentOrder([]);
+      setSelectedTable('');
+      
+    } catch (error) {
+      console.error('Error processing order:', error);
+      toast.error('Failed to process order. Please try again.');
+    }
+  };
+
+  // Show loading state while data is being fetched
+  if (!franchise) {
+    return (
+      <div className="space-y-6 py-12">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading POS system...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
      <div className="space-y-6 py-12 ">
       {/* Header */}
-      <FranchisePOSWallet />
+      <FranchiseWallet franchiseId={franchise._id} />
       {/* Content */}
       <div>
         {/* Navigation Tabs */}
@@ -340,32 +467,74 @@ export default function FranchisePOS() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {filteredMenuItems.map((item) => (
-                      <Card key={item.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">{item.name}</h4>
-                          <span className="text-sm text-stone-500">{item.category}</span>
-                        </div>
-                        <p className="text-lg font-bold text-green-600 mb-3">{item.price}</p>
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => removeFromOrder(item.id)}
-                            className="p-1 rounded bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                          <span className="mx-2 font-medium">
-                            {currentOrder.find(orderItem => orderItem.menuItem.id === item.id)?.quantity || 0}
-                          </span>
-                          <button
-                            onClick={() => addToOrder(item)}
-                            className="p-1 rounded bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </Card>
-                    ))}
+                    {filteredMenuItems.map((item) => {
+                      const currentQuantity = currentOrder.find(orderItem => orderItem.menuItem._id === item._id)?.quantity || 0;
+                      const isOutOfStock = item.stockQuantity <= 0;
+                      const isLowStock = item.minStockLevel && item.stockQuantity <= item.minStockLevel;
+                      
+                      return (
+                        <Card key={item._id} className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${
+                          isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}>
+                          {/* Product Image */}
+                          <div className="w-full h-24 bg-gray-100 dark:bg-gray-800 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                            {(() => {
+                              const imageUrl = getProductImageUrl(item);
+                              return imageUrl ? (
+                                <Image
+                                  src={imageUrl}
+                                  alt={item.name}
+                                  width={96}
+                                  height={96}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Package className="w-8 h-8 text-gray-400" />
+                              );
+                            })()}
+                          </div>
+                          
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm">{item.name}</h4>
+                            <span className="text-xs text-stone-500">{item.category}</span>
+                          </div>
+                          
+                          <p className="text-lg font-bold text-green-600 mb-2">${item.price}</p>
+                          
+                          {/* Stock Status */}
+                          <div className="flex items-center justify-between mb-3">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              isOutOfStock 
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                : isLowStock 
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            }`}>
+                              {isOutOfStock ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock'}
+                            </span>
+                            <span className="text-xs text-gray-500">{item.stockQuantity} left</span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <button
+                              onClick={() => removeFromOrder(item._id)}
+                              disabled={currentQuantity === 0}
+                              className="p-1 rounded bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-50"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="mx-2 font-medium">{currentQuantity}</span>
+                            <button
+                              onClick={() => addToOrder(item)}
+                              disabled={isOutOfStock || currentQuantity >= item.stockQuantity}
+                              className="p-1 rounded bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-50"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -396,13 +565,13 @@ export default function FranchisePOS() {
                         </div>
                         <div>
                           <span className="font-medium">{item.menuItem.name}</span>
-                          <p className="text-xs text-stone-400">{item.menuItem.price} each</p>
+                          <p className="text-xs text-stone-400">${item.menuItem.price} each</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="font-medium">{item.menuItem.price * item.quantity}</span>
+                        <span className="font-medium">${(item.menuItem.price * item.quantity).toFixed(2)}</span>
                         <button
-                          onClick={() => removeFromOrder(item.menuItem.id)}
+                          onClick={() => removeFromOrder(item.menuItem._id)}
                           className="ml-2 text-red-400 hover:text-red-300"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -417,15 +586,15 @@ export default function FranchisePOS() {
               <div className="border-t border-stone-700 pt-4 space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>{subtotal}</span>
+                  <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax 10%</span>
-                  <span>{tax}</span>
+                  <span>${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold border-t border-stone-700 pt-2">
                   <span>Total</span>
-                  <span>{total}</span>
+                  <span>${total.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -433,24 +602,34 @@ export default function FranchisePOS() {
               <div className="mt-6">
                 <h4 className="font-medium mb-3">Payment Method</h4>
                 <div className="grid grid-cols-3 gap-2 mb-4">
-                  <button className="flex flex-col items-center p-3 bg-stone-100 rounded hover:bg-stone-700 transition-colors">
+                  <button 
+                    onClick={() => processOrder()}
+                    className="flex flex-col items-center p-3 bg-stone-100 dark:bg-stone-700 rounded hover:bg-stone-200 dark:hover:bg-stone-600 transition-colors"
+                  >
                     <Banknote className="h-6 w-6 mb-1" />
                     <span className="text-sm">Cash</span>
                   </button>
-                  <button className="flex flex-col items-center p-3 bg-stone-100 rounded hover:bg-stone-700 transition-colors">
+                  <button 
+                    onClick={() => processOrder()}
+                    className="flex flex-col items-center p-3 bg-stone-100 dark:bg-stone-700 rounded hover:bg-stone-200 dark:hover:bg-stone-600 transition-colors"
+                  >
                     <CreditCard className="h-6 w-6 mb-1" />
                     <span className="text-sm">Card</span>
                   </button>
-                  <button className="flex flex-col items-center p-3 bg-stone-100 rounded hover:bg-stone-700 transition-colors">
+                  <button 
+                    onClick={() => processOrder()}
+                    className="flex flex-col items-center p-3 bg-stone-100 dark:bg-stone-700 rounded hover:bg-stone-200 dark:hover:bg-stone-600 transition-colors"
+                  >
                     <Wallet className="h-6 w-6 mb-1" />
                     <span className="text-sm">Solana Pay</span>
                   </button>
                 </div>
                 <button
-                  className="w-full bg-yellow-600 text-white py-3  font-medium hover:bg-stone-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-yellow-600 text-white py-3 font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={currentOrder.length === 0}
+                  onClick={() => processOrder()}
                 >
-                  {currentOrder.length === 0 ? 'Add Items to Order' : 'Place Order'}
+                  {currentOrder.length === 0 ? 'Add Items to Order' : `Place Order - $${total.toFixed(2)}`}
                 </button>
               </div>
             </div>

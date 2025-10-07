@@ -13,6 +13,9 @@ import {
   Box,
   MapPin,
   Receipt,
+  Package,
+  Truck,
+  AlertTriangle,
 } from 'lucide-react';
 import { ProductsTab } from './ProductsTab';
 import { FranchiseTab } from './FranchiseTab';
@@ -127,7 +130,7 @@ function TransactionsTab({ franchiserId }: { franchiserId: string }) {
   );
 }
 
-type TabId = 'overview' | 'products' | 'franchise' | 'approval' | 'launch' | 'finance' | 'transactions' | 'locations' | 'setup' | 'payouts' | 'team' | 'settings';
+type TabId = 'overview' | 'products' | 'franchise' | 'approval' | 'launch' | 'finance' | 'transactions' | 'locations' | 'inventory' | 'setup' | 'payouts' | 'team' | 'settings';
 
 type Tab = {
   id: TabId;
@@ -150,6 +153,14 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   // Get product image URLs
   const allProductImages = franchiseData?.products.flatMap(product => product.images) || [];
   const productImageUrls = useConvexImageUrls(allProductImages);
+
+  // Get pending stock transfer requests
+  const pendingStockTransfers = useQuery(api.stockManagement.getPendingStockTransfers,
+    franchiseData?.franchiser._id ? { 
+      franchiserId: franchiseData.franchiser._id,
+      limit: 10 
+    } : "skip"
+  );
 
   // Filter franchise locations for this brand
   const brandFranchiseLocations = franchisesData?.filter(franchise => 
@@ -187,6 +198,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'franchise', label: 'Franchise', icon: Store },
     { id: 'products', label: 'Products', icon: Box },
+    { id: 'inventory', label: 'Warehouse', icon: Package },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'locations', label: 'Locations', icon: MapPin },
     // { id: 'setup', label: 'Setup', icon: Receipt },
@@ -329,6 +341,181 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
               products={franchiseData.products} 
               productImageUrls={productImageUrls?.filter((url: string | null) => url !== null) as string[] || []} 
             />
+          )}
+          {activeTab === 'inventory' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Warehouse Inventory Management</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Manage central warehouse stock and distribution to franchise outlets
+                  </p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <Truck className="h-4 w-4 mr-2" />
+                    Transfer Stock
+                  </button>
+                </div>
+              </div>
+
+              {/* Warehouse Stock Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total SKUs</p>
+                      <p className="text-2xl font-bold">{franchiseData.products.length}</p>
+                    </div>
+                    <Package className="h-6 w-6 text-blue-500" />
+                  </div>
+                </Card>
+                
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Low Stock Alerts</p>
+                      <p className="text-2xl font-bold text-yellow-600">3</p>
+                    </div>
+                    <AlertTriangle className="h-6 w-6 text-yellow-500" />
+                  </div>
+                </Card>
+                
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Pending Transfers</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {pendingStockTransfers?.length || 0}
+                      </p>
+                    </div>
+                    <Truck className="h-6 w-6 text-orange-500" />
+                  </div>
+                </Card>
+                
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Active Outlets</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {brandFranchiseLocations.length}
+                      </p>
+                    </div>
+                    <Store className="h-6 w-6 text-green-500" />
+                  </div>
+                </Card>
+              </div>
+
+              {/* Warehouse Products Table */}
+              <Card className="p-6">
+                <h4 className="text-lg font-semibold mb-4">Warehouse Stock Levels</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-3 px-4 font-medium">Product</th>
+                        <th className="text-left py-3 px-4 font-medium">SKU</th>
+                        <th className="text-left py-3 px-4 font-medium">Warehouse Stock</th>
+                        <th className="text-left py-3 px-4 font-medium">Min Level</th>
+                        <th className="text-left py-3 px-4 font-medium">Status</th>
+                        <th className="text-left py-3 px-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {franchiseData.products.map((product, index) => {
+                        const warehouseStock = Math.floor(Math.random() * 1000) + 100; // Mock warehouse stock
+                        const minLevel = 50;
+                        const isLowStock = warehouseStock <= minLevel;
+                        
+                        return (
+                          <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center">
+                                  <Package className="h-4 w-4 text-gray-400" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{product.name}</p>
+                                  <p className="text-xs text-gray-500">{product.category}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                SKU-{product._id.slice(-6)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-semibold">{warehouseStock}</span>
+                              <span className="text-sm text-gray-500 ml-1">units</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600">{minLevel}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                isLowStock 
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                  : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              }`}>
+                                {isLowStock ? 'Low Stock' : 'In Stock'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center space-x-2">
+                                <button className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors">
+                                  Adjust
+                                </button>
+                                <button className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors">
+                                  Transfer
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+
+              {/* Recent Stock Transfers */}
+              <Card className="p-6">
+                <h4 className="text-lg font-semibold mb-4">Pending Stock Requests</h4>
+                <div className="space-y-3">
+                  {pendingStockTransfers && pendingStockTransfers.length > 0 ? (
+                    pendingStockTransfers.map((transfer, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                            <Truck className="h-4 w-4 text-orange-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{transfer.product?.name || 'Unknown Product'}</p>
+                            <p className="text-xs text-gray-500">
+                              {transfer.franchise?.businessName || 'Unknown Franchise'} • {transfer.requestedQuantity} units
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+                            Pending
+                          </span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(transfer.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">No pending stock requests</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
           )}
           {activeTab === 'franchise' && <FranchiseTab />}
           {activeTab === 'transactions' && <TransactionsTab franchiserId={franchiseData.franchiser._id} />}

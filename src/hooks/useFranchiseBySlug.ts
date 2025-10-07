@@ -42,6 +42,10 @@ export interface FranchiseData {
     images: Id<"_storage">[];
     category: string;
     status: "draft" | "active" | "archived";
+    stockQuantity: number;
+    minStockLevel?: number;
+    maxStockLevel?: number;
+    unit?: string;
     createdAt: number;
   }>;
 }

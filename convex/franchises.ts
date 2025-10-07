@@ -220,6 +220,11 @@ export const createFranchiserWithDetails = mutation({
         v.literal("active"),
         v.literal("archived")
       ),
+      // Stock/Inventory fields
+      stockQuantity: v.number(),
+      minStockLevel: v.optional(v.number()),
+      maxStockLevel: v.optional(v.number()),
+      unit: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
@@ -305,11 +310,29 @@ export const createFranchiserProduct = mutation({
       v.literal("active"),
       v.literal("archived")
     ),
+    // Stock/Inventory fields
+    stockQuantity: v.number(),
+    minStockLevel: v.optional(v.number()),
+    maxStockLevel: v.optional(v.number()),
+    unit: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("franchiserProducts", {
       ...args,
       createdAt: Date.now(),
+    });
+  },
+});
+
+// Mutation to update product stock
+export const updateProductStock = mutation({
+  args: {
+    productId: v.id("franchiserProducts"),
+    stockQuantity: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.patch(args.productId, {
+      stockQuantity: args.stockQuantity,
     });
   },
 });

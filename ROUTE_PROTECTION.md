@@ -12,7 +12,7 @@ When users are **not signed in**, they can only access:
 
 1. **Home page**: `/`
 2. **Company pages**: `/company/*` (all routes under the company directory)
-3. **Brand/Franchise listings**: `/[brandSlug]/[franchiseSlug]` (specific franchise pages)
+3. **Brand/Franchise listings**: `/[brandSlug]/[franchiseSlug]` and `/[brandSlug]/[franchiseSlug]/*` (specific franchise pages and sub-routes)
 
 ## Protected Routes (Authenticated Users Only)
 
@@ -46,7 +46,7 @@ When users are **signed in**, they have access to all routes including:
 ### Route Patterns
 
 - **Public routes**: `/`, `/company/*`
-- **Brand/Franchise routes**: `/[brandSlug]/[franchiseSlug]` (exactly two path segments)
+- **Brand/Franchise routes**: `/[brandSlug]/[franchiseSlug]` and `/[brandSlug]/[franchiseSlug]/*` (two or more path segments)
 - **Protected routes**: All other routes require authentication
 
 ### Authentication Flow

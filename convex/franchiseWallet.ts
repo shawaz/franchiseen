@@ -1,5 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
 
 // Generate a mock Solana address for development (valid base58 format)
 function generateMockSolanaAddress(): string {

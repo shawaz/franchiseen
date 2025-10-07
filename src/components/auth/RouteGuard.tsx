@@ -15,10 +15,10 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
   useEffect(() => {
 
-    // Check if current path is a brand/franchise route (pattern: /[brandSlug]/[franchiseSlug])
+    // Check if current path is a brand/franchise route (pattern: /[brandSlug]/[franchiseSlug] or /[brandSlug]/[franchiseSlug]/[subroute])
     // Exclude protected route segments like account, admin, create, register, notify
     const protectedSegments = ['account', 'admin', 'create', 'register', 'notify'];
-    const isBrandFranchiseRoute = pathname.match(/^\/[^\/]+\/[^\/]+$/) && 
+    const isBrandFranchiseRoute = pathname.match(/^\/[^\/]+\/[^\/]+(\/[^\/]+)*$/) && 
       !protectedSegments.some(segment => pathname.includes(`/${segment}`));
     
     // Check if current path is under company routes
@@ -41,7 +41,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
   // Show loading state while checking authentication
   const protectedSegments = ['account', 'admin', 'create', 'register', 'notify'];
-  const isBrandFranchiseRoute = pathname.match(/^\/[^\/]+\/[^\/]+$/) && 
+  const isBrandFranchiseRoute = pathname.match(/^\/[^\/]+\/[^\/]+(\/[^\/]+)*$/) && 
     !protectedSegments.some(segment => pathname.includes(`/${segment}`));
   const containsProtectedSegment = protectedSegments.some(segment => pathname.includes(`/${segment}`));
   const isCompanyRoute = pathname.startsWith('/company');

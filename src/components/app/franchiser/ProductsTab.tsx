@@ -23,8 +23,10 @@ export interface Product {
   images: Id<"_storage">[];
   category: string;
   status: "draft" | "active" | "archived";
-  stock?: number;
-  sold?: number;
+  stockQuantity: number;
+  minStockLevel?: number;
+  maxStockLevel?: number;
+  unit?: string;
   createdAt: number;
 }
 
@@ -62,8 +64,10 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
     price: 0,
     category: '',
     status: 'active',
-    stock: 0,
-    sold: 0,
+    stockQuantity: 0,
+    minStockLevel: 0,
+    maxStockLevel: 0,
+    unit: 'pieces',
   });
   
   const [imagePreview, setImagePreview] = useState<string>('');
@@ -97,8 +101,10 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
       price: 0,
       category: '',
       status: 'active',
-      stock: 0,
-      sold: 0,
+      stockQuantity: 0,
+      minStockLevel: 0,
+      maxStockLevel: 0,
+      unit: 'pieces',
     });
     setImagePreview('');
     setEditingProduct(null);
@@ -123,8 +129,10 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
       price: product.price,
       category: product.category,
       status: product.status,
-      stock: product.stock || 0,
-      sold: product.sold || 0,
+      stockQuantity: product.stockQuantity,
+      minStockLevel: product.minStockLevel || 0,
+      maxStockLevel: product.maxStockLevel || 0,
+      unit: product.unit || 'pieces',
     });
     setImagePreview(product.images.length > 0 ? productImageUrls[0] || '' : '');
     setIsDialogOpen(true);
@@ -217,13 +225,13 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Package className="h-4 w-4 text-blue-500" />
-                            <span className="font-medium">{product.stock || 0}</span>
+                            <span className="font-medium">{product.stockQuantity || 0}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Store className="h-4 w-4 text-green-500" />
-                            <span className="font-medium">{product.sold || 0}</span>
+                            <span className="font-medium">0</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -421,10 +429,10 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
                     </div>
                     <Input
                       id="stock"
-                      name="stock"
+                      name="stockQuantity"
                       type="number"
                       min="0"
-                      value={formData.stock}
+                      value={formData.stockQuantity}
                       onChange={handleInputChange}
                       placeholder="0"
                     />
@@ -441,7 +449,7 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
                       name="sold"
                       type="number"
                       min="0"
-                      value={formData.sold}
+                      value={0}
                       onChange={handleInputChange}
                       placeholder="0"
                     />
