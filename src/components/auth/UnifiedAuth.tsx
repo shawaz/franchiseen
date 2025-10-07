@@ -90,7 +90,9 @@ export function UnifiedAuth({
     } catch (error) {
       console.error("Auth error:", error);
       if (isSignUp) {
-        setError("Failed to create account. Please try again.");
+        // Show more specific error message for debugging
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        setError(`Failed to create account: ${errorMessage}. Please try again.`);
       } else {
         // Better error handling for account not found
         setError("No account found with this email. Would you like to create one instead?");
@@ -211,7 +213,8 @@ export function UnifiedAuth({
       }
     } catch (error) {
       console.error("Profile creation error:", error);
-      setError("Failed to create profile. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setError(`Failed to create profile: ${errorMessage}. Please try again.`);
     } finally {
       setIsLoading(false);
     }
