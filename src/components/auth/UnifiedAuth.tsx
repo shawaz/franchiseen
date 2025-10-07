@@ -131,7 +131,7 @@ export function UnifiedAuth({
       localStorage.setItem("isAuthenticated", "true");
       setUserEmail(email);
       onSuccess?.();
-      window.location.href = "/";
+      // Don't redirect automatically - let the parent component handle navigation
       }
     } catch (error) {
       console.error("OTP verification error:", error);
@@ -207,7 +207,7 @@ export function UnifiedAuth({
         // Fallback if no wallet data
         localStorage.removeItem("signupUserId");
         onSuccess?.();
-        window.location.href = "/";
+        // Don't redirect automatically - let the parent component handle navigation
       }
     } catch (error) {
       console.error("Profile creation error:", error);
@@ -221,10 +221,10 @@ export function UnifiedAuth({
     // Set userEmail in AuthContext now that profile is complete
     localStorage.setItem("userEmail", email);
     setUserEmail(email);
-    // Clean up signup data and redirect to home page
+    // Clean up signup data and let parent handle navigation
     localStorage.removeItem("signupUserId");
     onSuccess?.();
-    window.location.href = "/";
+    // Don't redirect automatically - let the parent component handle navigation
   };
 
   const copyToClipboard = async (text: string, field: string) => {
@@ -567,7 +567,7 @@ export function UnifiedAuth({
 
   return (
     <div className={cn("flex flex-col gap-4", className)} {...props}>
-      <Card className="overflow-hidden p-0 w-full border-0 shadow-none bg-transparent">
+      <Card className="overflow-hidden p-0 border-0 shadow-none bg-transparent">
         <CardContent className="p-0">
           <form onSubmit={handleSubmit}>
             <FieldGroup>
@@ -647,23 +647,23 @@ export function UnifiedAuth({
                   {isSignUp ? 'Sign in' : 'Sign up'}
                 </button>
               </FieldDescription>
+              <Separator className="my-0" />
+              <FieldDescription className="text-center text-xs">
+                By {isSignUp ? 'creating an account' : 'continuing'}, you agree to our{" "} <br />
+                <a href="#" className="underline underline-offset-2 hover:no-underline">
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a href="#" className="underline underline-offset-2 hover:no-underline">
+                  Privacy Policy
+                </a>.
+              </FieldDescription>
             </FieldGroup>
           </form>
         </CardContent>
       </Card>
       
-      <Separator className="my-4" />
-      
-      <FieldDescription className="text-center text-xs">
-        By {isSignUp ? 'creating an account' : 'continuing'}, you agree to our{" "} <br />
-        <a href="#" className="underline underline-offset-2 hover:no-underline">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="#" className="underline underline-offset-2 hover:no-underline">
-          Privacy Policy
-        </a>.
-      </FieldDescription>
+     
     </div>
   );
 }

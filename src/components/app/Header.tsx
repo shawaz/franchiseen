@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { ThemeSwitcher } from "../default/theme-switcher";
-import { AuthHeader } from "../auth/AuthHeader";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +19,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useConvexImageUrl } from "@/hooks/useConvexImageUrl";
 import { Id } from "../../../convex/_generated/dataModel";
+import { AuthHeader } from "../auth/AuthHeader";
 
 // Type for franchise data
 interface FranchiseData {

@@ -1,14 +1,51 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import FranchiseCardWithData from "@/components/app/franchise/FranchiseCardWithData";
 import { useFranchises, useFranchisersByStatus, useFranchisesWithStages } from "@/hooks/useFranchises";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { UnifiedAuth } from "@/components/auth/UnifiedAuth";
+import Link from "next/link";
 
 function HomeContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"register" | "create" | null>(null);
+  const { isAuthenticated } = useAuth();
+  
+  const handleAuthSuccess = useCallback(() => {
+    console.log("handleAuthSuccess called");
+    console.log("pendingAction:", pendingAction);
+    
+    if (pendingAction) {
+      console.log("Navigating to:", pendingAction);
+      if (pendingAction === "register") {
+        window.location.href = "/register";
+      } else {
+        window.location.href = "/create";
+      }
+      setPendingAction(null);
+    }
+  }, [pendingAction]);
+  
+  // Monitor authentication state changes
+  useEffect(() => {
+    console.log("Authentication state changed:", isAuthenticated);
+    if (isAuthenticated && showAuthModal && pendingAction) {
+      console.log("User became authenticated, executing pending action:", pendingAction);
+      handleAuthSuccess();
+      setShowAuthModal(false);
+    }
+  }, [isAuthenticated, showAuthModal, pendingAction, handleAuthSuccess]);
+  
+
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -209,47 +246,93 @@ function HomeContent() {
     });
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="w-full">
         {filteredFranchises.length > 0 ? (
-          filteredFranchises.map((franchise) => (
-            <FranchiseCardWithData
-              key={franchise._id.toString()}
-              franchise={{
-                _id: franchise._id,
-                title: franchise.franchiseSlug,
-                industry: franchise.franchiser?.industry || "Unknown Industry",
-                category: franchise.franchiser?.category || "Unknown Category",
-                logo: franchise.franchiser?.logoUrl || "",
-                images: franchise.franchiser?.interiorImages || [],
-                price: franchise.investment?.sharePrice || 1,
-                squareFeet: franchise.sqft || 1200,
-                returnRate: 8.5,
-                stage: franchise.stage,
-                type: activeTab === "all" ? "fund" : activeTab as "fund" | "launch" | "live",
-                fundingGoal: franchise.investment?.totalInvestment || 500000,
-                fundingProgress: 0,
-                investorsCount: 0,
-                location: franchise.address || "Address not available", // Add address field
-                buildingName: franchise.buildingName, // Add building name
-                doorNumber: franchise.doorNumber, // Add door number
-                franchiser: franchise.franchiser || undefined,
-                investment: franchise.investment || undefined,
-              }}
-              activeTab={activeTab === "all" ? "fund" : activeTab as "fund" | "launch" | "live"}
-            />
-          ))
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredFranchises.map((franchise) => (
+              <FranchiseCardWithData
+                key={franchise._id.toString()}
+                franchise={{
+                  _id: franchise._id,
+                  title: franchise.franchiseSlug,
+                  industry: franchise.franchiser?.industry || "Unknown Industry",
+                  category: franchise.franchiser?.category || "Unknown Category",
+                  logo: franchise.franchiser?.logoUrl || "",
+                  images: franchise.franchiser?.interiorImages || [],
+                  price: franchise.investment?.sharePrice || 1,
+                  squareFeet: franchise.sqft || 1200,
+                  returnRate: 8.5,
+                  stage: franchise.stage,
+                  type: activeTab === "all" ? "fund" : activeTab as "fund" | "launch" | "live",
+                  fundingGoal: franchise.investment?.totalInvestment || 500000,
+                  fundingProgress: 0,
+                  investorsCount: 0,
+                  location: franchise.address || "Address not available", // Add address field
+                  buildingName: franchise.buildingName, // Add building name
+                  doorNumber: franchise.doorNumber, // Add door number
+                  franchiser: franchise.franchiser || undefined,
+                  investment: franchise.investment || undefined,
+                }}
+                activeTab={activeTab === "all" ? "fund" : activeTab as "fund" | "launch" | "live"}
+              />
+            ))}
+          </div>
         ) : (
-          <div className="text-center py-12">
-            <h3 className="text-lg font-medium">No Franchise found</h3>
-            <p className="text-muted-foreground mt-2">
-              {searchQuery || selectedStages.length > 0 || selectedIndustries.length > 0 || selectedCategories.length > 0 || selectedCities.length > 0 || selectedStates.length > 0 || selectedCountries.length > 0
-                ? "Try adjusting your search or filters"
-                : "Try adjusting your filters or check back later"}
-            </p>
+          <div className="flex flex-col items-center justify-center w-full min-h-[60vh] py-12">
+            <Image src="/images/1.svg" alt="No Franchise" width={120} height={120} className=" h-100  w-100" />
+            <div className="text-center max-w-md">
+              <h3 className="text-2xl font-medium mb-2">Be the First To Start New Franchise</h3>
+              <p className="text-muted-foreground">
+                Create a new franchise to earn passive income and own a shares of a franchise starting with 1$ per shares.
+              </p>
+               <div className="flex gap-2 justify-center items-center">
+                {isAuthenticated ? (
+                  <>
+                    <Link href="/register">
+                      <Button className="mt-4">
+                        Register Brand
+                      </Button>
+                    </Link>
+                    <Link href="/create">
+                      <Button variant="outline" className="mt-4">
+                        Create Franchise
+                      </Button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                <Dialog >
+                  <DialogTrigger asChild>
+                  <Button className="mt-4">
+                    Register Brand
+                  </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[45vw] max-w-md mx-auto mt-4 pt-6 bg-white dark:bg-stone-800">
+                    <DialogTitle className="sr-only">Register Brand</DialogTitle>
+                    <UnifiedAuth onSuccess={() => setShowAuthModal(false)} />
+                  </DialogContent>
+                </Dialog>
+                <Dialog>
+                  <DialogTrigger asChild>
+                  <Button variant="outline" className="mt-4">
+                    Create Franchise
+                  </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[45vw] max-w-md mx-auto mt-4 pt-6 bg-white dark:bg-stone-800">
+                    <DialogTitle className="sr-only">Create Franchise</DialogTitle>
+                    <UnifiedAuth onSuccess={() => setShowAuthModal(false)} />
+                  </DialogContent>
+                </Dialog>
+                
+               </>
+                )}
+               </div>
+            </div>
+          
             {(selectedStages.length > 0 || selectedIndustries.length > 0 || selectedCategories.length > 0 || selectedCities.length > 0 || selectedStates.length > 0 || selectedCountries.length > 0) && (
-              <div className="mt-4 text-sm text-muted-foreground">
-                <p>Active filters:</p>
-                <div className="flex flex-wrap justify-center gap-2 mt-2">
+              <div className="mt-6 text-sm text-muted-foreground text-center">
+                <p className="mb-3">Active filters:</p>
+                <div className="flex flex-wrap justify-center gap-2">
                   {selectedStages.length > 0 && (
                     <span className="px-2 py-1 bg-primary/10 text-primary rounded-md">
                       Stages: {selectedStages.join(', ')}
@@ -290,7 +373,14 @@ function HomeContent() {
   };
 
   return (
-        <div className="min-h-screen py-12">{renderTabContent()}</div>
+    <>
+      <div className="min-h-screen py-12">{renderTabContent()}</div>
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onSuccess={handleAuthSuccess}
+      />
+    </>
   );
 }
 

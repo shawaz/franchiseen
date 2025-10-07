@@ -301,16 +301,16 @@ export default function FranchiseDashboard() {
 
               {/* Budget Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="p-4">
+                  <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Monthly Budget</p>
                       <p className="text-2xl font-bold">
                         ${currentBudget?.budget?.monthlyBudget?.toLocaleString() || '0'}
                       </p>
-                    </div>
+                      </div>
                     <DollarSign className="h-6 w-6 text-blue-500" />
-                  </div>
+                      </div>
                 </Card>
                 
                 <Card className="p-4">
@@ -319,11 +319,11 @@ export default function FranchiseDashboard() {
                       <p className="text-sm text-gray-600 dark:text-gray-400">Team Salaries</p>
                       <p className="text-2xl font-bold text-green-600">
                         ${currentBudget?.budget?.teamSalaries?.toLocaleString() || '0'}
-                      </p>
-                    </div>
+                        </p>
+                      </div>
                     <Users className="h-6 w-6 text-green-500" />
-                  </div>
-                </Card>
+                    </div>
+                  </Card>
                 
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
@@ -434,7 +434,7 @@ export default function FranchiseDashboard() {
 
               {/* Stock Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="p-4">
+                  <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Products</p>
@@ -626,26 +626,26 @@ export default function FranchiseDashboard() {
 
               {/* Inventory Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="p-4">
-                  <div className="flex items-center justify-between">
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Products</p>
                       <p className="text-2xl font-bold">{products?.length || 0}</p>
-                    </div>
+                        </div>
                     <Package className="h-6 w-6 text-blue-500" />
                   </div>
                 </Card>
                 
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
-                    <div>
+                        <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Low Stock Items</p>
                       <p className="text-2xl font-bold text-red-600">
                         {products?.filter(product => product.stockQuantity <= (product.minStockLevel || 10)).length || 0}
                       </p>
-                    </div>
+                        </div>
                     <TrendingDown className="h-6 w-6 text-red-500" />
-                  </div>
+                      </div>
                 </Card>
                 
                 <Card className="p-4">
@@ -682,7 +682,7 @@ export default function FranchiseDashboard() {
                       <div className="flex items-center space-x-3">
                         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                         <span className="text-sm font-medium">In Stock (Good)</span>
-                      </div>
+                        </div>
                       <span className="text-sm text-gray-600">
                         {products?.filter(product => product.stockQuantity > (product.minStockLevel || 10)).length || 0}
                       </span>
@@ -704,9 +704,9 @@ export default function FranchiseDashboard() {
                       <span className="text-sm text-gray-600">
                         {products?.filter(product => product.stockQuantity === 0).length || 0}
                       </span>
+                      </div>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
 
                 <Card className="p-6">
                   <h4 className="text-lg font-semibold mb-4">Top Categories by Stock Value</h4>
@@ -725,7 +725,7 @@ export default function FranchiseDashboard() {
                       <div key={category} className="flex items-center justify-between">
                         <span className="text-sm font-medium">{category}</span>
                         <span className="text-sm text-gray-600">${value.toLocaleString()}</span>
-                      </div>
+              </div>
                     ))}
                   </div>
                 </Card>
@@ -874,7 +874,7 @@ export default function FranchiseDashboard() {
               {/* Team Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="p-4">
-                  <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Team</p>
                       <p className="text-2xl font-bold">{franchiseTeam?.length || 0}</p>
@@ -963,9 +963,9 @@ export default function FranchiseDashboard() {
                           <button className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
                             View
                           </button>
-                        </div>
                       </div>
                     </div>
+              </div>
                     ))
                   ) : (
                     <div className="text-center py-8 text-gray-500">
@@ -996,7 +996,7 @@ export default function FranchiseDashboard() {
 
               {/* Payout Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="p-4">
+                  <Card className="p-4">
                     <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue (30 days)</p>
@@ -1083,8 +1083,8 @@ export default function FranchiseDashboard() {
                             Process
                           </button>
                         )}
+                        </div>
                       </div>
-                    </div>
                     ))
                   ) : (
                     <div className="text-center py-8 text-gray-500">

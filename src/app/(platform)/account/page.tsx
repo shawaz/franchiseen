@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import ProfileDashboard from '@/components/app/franchisee/ProfileDashboard';
-import { SignupCompletion } from '@/components/auth/SignupCompletion';
+import { UnifiedAuth } from '@/components/auth/UnifiedAuth';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfilePage() {
@@ -56,7 +56,7 @@ export default function ProfilePage() {
   if (showSignupCompletion) {
     return (
       <div className="p-6">
-        <SignupCompletion />
+        <UnifiedAuth />
       </div>
     );
   }

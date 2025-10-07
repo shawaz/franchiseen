@@ -5,8 +5,45 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import { ThemeSelect } from '@/components/default/theme-select'
-import { AuthHeader } from '@/components/auth/AuthHeader'
+import { useAuth } from '@/contexts/AuthContext'
+import { UnifiedAuth } from '@/components/auth/UnifiedAuth'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ClusterDropdown } from '@/components/default/cluster-dropdown'
+
+// Simple Auth Component
+const AuthComponent = () => {
+  const { isAuthenticated, userProfile, signOut } = useAuth()
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  if (isAuthenticated && userProfile) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">
+          {userProfile.firstName} {userProfile.lastName}
+        </span>
+        <Button variant="outline" size="sm" onClick={signOut}>
+          Sign Out
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setShowAuthModal(true)}>
+        Sign In
+      </Button>
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Welcome to Franchiseen</DialogTitle>
+          </DialogHeader>
+          <UnifiedAuth onSuccess={() => setShowAuthModal(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 export function AppHeader({ links = [] }: { links: { label: string; path: string }[] }) {
   const pathname = usePathname()
@@ -44,7 +81,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
         </Button>
 
         <div className="hidden md:flex items-center gap-4">
-          <AuthHeader />
+          <AuthComponent />
           <ClusterDropdown />
           <ThemeSelect />
         </div>
@@ -53,7 +90,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
           <div className="md:hidden fixed inset-x-0 top-[52px] bottom-0 bg-neutral-100/95 dark:bg-neutral-900/95 backdrop-blur-sm">
             <div className="flex flex-col p-4 gap-4 border-t dark:border-neutral-800">
               <div className="flex justify-end items-center gap-4">
-                <AuthHeader />
+                <AuthComponent />
                 <ClusterDropdown />
                 <ThemeSelect />
               </div>

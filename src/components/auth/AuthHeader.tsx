@@ -20,7 +20,7 @@ export function AuthHeader() {
             Sign In
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[45vw] max-w-md mx-auto mt-4 pt-6 bg-white dark:bg-stone-800">
           <DialogTitle className="sr-only">Sign In</DialogTitle>
           <div className="p-6">
             <UnifiedAuth 

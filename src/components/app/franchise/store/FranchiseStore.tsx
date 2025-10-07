@@ -57,7 +57,7 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
-import { SignupForm } from '@/components/auth/SignupForm';
+import { UnifiedAuth } from '@/components/auth/UnifiedAuth';
 import { Id } from "../../../../../convex/_generated/dataModel";
 import type { 
   Product, 
@@ -1726,8 +1726,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               You need to create an account to purchase franchise shares. Complete your registration below.
             </DialogDescription>
           </DialogHeader>
-          <SignupForm 
-            onBack={() => setIsSignupOpen(false)}
+          <UnifiedAuth 
             onSuccess={() => {
               setIsSignupOpen(false);
               setIsBuyTokensOpen(true);

@@ -104,7 +104,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-stone-200 dark:border-stone-700 py-4 text-center text-stone-500 dark:text-stone-400 flex flex-col md:flex-row items-center justify-center max-w-7xl mx-auto px-4 sm:px-6 gap-2">
-        <div>DEMO PLATFORM FOR MARKETING AND TESTING</div>
+        <div>ADVANCED FUTURE INFORMATION TECHNOLOGY LLC</div>
       </div>
     </footer>
   );
