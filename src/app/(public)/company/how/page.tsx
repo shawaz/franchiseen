@@ -36,10 +36,8 @@ export default function HowItWorksPage() {
                 A guide to how to use the franchiseen platform.
             </p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center">
-                
               <div className="w-16 h-16 bg-stone-100 dark:bg-stone-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Lightbulb className="w-8 h-8 text-stone-600 dark:text-stone-400" />
               </div>
@@ -49,7 +47,6 @@ export default function HowItWorksPage() {
                 <Link href="#our-story"> <PlayCircle className="w-4 h-4" /> Watch Video</Link>
               </Button>
             </div>
-
             <div className="text-center">
               <div className="w-16 h-16 bg-stone-100 dark:bg-stone-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
               <CreditCard className="w-8 h-8 text-stone-600 dark:text-stone-400" />

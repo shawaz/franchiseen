@@ -1122,6 +1122,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           
           
           <BudgetTable />
+          
           <Card>
             <div className="overflow-x-auto">
               <table className="w-full">

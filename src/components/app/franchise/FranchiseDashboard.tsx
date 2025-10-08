@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { Card } from '@/components/ui/card';
+import { Id } from '../../../../convex/_generated/dataModel';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { useConvexImageUrls } from '@/hooks/useConvexImageUrl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useMutation } from 'convex/react';
 import { useAllProductCategories } from '@/hooks/useMasterData';
 import { toast } from 'sonner';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import {
   TrendingUp,
   TrendingDown,
@@ -30,15 +34,585 @@ import {
   Plus,
   Package,
   FileImage,
+  Upload,
+  X,
+  Trash2,
 } from 'lucide-react';
 import Image from 'next/image';
 import FranchiseWallet from './FranchiseWallet';
 
 
+// Receipt Image Component
+function ReceiptImage({ receiptId }: { receiptId: string }) {
+  const [showImage, setShowImage] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const receiptUrl = useConvexImageUrl(receiptId as any);
+
+  return (
+    <>
+      <button
+        onClick={() => setShowImage(true)}
+        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+        title="View receipt"
+      >
+        <FileImage className="h-4 w-4" />
+      </button>
+
+      {showImage && receiptUrl && (
+        <Dialog open={showImage} onOpenChange={setShowImage}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Receipt</DialogTitle>
+            </DialogHeader>
+            <div className="relative w-full h-[600px]">
+              <Image
+                src={receiptUrl}
+                alt="Receipt"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+// Payouts Tab Component
+function PayoutsTab({ 
+  franchiseId, 
+  franchise, 
+  payoutSummary, 
+  recentPayouts,
+  incomeData,
+  expenseSummary
+}: { 
+  franchiseId?: string; 
+  franchise?: { _id: string; franchiseSlug: string; franchiserId: string; stage: string; investmentId: string } | null;
+  payoutSummary?: {
+    totalPayouts: number;
+    totalGrossRevenue: number;
+    totalRoyalty: number;
+    totalPlatformFee: number;
+    totalToTokenHolders: number;
+    totalToReserve: number;
+    currentReserveBalance: number;
+    currentReservePercentage: number;
+  };
+  recentPayouts?: Array<{
+    _id: string;
+    period: string;
+    grossRevenue: number;
+    royaltyAmount: number;
+    platformFeeAmount: number;
+    toTokenHolders: number;
+    toReserve: number;
+    distributionRule: string;
+    status: string;
+  }>;
+  incomeData?: {
+    totalIncome: number;
+    incomeCount: number;
+  };
+  expenseSummary?: {
+    totalExpenses: number;
+    expenseCount: number;
+  };
+}) {
+  // Auto-calculate from POS income and expenses
+  const calculatedIncome = incomeData?.totalIncome || 0;
+  const calculatedExpenses = expenseSummary?.totalExpenses || 0;
+  const netRevenue = Math.max(0, calculatedIncome - calculatedExpenses);
+
+  const [revenue, setRevenue] = useState('');
+  const [expenses, setExpenses] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [useAutoCalculation, setUseAutoCalculation] = useState(true);
+  const processPayout = useMutation(api.payoutManagement.processFranchisePayout);
+  
+  // Get franchise wallet for reserve calculation
+  const franchiseWallet = useQuery(
+    api.franchiseManagement.getFranchiseWallet,
+    franchiseId ? { franchiseId: franchiseId as Id<"franchises"> } : "skip"
+  );
+  
+  // Get investment data for working capital target
+  const investment = useQuery(
+    api.franchiseManagement.getFranchiseFundraisingDataById,
+    franchiseId ? { franchiseId: franchiseId as Id<"franchises"> } : "skip"
+  );
+
+  // Get franchise token data for total supply (token budget)
+  const franchiseToken = useQuery(
+    api.tokenManagement.getFranchiseToken,
+    franchiseId ? { franchiseId: franchiseId as Id<"franchises"> } : "skip"
+  );
+
+  // Calculate total token budget (total supply value)
+  const totalTokenBudget = franchiseToken 
+    ? franchiseToken.totalSupply * franchiseToken.sharePrice 
+    : investment?.totalInvestment || 0;
+  
+  // Calculate distribution preview
+  const calculateDistributionPreview = () => {
+    // Use auto-calculated values or manual input
+    const revenueNum = useAutoCalculation ? calculatedIncome : (parseFloat(revenue) || 0);
+    const expensesNum = useAutoCalculation ? calculatedExpenses : (parseFloat(expenses) || 0);
+    const netRevenueCalc = Math.max(0, revenueNum - expensesNum);
+    
+    const royaltyPercent = 5; // Could get from franchiser
+    const platformPercent = 2;
+    
+    const royalty = netRevenueCalc * (royaltyPercent / 100);
+    const platformFee = netRevenueCalc * (platformPercent / 100);
+    const afterFees = netRevenueCalc - royalty - platformFee;
+    
+    // Calculate reserve percentage
+    const workingCapital = investment?.workingCapital || 25000;
+    const currentReserve = franchiseWallet?.usdBalance || 0;
+    const reservePercent = (currentReserve / workingCapital) * 100;
+    
+    // Determine distribution
+    let toHoldersPercent = 100;
+    let toReservePercent = 0;
+    let rule = 'Full Reserve (≥ 75%)';
+    
+    if (reservePercent < 25) {
+      toHoldersPercent = 25;
+      toReservePercent = 75;
+      rule = 'Critical Reserve (< 25%)';
+    } else if (reservePercent < 50) {
+      toHoldersPercent = 50;
+      toReservePercent = 50;
+      rule = 'Low Reserve (< 50%)';
+    } else if (reservePercent < 75) {
+      toHoldersPercent = 75;
+      toReservePercent = 25;
+      rule = 'Building Reserve (< 75%)';
+    }
+    
+    const toHolders = afterFees * (toHoldersPercent / 100);
+    const toReserve = afterFees * (toReservePercent / 100);
+    
+    return {
+      grossRevenue: revenueNum,
+      totalExpenses: expensesNum,
+      netRevenue: netRevenueCalc,
+      royalty,
+      platformFee,
+      afterFees,
+      toHolders,
+      toReserve,
+      reservePercent,
+      rule,
+      newReserveBalance: currentReserve + toReserve
+    };
+  };
+  
+  const preview = calculateDistributionPreview();
+  
+  const handleProcessPayout = async () => {
+    if (!franchiseId || !franchise?._id) {
+      toast.error('Franchise not found');
+      return;
+    }
+    
+    const revenueNum = useAutoCalculation ? calculatedIncome : (parseFloat(revenue) || 0);
+    const expensesNum = useAutoCalculation ? calculatedExpenses : (parseFloat(expenses) || 0);
+    
+    if (revenueNum <= 0) {
+      toast.error('No revenue to process. Generate revenue from POS first.');
+      return;
+    }
+    
+    const netRevenueCalc = revenueNum - expensesNum;
+    
+    if (netRevenueCalc <= 0) {
+      toast.error('Net revenue must be positive (Revenue must be greater than expenses)');
+      return;
+    }
+    
+    try {
+      setIsProcessing(true);
+      
+      const result = await processPayout({
+        franchiseId: franchise._id as Id<"franchises">,
+        revenue: netRevenueCalc, // Use net revenue (after expenses)
+        period: new Date().toISOString().split('T')[0],
+        payoutType: 'daily'
+      });
+      
+      toast.success(
+        <div className="space-y-1">
+          <p className="font-medium">Payout Processed Successfully! 🎉</p>
+          <p className="text-sm">To Token Holders: ${result.toTokenHolders.toLocaleString()}</p>
+          <p className="text-sm">To Reserve: ${result.toReserve.toLocaleString()}</p>
+          <p className="text-sm">Royalty to Brand: ${result.royaltyAmount.toLocaleString()}</p>
+          <p className="text-xs text-stone-500">{result.distributionRule}</p>
+        </div>,
+        { duration: 8000 }
+      );
+      
+      // Clear inputs
+      setRevenue('');
+      setExpenses('');
+    } catch (error) {
+      console.error('Payout error:', error);
+      toast.error(`Failed to process payout: ${(error as Error).message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  if (franchise?.stage !== 'ongoing') {
+    return (
+      <div className="text-center py-12">
+        <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Payouts Not Available</h3>
+        <p className="text-gray-600 dark:text-gray-400">
+          Payouts are only available for operational franchises in &quot;ongoing&quot; stage.
+        </p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      {/* Header with Reserve Status */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Revenue Payout Distribution</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Process revenue distribution to token holders with smart reserve management
+          </p>
+        </div>
+        <div className={`px-4 py-2 rounded-lg ${
+          preview.reservePercent >= 75 ? 'bg-green-100 dark:bg-green-900/20' :
+          preview.reservePercent >= 50 ? 'bg-blue-100 dark:bg-blue-900/20' :
+          preview.reservePercent >= 25 ? 'bg-yellow-100 dark:bg-yellow-900/20' :
+          'bg-red-100 dark:bg-red-900/20'
+        }`}>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Reserve Status</p>
+          <p className={`text-lg font-bold ${
+            preview.reservePercent >= 75 ? 'text-green-700 dark:text-green-400' :
+            preview.reservePercent >= 50 ? 'text-blue-700 dark:text-blue-400' :
+            preview.reservePercent >= 25 ? 'text-yellow-700 dark:text-yellow-400' :
+            'text-red-700 dark:text-red-400'
+          }`}>
+            {preview.reservePercent.toFixed(1)}%
+          </p>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Earned</p>
+              <p className="text-2xl font-bold text-green-600">
+                ${payoutSummary?.totalGrossRevenue?.toLocaleString() || '0'}
+              </p>
+            </div>
+            <TrendingUp className="h-6 w-6 text-green-500" />
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Token Budget</p>
+              <p className="text-2xl font-bold text-blue-600">
+                ${totalTokenBudget?.toLocaleString() || '0'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Total Supply: {franchiseToken?.totalSupply?.toLocaleString() || '0'} tokens
+              </p>
+            </div>
+            <DollarSign className="h-6 w-6 text-blue-500" />
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Royalty Paid</p>
+              <p className="text-2xl font-bold text-purple-600">
+                ${payoutSummary?.totalRoyalty?.toLocaleString() || '0'}
+              </p>
+            </div>
+            <Building2 className="h-6 w-6 text-purple-500" />
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Token Holders</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                ${payoutSummary?.totalToTokenHolders?.toLocaleString() || '0'}
+              </p>
+            </div>
+            <Users className="h-6 w-6 text-yellow-500" />
+          </div>
+        </Card>
+      </div>
+
+      {/* Distribution Rules */}
+      <Card>
+        <CardHeader>
+          <h4 className="text-lg font-semibold">Distribution Rules</h4>
+        </CardHeader>
+        <div className="px-6 pb-6 space-y-2 text-sm">
+          <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/10 rounded">
+            <span className="font-medium text-red-700 dark:text-red-400">Reserve &lt; 25% (Critical)</span>
+            <span className="text-red-600 dark:text-red-400">25% holders / 75% reserve</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded">
+            <span className="font-medium text-yellow-700 dark:text-yellow-400">Reserve &lt; 50% (Low)</span>
+            <span className="text-yellow-600 dark:text-yellow-400">50% holders / 50% reserve</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/10 rounded">
+            <span className="font-medium text-blue-700 dark:text-blue-400">Reserve &lt; 75% (Building)</span>
+            <span className="text-blue-600 dark:text-blue-400">75% holders / 25% reserve</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/10 rounded">
+            <span className="font-medium text-green-700 dark:text-green-400">Reserve = 100% (Full)</span>
+            <span className="text-green-600 dark:text-green-400">100% holders / 0% reserve</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-3 pt-3 border-t">
+            * Royalty (5%) and Platform Fee (2%) deducted from net revenue before distribution
+          </p>
+        </div>
+      </Card>
+
+      {/* Process Payout Form */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h4 className="text-lg font-semibold">Process Payout</h4>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="auto-calc" className="text-sm">Auto-calculate from POS</Label>
+              <input
+                id="auto-calc"
+                type="checkbox"
+                checked={useAutoCalculation}
+                onChange={(e) => setUseAutoCalculation(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <div className="px-6 pb-6 space-y-4">
+          {useAutoCalculation ? (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-3">Auto-Calculated from POS Data</h5>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">Total Income (POS Sales)</p>
+                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">${calculatedIncome.toLocaleString()}</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{incomeData?.incomeCount || 0} transactions</p>
+                </div>
+                <div>
+                  <p className="text-sm text-red-700 dark:text-red-300">Total Expenses</p>
+                  <p className="text-2xl font-bold text-red-900 dark:text-red-100">${calculatedExpenses.toLocaleString()}</p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">{expenseSummary?.expenseCount || 0} expenses</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300">Net Revenue</p>
+                <p className="text-3xl font-bold text-green-600">${netRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="revenue">Total Revenue ($)</Label>
+                <Input
+                  id="revenue"
+                  type="number"
+                  placeholder="Enter total revenue (e.g., 10000)"
+                  value={revenue}
+                  onChange={(e) => setRevenue(e.target.value)}
+                  min="0"
+                  step="100"
+                />
+              </div>
+              <div>
+                <Label htmlFor="expenses">Total Expenses ($)</Label>
+                <Input
+                  id="expenses"
+                  type="number"
+                  placeholder="Enter total expenses (e.g., 3000)"
+                  value={expenses}
+                  onChange={(e) => setExpenses(e.target.value)}
+                  min="0"
+                  step="100"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Live Preview */}
+          {(useAutoCalculation || parseFloat(revenue) > 0 || parseFloat(expenses) > 0) && (
+            <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-lg space-y-3">
+              <h5 className="font-medium text-sm">Distribution Preview</h5>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400">Gross Revenue</p>
+                  <p className="font-semibold text-lg">${preview.grossRevenue.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 dark:text-gray-400">Total Expenses</p>
+                  <p className="font-semibold text-lg text-red-600">-${preview.totalExpenses.toLocaleString()}</p>
+                </div>
+              </div>
+              
+              <div className="pt-2 border-t">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">Net Revenue</p>
+                <p className="font-bold text-xl">${preview.netRevenue.toLocaleString()}</p>
+              </div>
+              
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Royalty (5%)</span>
+                  <span className="font-medium text-purple-600">-${preview.royalty.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Platform Fee (2%)</span>
+                  <span className="font-medium text-purple-600">-${preview.platformFee.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="pt-2 border-t">
+                <p className="text-gray-600 dark:text-gray-400 text-sm">After Fees</p>
+                <p className="font-bold text-lg">${preview.afterFees.toLocaleString()}</p>
+              </div>
+              
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium">Distribution Rule</p>
+                    <p className="text-xs text-gray-500">{preview.rule}</p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    preview.reservePercent >= 75 ? 'bg-green-100 text-green-800' :
+                    preview.reservePercent >= 50 ? 'bg-blue-100 text-blue-800' :
+                    preview.reservePercent >= 25 ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    Reserve: {preview.reservePercent.toFixed(1)}%
+                  </div>
+                </div>
+                
+                <div className="flex justify-between text-sm p-2 bg-green-50 dark:bg-green-900/10 rounded">
+                  <span className="font-medium text-green-700 dark:text-green-400">To Token Holders</span>
+                  <span className="font-bold text-green-600">${preview.toHolders.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm p-2 bg-blue-50 dark:bg-blue-900/10 rounded">
+                  <span className="font-medium text-blue-700 dark:text-blue-400">To Reserve Fund</span>
+                  <span className="font-bold text-blue-600">${preview.toReserve.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="pt-2 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">New Reserve Balance</span>
+                  <span className="font-bold text-lg text-blue-600">
+                    ${preview.newReserveBalance.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-gray-500 mt-1">
+                  <span>Progress to Target</span>
+                  <span>{((preview.newReserveBalance / (investment?.workingCapital || 25000)) * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <Button
+            onClick={handleProcessPayout}
+            disabled={isProcessing || preview.netRevenue <= 0}
+            className="w-full bg-green-600 hover:bg-green-700"
+            size="lg"
+          >
+            {isProcessing ? 'Processing Payout...' : 'Process Payout & Distribute Funds'}
+          </Button>
+          
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded text-xs text-blue-700 dark:text-blue-400">
+            <strong>💡 Tip:</strong> {useAutoCalculation 
+              ? 'Payout is auto-calculated from your POS income and expenses. Add income via POS billing and expenses via the Expenses tab.'
+              : 'Manual entry mode - switch to auto-calculate to use POS data automatically.'}
+          </div>
+        </div>
+      </Card>
+
+      {/* Payout History */}
+      <Card>
+        <CardHeader>
+          <h4 className="text-lg font-semibold">Payout History</h4>
+        </CardHeader>
+        <div className="px-6 pb-6">
+          <div className="space-y-3">
+            {recentPayouts && recentPayouts.length > 0 ? (
+              recentPayouts.map((payout) => (
+                <div key={payout._id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h5 className="font-medium">{payout.period}</h5>
+                      <p className="text-xs text-gray-500">{payout.distributionRule}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      payout.status === 'completed' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : payout.status === 'processing'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {payout.status}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">Revenue</p>
+                      <p className="font-semibold">${payout.grossRevenue.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">To Holders</p>
+                      <p className="font-semibold text-green-600">${payout.toTokenHolders.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">To Reserve</p>
+                      <p className="font-semibold text-blue-600">${payout.toReserve.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">Royalty</p>
+                      <p className="font-semibold text-purple-600">${payout.royaltyAmount.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p>No payouts processed yet</p>
+                <p className="text-sm">Enter revenue above to process your first payout</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function FranchiseDashboard() {
   const params = useParams();
   const franchiseSlug = params?.franchiseSlug as string;
-  const [activeTab, setActiveTab] = useState<'overview' | 'budget' | 'stock' | 'inventory' | 'team' | 'payouts' | 'transactions' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'budget' | 'stock' | 'inventory' | 'team' | 'expenses' | 'payouts' | 'transactions' | 'settings'>('overview');
   
   // Product creation modal state
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
@@ -54,6 +628,25 @@ export default function FranchiseDashboard() {
     maxStockLevel: 0,
     unit: 'pieces',
   });
+
+  // Expense modal state
+  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [expenseFormData, setExpenseFormData] = useState<{
+    category: string;
+    amount: number;
+    description: string;
+    expenseDate: string;
+    paymentMethod: 'cash' | 'card' | 'wallet' | 'transfer';
+  }>({
+    category: '',
+    amount: 0,
+    description: '',
+    expenseDate: new Date().toISOString().split('T')[0],
+    paymentMethod: 'cash',
+  });
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [isUploadingExpense, setIsUploadingExpense] = useState(false);
 
   // Get franchise by slug to get the actual ID
   const franchise = useQuery(api.franchiseManagement.getFranchiseBySlug, 
@@ -74,6 +667,20 @@ export default function FranchiseDashboard() {
   const productCategories = useAllProductCategories();
   const createProduct = useMutation(api.franchises.createFranchiserProduct);
   const requestStockTransfer = useMutation(api.stockManagement.requestStockTransfer);
+  
+  // Expense management
+  const { uploadFile } = useFileUpload();
+  const createExpense = useMutation(api.expenseManagement.createExpense);
+  const deleteExpense = useMutation(api.expenseManagement.deleteExpense);
+  const expenses = useQuery(api.expenseManagement.getFranchiseExpenses,
+    franchiseId ? { franchiseId, limit: 50 } : "skip"
+  );
+  const expenseSummary = useQuery(api.expenseManagement.getExpenseSummary,
+    franchiseId ? { franchiseId } : "skip"
+  );
+  const incomeData = useQuery(api.expenseManagement.getFranchiseIncome,
+    franchiseId ? { franchiseId } : "skip"
+  );
 
   // Budget management queries
   const currentBudget = useQuery(api.budgetManagement.getCurrentBudgetSummary,
@@ -85,11 +692,11 @@ export default function FranchiseDashboard() {
   );
 
   const payoutSummary = useQuery(api.payoutManagement.getPayoutSummary,
-    franchiseId ? { franchiseId, days: 30 } : "skip"
+    franchiseId ? { franchiseId } : "skip"
   );
 
   const recentPayouts = useQuery(api.payoutManagement.getFranchisePayouts,
-    franchiseId ? { franchiseId, limit: 10 } : "skip"
+    franchiseId ? { franchiseId } : "skip"
   );
 
   // Helper function to get product image URL
@@ -165,13 +772,105 @@ export default function FranchiseDashboard() {
     }
   };
 
+  // Handle receipt upload
+  const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      toast.error('Please upload an image or PDF file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setReceiptFile(file);
+    
+    // Create preview for images only
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReceiptPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setReceiptPreview('PDF');
+    }
+  };
+
+  // Handle expense form submission
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!franchiseId) return;
+
+    setIsUploadingExpense(true);
+
+    try {
+      // Upload receipt if provided
+      let receiptId;
+      if (receiptFile) {
+        receiptId = await uploadFile(receiptFile);
+      }
+
+      // Create expense
+      await createExpense({
+        franchiseId: franchiseId,
+        category: expenseFormData.category,
+        amount: expenseFormData.amount,
+        description: expenseFormData.description,
+        expenseDate: new Date(expenseFormData.expenseDate).getTime(),
+        paymentMethod: expenseFormData.paymentMethod,
+        receiptUrl: receiptId,
+      });
+
+      toast.success('Expense added successfully!');
+      
+      // Reset form
+      setIsAddExpenseModalOpen(false);
+      setExpenseFormData({
+        category: '',
+        amount: 0,
+        description: '',
+        expenseDate: new Date().toISOString().split('T')[0],
+        paymentMethod: 'cash',
+      });
+      setReceiptFile(null);
+      setReceiptPreview(null);
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      toast.error('Failed to add expense');
+    } finally {
+      setIsUploadingExpense(false);
+    }
+  };
+
+  // Handle delete expense
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await deleteExpense({ expenseId: expenseId as any });
+      toast.success('Expense deleted successfully');
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense');
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'budget', label: 'Budget', icon: Library },
     { id: 'stock', label: 'Stock', icon: Box },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'team', label: 'Team', icon: Users },
-    { id: 'payouts', label: 'Payouts', icon: Receipt },
+    { id: 'expenses', label: 'Expenses', icon: Receipt },
+    { id: 'payouts', label: 'Payouts', icon: DollarSign },
     { id: 'transactions', label: 'Transactions', icon: CreditCard },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -979,123 +1678,155 @@ export default function FranchiseDashboard() {
             </div>
           )}
 
-          {activeTab === 'payouts' && (
+          {activeTab === 'expenses' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Daily Payouts</h3>
+                  <h3 className="text-lg font-semibold">Expense Management</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Track daily revenue distribution and shareholder payouts
+                    Track and manage all franchise expenses with receipts
                   </p>
                 </div>
-                <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                <button
+                  onClick={() => setIsAddExpenseModalOpen(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Process Payout
+                  Add Expense
                 </button>
               </div>
 
-              {/* Payout Summary Cards */}
+              {/* Expense Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <Card className="p-4">
-                    <div className="flex items-center justify-between">
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue (30 days)</p>
-                      <p className="text-2xl font-bold">
-                        ${payoutSummary?.totalRevenue?.toLocaleString() || '0'}
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</p>
+                      <p className="text-2xl font-bold text-red-600">
+                        ${expenseSummary?.totalExpenses?.toLocaleString() || '0'}
                       </p>
                     </div>
-                    <DollarSign className="h-6 w-6 text-green-500" />
-                        </div>
-                </Card>
-                
-                <Card className="p-4">
-                  <div className="flex items-center justify-between">
-                        <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Royalties</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        ${payoutSummary?.totalRoyalties?.toLocaleString() || '0'}
-                          </p>
-                        </div>
-                    <Building2 className="h-6 w-6 text-blue-500" />
-                      </div>
-                </Card>
-                
-                <Card className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Platform Fees</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        ${payoutSummary?.totalPlatformFees?.toLocaleString() || '0'}
-                        </p>
-                      </div>
-                    <Settings className="h-6 w-6 text-purple-500" />
+                    <Receipt className="h-6 w-6 text-red-500" />
                   </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Shareholder Amount</p>
-                      <p className="text-2xl font-bold text-yellow-600">
-                        ${payoutSummary?.totalShareholderAmount?.toLocaleString() || '0'}
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Income</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        ${incomeData?.totalIncome?.toLocaleString() || '0'}
                       </p>
                     </div>
-                    <Users className="h-6 w-6 text-yellow-500" />
+                    <TrendingUp className="h-6 w-6 text-green-500" />
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Net Revenue</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        ${((incomeData?.totalIncome || 0) - (expenseSummary?.totalExpenses || 0)).toLocaleString()}
+                      </p>
                     </div>
-                  </Card>
+                    <DollarSign className="h-6 w-6 text-blue-500" />
+                  </div>
+                </Card>
+
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Expense Count</p>
+                      <p className="text-2xl font-bold">{expenseSummary?.expenseCount || 0}</p>
+                    </div>
+                    <FileImage className="h-6 w-6 text-purple-500" />
+                  </div>
+                </Card>
               </div>
 
-              {/* Recent Payouts */}
+              {/* Expense List */}
               <Card className="p-6">
-                <h4 className="text-lg font-semibold mb-4">Recent Payouts</h4>
-              <div className="space-y-4">
-                  {recentPayouts && recentPayouts.length > 0 ? (
-                    recentPayouts.map((payout, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                          <DollarSign className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium">
-                            Daily Payout - {new Date(payout.payoutDate).toLocaleDateString()}
-                          </h5>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>Revenue: ${payout.totalRevenue.toFixed(2)}</span>
-                            <span>Royalty: ${payout.royaltyAmount.toFixed(2)}</span>
-                            <span>Platform: ${payout.platformFee.toFixed(2)}</span>
-                            <span>Shareholder: ${payout.shareholderAmount.toFixed(2)}</span>
+                <h4 className="text-lg font-semibold mb-4">Recent Expenses</h4>
+                <div className="space-y-3">
+                  {expenses && expenses.length > 0 ? (
+                    expenses.map((expense) => (
+                      <div key={expense._id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                            <Receipt className="h-5 w-5 text-red-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">{expense.description}</p>
+                              <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full">
+                                {expense.category}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(expense.expenseDate).toLocaleDateString()} • {expense.paymentMethod}
+                              {expense.receiptUrl && ' • Has receipt'}
+                            </p>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          payout.status === 'completed' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                            : payout.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                        }`}>
-                          {payout.status}
-                        </span>
-                        {payout.status === 'pending' && (
-                          <button className="block mt-2 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors">
-                            Process
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-red-600">
+                              -${expense.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          {expense.receiptUrl && (
+                            <ReceiptImage receiptId={expense.receiptUrl} />
+                          )}
+                          <button
+                            onClick={() => handleDeleteExpense(expense._id)}
+                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                        )}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p>No payouts found</p>
-                      <p className="text-sm">Payouts will appear here once processed</p>
+                    <div className="text-center py-8">
+                      <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">No expenses recorded yet</p>
+                      <p className="text-sm text-gray-500 mt-1">Add expenses to track spending</p>
                     </div>
                   )}
-                    </div>
-                  </Card>
+                </div>
+              </Card>
+
+              {/* Expense by Category */}
+              {expenseSummary?.byCategory && Object.keys(expenseSummary.byCategory).length > 0 && (
+                <Card className="p-6">
+                  <h4 className="text-lg font-semibold mb-4">Expenses by Category</h4>
+                  <div className="space-y-3">
+                    {Object.entries(expenseSummary.byCategory)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([category, amount]) => (
+                        <div key={category} className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{category}</span>
+                          <span className="text-sm text-red-600 font-semibold">
+                            ${amount.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+              )}
             </div>
+          )}
+
+          {activeTab === 'payouts' && (
+            <PayoutsTab 
+              franchiseId={franchiseId}
+              franchise={franchise}
+              payoutSummary={payoutSummary}
+              recentPayouts={recentPayouts}
+              incomeData={incomeData}
+              expenseSummary={expenseSummary}
+            />
           )}
 
           {activeTab === 'transactions' && (
@@ -1352,6 +2083,226 @@ export default function FranchiseDashboard() {
               </Button>
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
                 Add Product
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Expense Modal */}
+      <Dialog open={isAddExpenseModalOpen} onOpenChange={setIsAddExpenseModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Expense</DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleAddExpense} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column - Receipt Upload */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Receipt (Optional)
+                  </Label>
+                  <div className="relative w-full aspect-square max-w-xs bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                    {receiptPreview && receiptPreview !== 'PDF' ? (
+                      <>
+                        <Image
+                          src={receiptPreview}
+                          alt="Receipt preview"
+                          fill
+                          className="object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReceiptFile(null);
+                            setReceiptPreview(null);
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors z-10"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : receiptPreview === 'PDF' ? (
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-red-500 text-white rounded-lg flex items-center justify-center mb-2 mx-auto">
+                          <span className="font-bold">PDF</span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{receiptFile?.name}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReceiptFile(null);
+                            setReceiptPreview(null);
+                          }}
+                          className="mt-2 text-red-500 hover:text-red-600 text-xs"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Upload receipt</p>
+                        <p className="text-xs text-gray-400">Image or PDF (max. 5MB)</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {!receiptPreview && (
+                    <div className="mt-3">
+                      <input
+                        id="receipt-upload"
+                        type="file"
+                        className="hidden"
+                        accept="image/*,application/pdf"
+                        onChange={handleReceiptUpload}
+                      />
+                      <label
+                        htmlFor="receipt-upload"
+                        className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Receipt
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column - Expense Details */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expense-category" className="text-sm font-medium">
+                    Category <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={expenseFormData.category}
+                    onValueChange={(value) => setExpenseFormData(prev => ({ ...prev, category: value }))}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Rent">Rent</SelectItem>
+                      <SelectItem value="Utilities">Utilities</SelectItem>
+                      <SelectItem value="Salaries">Salaries</SelectItem>
+                      <SelectItem value="Supplies">Supplies</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Insurance">Insurance</SelectItem>
+                      <SelectItem value="Taxes">Taxes</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expense-amount" className="text-sm font-medium">
+                    Amount <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      id="expense-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={expenseFormData.amount || ''}
+                      onChange={(e) => setExpenseFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.00"
+                      className="pl-8"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expense-description" className="text-sm font-medium">
+                    Description <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="expense-description"
+                    value={expenseFormData.description}
+                    onChange={(e) => setExpenseFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Enter expense description"
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="expense-date" className="text-sm font-medium">
+                    Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="expense-date"
+                    type="date"
+                    value={expenseFormData.expenseDate}
+                    onChange={(e) => setExpenseFormData(prev => ({ ...prev, expenseDate: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payment-method" className="text-sm font-medium">
+                    Payment Method <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={expenseFormData.paymentMethod}
+                    onValueChange={(value: 'cash' | 'card' | 'wallet' | 'transfer') => 
+                      setExpenseFormData(prev => ({ ...prev, paymentMethod: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                      <SelectItem value="wallet">Wallet</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsAddExpenseModalOpen(false);
+                  setExpenseFormData({
+                    category: '',
+                    amount: 0,
+                    description: '',
+                    expenseDate: new Date().toISOString().split('T')[0],
+                    paymentMethod: 'cash' as const,
+                  });
+                  setReceiptFile(null);
+                  setReceiptPreview(null);
+                }}
+                disabled={isUploadingExpense}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isUploadingExpense}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isUploadingExpense ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Adding...
+                  </>
+                ) : (
+                  'Add Expense'
+                )}
               </Button>
             </DialogFooter>
           </form>

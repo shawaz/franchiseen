@@ -194,9 +194,9 @@ export const rejectFranchise = mutation({
       throw new Error("Franchise not found");
     }
 
-    // Update franchise status to terminated (rejected)
+    // Update franchise status to rejected
     await ctx.db.patch(franchiseId, {
-      status: "terminated",
+      status: "rejected",
       updatedAt: now,
     });
 

@@ -3,6 +3,12 @@
 import React from 'react';
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useMutation } from 'convex/react';
+import { toast } from 'sonner';
 import { 
   TrendingUp,
   Calendar,
@@ -16,6 +22,7 @@ import {
   Package,
   Truck,
   AlertTriangle,
+  DollarSign,
 } from 'lucide-react';
 import { ProductsTab } from './ProductsTab';
 import { FranchiseTab } from './FranchiseTab';
@@ -140,8 +147,21 @@ type Tab = {
 
 export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [adjustStockDialog, setAdjustStockDialog] = useState<{
+    open: boolean;
+    productId?: string;
+    productName?: string;
+    currentStock?: number;
+  }>({ open: false });
+  const [stockAdjustment, setStockAdjustment] = useState<number>(0);
+  
   const { franchiseData, isLoading, error } = useFranchiseBySlug(brandSlug);
   const logoUrl = useConvexImageUrl(franchiseData?.franchiser.logoUrl);
+  
+  // Mutations
+  const adjustWarehouseStock = useMutation(api.productManagement.adjustWarehouseStock);
+  const approveStockTransfer = useMutation(api.stockManagement.approveStockTransfer);
+  const rejectStockTransfer = useMutation(api.stockManagement.rejectStockTransfer);
   
   // Get franchise locations data for the map
   const franchisesData = useQuery(api.franchiseManagement.getFranchises, 
@@ -159,6 +179,20 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
     franchiseData?.franchiser._id ? { 
       franchiserId: franchiseData.franchiser._id,
       limit: 10 
+    } : "skip"
+  );
+
+  // Get warehouse stock data
+  const warehouseStock = useQuery(api.stockManagement.getWarehouseStock,
+    franchiseData?.franchiser._id ? { 
+      franchiserId: franchiseData.franchiser._id
+    } : "skip"
+  );
+
+  // Get warehouse stock summary
+  const stockSummary = useQuery(api.productManagement.getWarehouseStockSummary,
+    franchiseData?.franchiser._id ? { 
+      franchiserId: franchiseData.franchiser._id
     } : "skip"
   );
 
@@ -201,9 +235,6 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
     { id: 'inventory', label: 'Warehouse', icon: Package },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'locations', label: 'Locations', icon: MapPin },
-    // { id: 'setup', label: 'Setup', icon: Receipt },
-    // { id: 'payouts', label: 'Payouts', icon: Receipt },
-    // { id: 'team', label: 'Team', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -340,6 +371,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
             <ProductsTab 
               products={franchiseData.products} 
               productImageUrls={productImageUrls?.filter((url: string | null) => url !== null) as string[] || []} 
+              franchiserId={franchiseData.franchiser._id}
             />
           )}
           {activeTab === 'inventory' && (
@@ -365,7 +397,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Total SKUs</p>
-                      <p className="text-2xl font-bold">{franchiseData.products.length}</p>
+                      <p className="text-2xl font-bold">{stockSummary?.totalProducts || 0}</p>
                     </div>
                     <Package className="h-6 w-6 text-blue-500" />
                   </div>
@@ -374,8 +406,20 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Stock Value</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        ${stockSummary?.totalStockValue?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                    <DollarSign className="h-6 w-6 text-green-500" />
+                  </div>
+                </Card>
+                
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">Low Stock Alerts</p>
-                      <p className="text-2xl font-bold text-yellow-600">3</p>
+                      <p className="text-2xl font-bold text-yellow-600">{stockSummary?.lowStockCount || 0}</p>
                     </div>
                     <AlertTriangle className="h-6 w-6 text-yellow-500" />
                   </div>
@@ -384,7 +428,7 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Pending Transfers</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Pending Requests</p>
                       <p className="text-2xl font-bold text-orange-600">
                         {pendingStockTransfers?.length || 0}
                       </p>
@@ -392,125 +436,195 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
                     <Truck className="h-6 w-6 text-orange-500" />
                   </div>
                 </Card>
-                
-                <Card className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Active Outlets</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {brandFranchiseLocations.length}
-                      </p>
-                    </div>
-                    <Store className="h-6 w-6 text-green-500" />
-                  </div>
-                </Card>
               </div>
 
               {/* Warehouse Products Table */}
               <Card className="p-6">
                 <h4 className="text-lg font-semibold mb-4">Warehouse Stock Levels</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-700">
-                        <th className="text-left py-3 px-4 font-medium">Product</th>
-                        <th className="text-left py-3 px-4 font-medium">SKU</th>
-                        <th className="text-left py-3 px-4 font-medium">Warehouse Stock</th>
-                        <th className="text-left py-3 px-4 font-medium">Min Level</th>
-                        <th className="text-left py-3 px-4 font-medium">Status</th>
-                        <th className="text-left py-3 px-4 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {franchiseData.products.map((product, index) => {
-                        const warehouseStock = Math.floor(Math.random() * 1000) + 100; // Mock warehouse stock
-                        const minLevel = 50;
-                        const isLowStock = warehouseStock <= minLevel;
-                        
-                        return (
-                          <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center">
-                                  <Package className="h-4 w-4 text-gray-400" />
+                {warehouseStock && warehouseStock.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          <th className="text-left py-3 px-4 font-medium">Product</th>
+                          <th className="text-left py-3 px-4 font-medium">SKU</th>
+                          <th className="text-left py-3 px-4 font-medium">Warehouse Stock</th>
+                          <th className="text-left py-3 px-4 font-medium">Min Level</th>
+                          <th className="text-left py-3 px-4 font-medium">Status</th>
+                          <th className="text-left py-3 px-4 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {warehouseStock.map((stock, index) => {
+                          const isLowStock = stock.warehouseStock <= stock.minWarehouseLevel;
+                          const isOutOfStock = stock.warehouseStock === 0;
+                          
+                          return (
+                            <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-gray-400" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-sm">{stock.productName}</p>
+                                    <p className="text-xs text-gray-500">{stock.productCategory}</p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-sm">{product.name}</p>
-                                  <p className="text-xs text-gray-500">{product.category}</p>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                  {stock.productSku}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-semibold">{stock.warehouseStock}</span>
+                                <span className="text-sm text-gray-500 ml-1">{stock.unit}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="text-sm text-gray-600">{stock.minWarehouseLevel}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  isOutOfStock 
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                    : isLowStock 
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                                    : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                }`}>
+                                  {isOutOfStock ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center space-x-2">
+                                  <button 
+                                    onClick={() => {
+                                      setAdjustStockDialog({
+                                        open: true,
+                                        productId: stock.productId,
+                                        productName: stock.productName,
+                                        currentStock: stock.warehouseStock,
+                                      });
+                                      setStockAdjustment(0);
+                                    }}
+                                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                  >
+                                    Adjust
+                                  </button>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                SKU-{product._id.slice(-6)}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="font-semibold">{warehouseStock}</span>
-                              <span className="text-sm text-gray-500 ml-1">units</span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="text-sm text-gray-600">{minLevel}</span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                isLowStock 
-                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                                  : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                              }`}>
-                                {isLowStock ? 'Low Stock' : 'In Stock'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center space-x-2">
-                                <button className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors">
-                                  Adjust
-                                </button>
-                                <button className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors">
-                                  Transfer
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">No products in warehouse</p>
+                  </div>
+                )}
               </Card>
 
               {/* Recent Stock Transfers */}
               <Card className="p-6">
-                <h4 className="text-lg font-semibold mb-4">Pending Stock Requests</h4>
+                <h4 className="text-lg font-semibold mb-4">Pending Stock Requests from Franchises</h4>
                 <div className="space-y-3">
                   {pendingStockTransfers && pendingStockTransfers.length > 0 ? (
-                    pendingStockTransfers.map((transfer, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                            <Truck className="h-4 w-4 text-orange-600" />
+                    pendingStockTransfers.map((transfer, index) => {
+                      // Get current warehouse stock for this product
+                      const productStock = warehouseStock?.find(s => s.productId === transfer.productId);
+                      const hasEnoughStock = productStock && productStock.warehouseStock >= transfer.requestedQuantity;
+                      
+                      return (
+                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center space-x-4 flex-1">
+                            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                              <Truck className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm">{transfer.product?.name || 'Unknown Product'}</p>
+                                {!hasEnoughStock && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">
+                                    Insufficient Stock
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                <span className="font-medium">{transfer.franchise?.businessName || 'Unknown Franchise'}</span>
+                                {' • '}Requested: {transfer.requestedQuantity} units
+                                {productStock && ` • Available: ${productStock.warehouseStock} ${productStock.unit}`}
+                              </p>
+                              {transfer.notes && (
+                                <p className="text-xs text-gray-400 mt-1 italic">&quot;{transfer.notes}&quot;</p>
+                              )}
+                              <p className="text-xs text-gray-400 mt-1">
+                                Requested on {new Date(transfer.createdAt).toLocaleDateString()} at {new Date(transfer.createdAt).toLocaleTimeString()}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-sm">{transfer.product?.name || 'Unknown Product'}</p>
-                            <p className="text-xs text-gray-500">
-                              {transfer.franchise?.businessName || 'Unknown Franchise'} • {transfer.requestedQuantity} units
-                            </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                if (!hasEnoughStock) {
+                                  const confirmApproval = confirm(
+                                    `Warehouse only has ${productStock?.warehouseStock || 0} units but franchise requested ${transfer.requestedQuantity}. Approve available quantity?`
+                                  );
+                                  if (!confirmApproval) return;
+                                }
+                                
+                                try {
+                                  await approveStockTransfer({
+                                    transferId: transfer._id,
+                                    approvedQuantity: hasEnoughStock 
+                                      ? transfer.requestedQuantity 
+                                      : (productStock?.warehouseStock || 0),
+                                    notes: hasEnoughStock 
+                                      ? "Approved - full quantity" 
+                                      : "Approved - partial quantity (warehouse limitation)",
+                                  });
+                                  toast.success(`Stock transfer approved for ${transfer.franchise?.businessName}`);
+                                } catch (error) {
+                                  console.error("Failed to approve transfer:", error);
+                                  toast.error(error instanceof Error ? error.message : "Failed to approve transfer");
+                                }
+                              }}
+                              disabled={!productStock || productStock.warehouseStock === 0}
+                              className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            >
+                              {hasEnoughStock ? 'Approve' : productStock?.warehouseStock ? 'Approve Partial' : 'No Stock'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                const reason = prompt("Reason for rejection:");
+                                if (!reason) return;
+                                
+                                try {
+                                  await rejectStockTransfer({
+                                    transferId: transfer._id,
+                                    notes: reason,
+                                  });
+                                  toast.success("Stock transfer rejected");
+                                } catch (error) {
+                                  console.error("Failed to reject transfer:", error);
+                                  toast.error("Failed to reject transfer");
+                                }
+                              }}
+                              className="px-3 py-1.5 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                            >
+                              Reject
+                            </button>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
-                            Pending
-                          </span>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {new Date(transfer.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-8">
                       <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-600 dark:text-gray-400">No pending stock requests</p>
+                      <p className="text-sm text-gray-500 mt-1">Franchise outlets can request stock when running low</p>
                     </div>
                   )}
                 </div>
@@ -571,6 +685,81 @@ export default function BrandDashboard({ brandSlug }: BrandDashboardProps) {
           )}
         </div>
       </Card>
+
+      {/* Stock Adjustment Dialog */}
+      <Dialog open={adjustStockDialog.open} onOpenChange={(open) => setAdjustStockDialog({ open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust Warehouse Stock</DialogTitle>
+            <DialogDescription>
+              Adjust the warehouse stock level for {adjustStockDialog.productName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Stock</Label>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {adjustStockDialog.currentStock || 0} units
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="adjustment">Stock Adjustment</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="adjustment"
+                  type="number"
+                  value={stockAdjustment}
+                  onChange={(e) => setStockAdjustment(Number(e.target.value))}
+                  placeholder="Enter adjustment (positive to add, negative to remove)"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-sm text-gray-500">
+                Use positive numbers to add stock, negative to remove
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Stock Level</Label>
+              <div className="text-xl font-semibold text-blue-600">
+                {(adjustStockDialog.currentStock || 0) + stockAdjustment} units
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAdjustStockDialog({ open: false })}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!adjustStockDialog.productId) return;
+                
+                try {
+                  await adjustWarehouseStock({
+                    productId: adjustStockDialog.productId as Id<"franchiserProducts">,
+                    quantity: stockAdjustment,
+                    reason: "Manual adjustment",
+                  });
+                  setAdjustStockDialog({ open: false });
+                  setStockAdjustment(0);
+                } catch (error) {
+                  console.error("Failed to adjust stock:", error);
+                  alert("Failed to adjust stock. Please try again.");
+                }
+              }}
+              disabled={stockAdjustment === 0}
+            >
+              Adjust Stock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

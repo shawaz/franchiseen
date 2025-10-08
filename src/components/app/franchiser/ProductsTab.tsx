@@ -12,6 +12,11 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAllProductCategories } from '@/hooks/useMasterData';
 import { Id } from '../../../../convex/_generated/dataModel';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { toast } from 'sonner';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { Label } from '@/components/ui/label';
 
 export interface Product {
   _id: Id<"franchiserProducts">;
@@ -33,16 +38,27 @@ export interface Product {
 interface ProductsTabProps {
   products: Product[];
   productImageUrls?: string[];
+  franchiserId?: Id<"franchiser">;
 }
 
-export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProps) {
+export function ProductsTab({ products, productImageUrls = [], franchiserId }: ProductsTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [uploadedImageFile, setUploadedImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Fetch product categories for display
   const productCategories = useAllProductCategories();
+  
+  // Mutations
+  const createProduct = useMutation(api.productManagement.createProduct);
+  const updateProduct = useMutation(api.productManagement.updateProduct);
+  const deleteProduct = useMutation(api.productManagement.deleteProduct);
+  
+  // File upload hook
+  const { uploadFile } = useFileUpload();
   
   // Helper function to get category name by ID
   const getCategoryName = (categoryId: string) => {
@@ -75,18 +91,40 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Convert numeric fields to numbers
+    if (name === 'cost' || name === 'price') {
+      setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    } else if (name === 'stockQuantity' || name === 'minStockLevel' || name === 'maxStockLevel') {
+      setFormData(prev => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Handle image upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+      
+      // Store the file for upload
+      setUploadedImageFile(file);
+      
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        const imageUrl = reader.result as string;
-        setImagePreview(imageUrl);
-        setFormData(prev => ({ ...prev, image: imageUrl }));
+        setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -108,15 +146,87 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
     });
     setImagePreview('');
     setEditingProduct(null);
+    setUploadedImageFile(null);
   };
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement product creation/update with Convex mutations
-    console.log('Form submitted:', formData);
-    resetForm();
-    setIsDialogOpen(false);
+    
+    if (!franchiserId) {
+      toast.error("Franchiser ID is required");
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      // Upload image if a new file was selected
+      let imageIds: Id<"_storage">[] = editingProduct?.images || [];
+      
+      if (uploadedImageFile) {
+        const uploadedImageId = await uploadFile(uploadedImageFile);
+        imageIds = [uploadedImageId];
+      }
+      
+      // Ensure all numeric values are properly converted to numbers
+      const cost = typeof formData.cost === 'string' ? parseFloat(formData.cost) : formData.cost;
+      const price = typeof formData.price === 'string' ? parseFloat(formData.price) : formData.price;
+      const stockQuantity = typeof formData.stockQuantity === 'string' ? parseInt(formData.stockQuantity, 10) : formData.stockQuantity;
+      const minStockLevel = formData.minStockLevel ? 
+        (typeof formData.minStockLevel === 'string' ? parseInt(formData.minStockLevel, 10) : formData.minStockLevel) 
+        : undefined;
+      const maxStockLevel = formData.maxStockLevel ? 
+        (typeof formData.maxStockLevel === 'string' ? parseInt(formData.maxStockLevel, 10) : formData.maxStockLevel) 
+        : undefined;
+      
+      if (editingProduct) {
+        // Update existing product
+        await updateProduct({
+          productId: editingProduct._id,
+          name: formData.name,
+          description: formData.description,
+          cost: cost,
+          price: price,
+          category: formData.category,
+          status: formData.status,
+          stockQuantity: stockQuantity,
+          minStockLevel: minStockLevel,
+          maxStockLevel: maxStockLevel,
+          unit: formData.unit,
+          ...(imageIds.length > 0 && { images: imageIds }),
+        });
+        
+        toast.success("Product updated successfully");
+      } else {
+        // Create new product
+        await createProduct({
+          franchiserId: franchiserId,
+          name: formData.name,
+          description: formData.description,
+          cost: cost,
+          price: price,
+          category: formData.category,
+          status: formData.status,
+          stockQuantity: stockQuantity,
+          minStockLevel: minStockLevel,
+          maxStockLevel: maxStockLevel,
+          unit: formData.unit,
+          images: imageIds,
+        });
+        
+        toast.success("Product created successfully");
+      }
+      
+      resetForm();
+      setIsDialogOpen(false);
+      setUploadedImageFile(null);
+    } catch (error) {
+      console.error("Failed to save product:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save product. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Edit product
@@ -134,7 +244,20 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
       maxStockLevel: product.maxStockLevel || 0,
       unit: product.unit || 'pieces',
     });
-    setImagePreview(product.images.length > 0 ? productImageUrls[0] || '' : '');
+    
+    // Find the product's image URL from the productImageUrls array
+    const productIndex = products.findIndex(p => p._id === product._id);
+    if (productIndex !== -1 && product.images.length > 0) {
+      // Calculate the correct index in the flattened image URLs array
+      let imageUrlIndex = 0;
+      for (let i = 0; i < productIndex; i++) {
+        imageUrlIndex += products[i].images.length;
+      }
+      setImagePreview(productImageUrls[imageUrlIndex] || '');
+    } else {
+      setImagePreview('');
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -144,12 +267,21 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (productToDelete) {
-      // TODO: Implement product deletion with Convex mutation
-      console.log('Delete product:', productToDelete);
-      setIsDeleteDialogOpen(false);
-      setProductToDelete(null);
+      try {
+        await deleteProduct({
+          productId: productToDelete as Id<"franchiserProducts">,
+        });
+        
+        toast.success("Product deleted successfully");
+        
+        setIsDeleteDialogOpen(false);
+        setProductToDelete(null);
+      } catch (error) {
+        console.error("Failed to delete product:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to delete product. Please try again.");
+      }
     }
   };
 
@@ -275,190 +407,324 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
 
       {/* Add/Edit Product Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column - Image Upload */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Product Image</label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg">
-                    {imagePreview ? (
-                      <div className="relative w-full h-48">
-                        <Image
-                          src={imagePreview}
-                          alt="Preview"
-                          fill
-                          className="object-contain"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImagePreview('');
-                            setFormData(prev => ({ ...prev, image: '' }));
-                          }}
-                          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md"
-                        >
-                          <X className="h-4 w-4 text-stone-600" />
-                        </button>
-                      </div>
-                    ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="flex flex-col md:flex-row gap-6 py-4">
+              {/* Left Section - Product Photo (1/3 width) */}
+              <div className="w-full md:w-1/3 flex flex-col items-center">
+                <div className="relative w-full aspect-square max-w-xs bg-stone-100 dark:bg-stone-800 rounded-lg overflow-hidden border-2 border-dashed border-stone-300 dark:border-stone-600">
+                  {imagePreview ? (
+                    <>
+                      <Image
+                        src={imagePreview}
+                        alt="Product preview"
+                        fill
+                        className="object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImagePreview('');
+                          setUploadedImageFile(null);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors z-10"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
                       <div className="text-center">
-                        <div className="mx-auto h-12 w-12 text-stone-400">
-                          <Upload className="mx-auto h-12 w-12" />
-                        </div>
-                        <div className="mt-4 flex text-sm">
-                          <label
-                            htmlFor="file-upload"
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500 focus-within:outline-none"
-                          >
-                            <span>Upload a file</span>
-                            <input
-                              id="file-upload"
-                              name="file-upload"
-                              type="file"
-                              className="sr-only"
-                              accept="image/*"
-                              onChange={handleImageUpload}
-                            />
-                          </label>
-                          <p className="pl-1">or drag and drop</p>
-                        </div>
-                        <p className="text-xs text-stone-500 mt-1">PNG, JPG, GIF up to 5MB</p>
+                        <ImageIcon className="w-12 h-12 text-stone-400 mx-auto mb-2" />
+                        <p className="text-sm text-stone-500">Upload product image</p>
+                        <p className="text-xs text-stone-400">PNG, JPG (max. 5MB)</p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
                 
-              </div>
-
-              {/* Right Column - Form Fields */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="block text-sm font-medium">
-                    Product Name <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter product name"
-                    required
+                <div className="mt-3 w-full max-w-xs">
+                  <input
+                    id="product-image-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/png, image/jpeg, image/jpg"
+                    onChange={handleImageUpload}
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="category" className="block text-sm font-medium">
-                    Category
-                  </label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                  <label
+                    htmlFor="product-image-upload"
+                    className="w-full inline-flex items-center justify-center px-4 py-2 border border-stone-300 dark:border-stone-600 text-sm font-medium rounded-md text-stone-700 dark:text-stone-200 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 cursor-pointer transition-colors"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productCategories?.map((category) => (
-                        <SelectItem key={category._id} value={category._id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {imagePreview ? 'Change Image' : 'Upload Image'}
+                  </label>
+                  <p className="text-xs text-center text-stone-500 dark:text-stone-400 mt-2">
+                    PNG, JPG (max. 5MB)
+                  </p>
+                </div>
+              </div>
+              
+              {/* Right Section - Product Details (2/3 width) */}
+              <div className="w-full md:w-2/3 space-y-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-medium text-lg">Product Details</h4>
+                    <p className="text-sm text-stone-500">
+                      {formData.name || 'Enter product information'}
+                      {formData.category && ` • ${getCategoryName(formData.category)}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Product Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="e.g., Signature Burger"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="category" className="text-sm font-medium">
+                      Category <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
+                        {productCategories?.map((category) => (
+                          <SelectItem key={category._id} value={category._id}>
+                            {category.icon && <span className="mr-2">{category.icon}</span>}
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="description" className="block text-sm font-medium">
+                  <Label htmlFor="description" className="text-sm font-medium">
                     Description
-                  </label>
+                  </Label>
                   <Textarea
                     id="description"
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    placeholder="Enter product description"
+                    placeholder="Brief description of the product"
                     rows={3}
+                    className="h-20"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label htmlFor="cost" className="block text-sm font-medium">
-                      Cost ($)
-                    </label>
-                    <Input
-                      id="cost"
-                      name="cost"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.cost}
-                      onChange={handleInputChange}
-                      placeholder="0.00"
-                    />
+                    <Label htmlFor="cost" className="text-sm font-medium">
+                      Cost <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">$</span>
+                      <Input
+                        id="cost"
+                        name="cost"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.cost}
+                        onChange={handleInputChange}
+                        placeholder="0.00"
+                        className="pl-8"
+                        required
+                      />
+                    </div>
                   </div>
+                  
                   <div className="space-y-2">
-                    <label htmlFor="price" className="block text-sm font-medium">
-                      Price ($)
-                    </label>
-                    <Input
-                      id="price"
-                      name="price"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      placeholder="0.00"
-                    />
+                    <Label htmlFor="price" className="text-sm font-medium">
+                      Selling Price <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">$</span>
+                      <Input
+                        id="price"
+                        name="price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={handleInputChange}
+                        placeholder="0.00"
+                        className="pl-8"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="unit" className="text-sm font-medium">
+                      Unit
+                    </Label>
+                    <Select
+                      value={formData.unit}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pieces">Pieces</SelectItem>
+                        <SelectItem value="kg">Kilograms</SelectItem>
+                        <SelectItem value="liters">Liters</SelectItem>
+                        <SelectItem value="boxes">Boxes</SelectItem>
+                        <SelectItem value="units">Units</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-blue-500" />
-                      <label htmlFor="stock" className="block text-sm font-medium">
-                        Stock Quantity
-                      </label>
+                {/* Stock Management Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center">
+                    <Package className="w-4 h-4 mr-2 text-blue-600" />
+                    Stock Management
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="stockQuantity" className="text-sm font-medium">
+                        Current Stock <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="stockQuantity"
+                        name="stockQuantity"
+                        type="number"
+                        min="0"
+                        value={formData.stockQuantity}
+                        onChange={handleInputChange}
+                        placeholder="0"
+                        required
+                      />
                     </div>
-                    <Input
-                      id="stock"
-                      name="stockQuantity"
-                      type="number"
-                      min="0"
-                      value={formData.stockQuantity}
-                      onChange={handleInputChange}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Store className="h-4 w-4 text-green-500" />
-                      <label htmlFor="sold" className="block text-sm font-medium">
-                        Sold Quantity
-                      </label>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="minStockLevel" className="text-sm font-medium">
+                        Min Stock Level
+                      </Label>
+                      <Input
+                        id="minStockLevel"
+                        name="minStockLevel"
+                        type="number"
+                        min="0"
+                        value={formData.minStockLevel}
+                        onChange={handleInputChange}
+                        placeholder="0"
+                      />
                     </div>
-                    <Input
-                      id="sold"
-                      name="sold"
-                      type="number"
-                      min="0"
-                      value={0}
-                      onChange={handleInputChange}
-                      placeholder="0"
-                    />
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="maxStockLevel" className="text-sm font-medium">
+                        Max Stock Level
+                      </Label>
+                      <Input
+                        id="maxStockLevel"
+                        name="maxStockLevel"
+                        type="number"
+                        min="0"
+                        value={formData.maxStockLevel}
+                        onChange={handleInputChange}
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
+                  
+                  {/* Stock Level Indicators */}
+                  {formData.stockQuantity > 0 && (
+                    <div className="mt-4 p-3 bg-stone-50 dark:bg-stone-800 rounded-lg">
+                      <h5 className="font-medium text-sm mb-2">Stock Status</h5>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-2 ${
+                            formData.stockQuantity === 0 
+                              ? 'bg-red-500' 
+                              : (formData.minStockLevel && formData.stockQuantity <= formData.minStockLevel)
+                              ? 'bg-yellow-500'
+                              : 'bg-green-500'
+                          }`}></div>
+                          <span className="text-sm">
+                            {formData.stockQuantity === 0 
+                              ? 'Out of Stock' 
+                              : (formData.minStockLevel && formData.stockQuantity <= formData.minStockLevel)
+                              ? 'Low Stock'
+                              : 'In Stock'
+                            }
+                          </span>
+                        </div>
+                        <span className="text-sm text-stone-500">
+                          {formData.stockQuantity} {formData.unit || 'units'} available
+                        </span>
+                      </div>
+                      {formData.cost > 0 && (
+                        <div className="mt-2 pt-2 border-t border-stone-200 dark:border-stone-700">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-stone-600 dark:text-stone-400">Stock Value:</span>
+                            <span className="font-semibold text-green-600">
+                              ${(formData.stockQuantity * formData.cost).toLocaleString()}
+                            </span>
+                          </div>
+                          {formData.price > 0 && (
+                            <div className="flex justify-between text-sm mt-1">
+                              <span className="text-stone-600 dark:text-stone-400">Profit Margin:</span>
+                              <span className="font-semibold text-blue-600">
+                                {((formData.price - formData.cost) / formData.cost * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="status" className="text-sm font-medium">
+                    Status
+                  </Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value: "draft" | "active" | "archived") => 
+                      setFormData(prev => ({ ...prev, status: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex justify-end space-x-2 mt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -466,11 +732,23 @@ export function ProductsTab({ products, productImageUrls = [] }: ProductsTabProp
                   setIsDialogOpen(false);
                   resetForm();
                 }}
+                disabled={isUploading}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingProduct ? 'Update Product' : 'Add Product'}
+              <Button 
+                type="submit" 
+                disabled={isUploading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isUploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Uploading...
+                  </>
+                ) : (
+                  editingProduct ? 'Update Product' : 'Add Product'
+                )}
               </Button>
             </DialogFooter>
           </form>

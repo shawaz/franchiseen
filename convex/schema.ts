@@ -668,6 +668,32 @@ export default defineSchema({
   }).index("by_franchiseId", ["franchiseId"])
     .index("by_status", ["status"]),
 
+  // Franchise Expenses
+  franchiseExpenses: defineTable({
+    franchiseId: v.id("franchises"),
+    category: v.string(),
+    amount: v.number(),
+    description: v.string(),
+    receiptUrl: v.optional(v.id("_storage")),
+    expenseDate: v.number(),
+    paymentMethod: v.union(
+      v.literal("cash"),
+      v.literal("card"),
+      v.literal("wallet"),
+      v.literal("transfer")
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("cancelled")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_franchise", ["franchiseId"])
+    .index("by_category", ["category"])
+    .index("by_status", ["status"])
+    .index("by_expenseDate", ["expenseDate"]),
+
   // Franchise Budget Management
   franchiseBudgets: defineTable({
     franchiseId: v.id("franchises"),
@@ -716,37 +742,44 @@ export default defineSchema({
   // Franchise Payouts
   franchisePayouts: defineTable({
     franchiseId: v.id("franchises"),
-    payoutDate: v.number(), // Daily payout date
-    totalRevenue: v.number(), // Total daily revenue
+    franchiserId: v.id("franchiser"),
+    period: v.string(), // e.g., "2024-10-08" or "October 2024"
+    payoutType: v.union(v.literal("daily"), v.literal("monthly")),
+    grossRevenue: v.number(), // Total revenue before any deductions
     royaltyAmount: v.number(), // Amount to brand wallet
-    platformFee: v.number(), // Amount to platform
-    shareholderAmount: v.number(), // Amount to shareholders
-    managerBonus: v.number(), // Manager bonus amount
-    employeeBonuses: v.number(), // Employee bonus pool
-    operatingExpenses: v.number(), // Operating expenses deducted
-    netProfit: v.number(), // Net profit after all deductions
+    platformFeeAmount: v.number(), // Amount to platform
+    netRevenue: v.number(), // After royalty and platform fee
+    toTokenHolders: v.number(), // Amount distributed to token holders
+    toReserve: v.number(), // Amount added to reserve fund
+    reserveBalanceBefore: v.number(), // Reserve balance before payout
+    reserveBalanceAfter: v.number(), // Reserve balance after payout
+    reservePercentage: v.number(), // Reserve % at time of payout
+    distributionRule: v.string(), // e.g., "Critical Reserve (< 25%)"
+    totalShares: v.number(), // Total shares at time of payout
+    shareholderCount: v.number(), // Number of shareholders
     status: v.union(v.literal("pending"), v.literal("processing"), v.literal("completed"), v.literal("failed")),
-    transactionHash: v.optional(v.string()), // Solana transaction hash
     processedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_franchiseId", ["franchiseId"])
-    .index("by_payout_date", ["payoutDate"])
+  }).index("by_franchise", ["franchiseId"])
+    .index("by_franchiser", ["franchiserId"])
     .index("by_status", ["status"]),
 
-  // Shareholder Distributions
-  shareholderDistributions: defineTable({
-    franchiseId: v.id("franchises"),
+  // Shareholder Payouts (new implementation)
+  shareholderPayouts: defineTable({
     payoutId: v.id("franchisePayouts"),
-    userId: v.id("userProfiles"),
-    sharePercentage: v.number(), // User's share percentage
-    distributionAmount: v.number(), // Amount to distribute
-    transactionHash: v.optional(v.string()),
+    franchiseId: v.id("franchises"),
+    investorId: v.string(), // Wallet address
+    shares: v.number(), // Number of shares held
+    totalShares: v.number(), // Total shares at time of payout
+    sharePercentage: v.number(), // Percentage of total shares
+    payoutAmount: v.number(), // Amount paid out
+    period: v.string(), // Same as payout period
     status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
-    processedAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_franchiseId", ["franchiseId"])
-    .index("by_payoutId", ["payoutId"])
-    .index("by_userId", ["userId"]),
+  }).index("by_payout", ["payoutId"])
+    .index("by_franchise_investor", ["franchiseId", "investorId"])
+    .index("by_investor", ["investorId"]),
 
   // Brand Wallet Transactions
   brandWalletTransactions: defineTable({
@@ -756,6 +789,7 @@ export default defineSchema({
       v.literal("franchise_funding_complete"),
       v.literal("franchise_fee"),
       v.literal("setup_cost"),
+      v.literal("royalty"), // Added for ongoing royalty payments
       v.literal("revenue"),
       v.literal("expense"),
       v.literal("transfer")
@@ -773,6 +807,31 @@ export default defineSchema({
   }).index("by_franchiser", ["franchiserId"])
     .index("by_franchise", ["franchiseId"])
     .index("by_type", ["type"])
+    .index("by_status", ["status"]),
+
+  // Company Income (Platform Fees)
+  companyIncome: defineTable({
+    type: v.union(
+      v.literal("platform_fee_share_purchase"),
+      v.literal("platform_fee_payout"),
+      v.literal("subscription"),
+      v.literal("listing_fee"),
+      v.literal("other")
+    ),
+    amount: v.number(),
+    description: v.string(),
+    franchiseId: v.optional(v.id("franchises")),
+    franchiserId: v.optional(v.id("franchiser")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    transactionHash: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_type", ["type"])
+    .index("by_franchise", ["franchiseId"])
+    .index("by_franchiser", ["franchiserId"])
     .index("by_status", ["status"]),
 
   // Franchise Stage Management

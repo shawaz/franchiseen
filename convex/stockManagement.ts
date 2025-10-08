@@ -44,6 +44,17 @@ export const approveStockTransfer = mutation({
       throw new Error("Transfer not found");
     }
 
+    // Get the product to check warehouse stock
+    const product = await ctx.db.get(transfer.productId);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    // Check if there's enough warehouse stock
+    if (product.stockQuantity < args.approvedQuantity) {
+      throw new Error("Insufficient warehouse stock");
+    }
+
     // Update transfer status
     await ctx.db.patch(args.transferId, {
       status: "approved",
@@ -52,17 +63,36 @@ export const approveStockTransfer = mutation({
       updatedAt: now,
     });
 
-    // Update franchise product stock
-    const franchiseProduct = await ctx.db
-      .query("franchiserProducts")
-      .filter(q => q.eq(q.field("_id"), transfer.productId))
-      .first();
+    // Deduct from warehouse stock
+    await ctx.db.patch(transfer.productId, {
+      stockQuantity: product.stockQuantity - args.approvedQuantity,
+    });
 
-    if (franchiseProduct) {
-      await ctx.db.patch(transfer.productId, {
-        stockQuantity: franchiseProduct.stockQuantity + args.approvedQuantity,
-      });
+    return args.transferId;
+  },
+});
+
+// Reject stock transfer (brand side)
+export const rejectStockTransfer = mutation({
+  args: {
+    transferId: v.id("stockTransfers"),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // Get the transfer request
+    const transfer = await ctx.db.get(args.transferId);
+    if (!transfer) {
+      throw new Error("Transfer not found");
     }
+
+    // Update transfer status
+    await ctx.db.patch(args.transferId, {
+      status: "rejected",
+      notes: args.notes,
+      updatedAt: now,
+    });
 
     return args.transferId;
   },
@@ -143,7 +173,7 @@ export const getPendingStockTransfers = query({
   },
 });
 
-// Get warehouse stock levels (mock data for now)
+// Get warehouse stock levels (real data)
 export const getWarehouseStock = query({
   args: {
     franchiserId: v.id("franchiser"),
@@ -152,18 +182,23 @@ export const getWarehouseStock = query({
     // Get all products for this franchiser
     const products = await ctx.db
       .query("franchiserProducts")
-      .filter(q => q.eq(q.field("franchiserId"), args.franchiserId))
+      .withIndex("by_franchiser", (q) => q.eq("franchiserId", args.franchiserId))
       .collect();
 
-    // Mock warehouse stock levels (in a real system, this would be separate warehouse inventory)
+    // Return actual warehouse stock levels from database
     const warehouseStock = products.map(product => ({
       productId: product._id,
       productName: product.name,
       productCategory: product.category,
-      warehouseStock: Math.floor(Math.random() * 1000) + 100, // Mock data
-      minWarehouseLevel: 50,
-      maxWarehouseLevel: 500,
-      lastRestocked: Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000), // Random date within last week
+      productSku: `SKU-${product._id.slice(-6)}`,
+      warehouseStock: product.stockQuantity,
+      minWarehouseLevel: product.minStockLevel || 50,
+      maxWarehouseLevel: product.maxStockLevel || 1000,
+      unit: product.unit || "units",
+      cost: product.cost,
+      price: product.price,
+      status: product.status,
+      createdAt: product.createdAt,
     }));
 
     return warehouseStock;

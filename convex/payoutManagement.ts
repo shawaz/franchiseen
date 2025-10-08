@@ -1,297 +1,321 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 
-// Create daily payout
-export const createDailyPayout = mutation({
+// Calculate payout distribution based on reserve balance
+function calculatePayoutDistribution(
+  franchiseWalletBalance: number,
+  workingCapital: number,
+  revenue: number
+): {
+  toTokenHolders: number;
+  toReserve: number;
+  reservePercentage: number;
+  distributionRule: string;
+} {
+  const reservePercentage = (franchiseWalletBalance / workingCapital) * 100;
+  
+  let toTokenHoldersPercent = 0;
+  let toReservePercent = 0;
+  let distributionRule = '';
+  
+  if (reservePercentage < 25) {
+    toTokenHoldersPercent = 25;
+    toReservePercent = 75;
+    distributionRule = 'Critical Reserve (< 25%)';
+  } else if (reservePercentage < 50) {
+    toTokenHoldersPercent = 50;
+    toReservePercent = 50;
+    distributionRule = 'Low Reserve (< 50%)';
+  } else if (reservePercentage < 75) {
+    toTokenHoldersPercent = 75;
+    toReservePercent = 25;
+    distributionRule = 'Building Reserve (< 75%)';
+  } else {
+    toTokenHoldersPercent = 100;
+    toReservePercent = 0;
+    distributionRule = 'Full Reserve (≥ 75%)';
+  }
+  
+  return {
+    toTokenHolders: (revenue * toTokenHoldersPercent) / 100,
+    toReserve: (revenue * toReservePercent) / 100,
+    reservePercentage,
+    distributionRule
+  };
+}
+
+// Process franchise payout
+export const processFranchisePayout = mutation({
   args: {
     franchiseId: v.id("franchises"),
-    payoutDate: v.number(),
-    totalRevenue: v.number(),
-    operatingExpenses: v.number(),
-    royaltyPercentage: v.optional(v.number()), // Default royalty percentage
-    platformFeePercentage: v.optional(v.number()), // Default platform fee percentage
+    revenue: v.number(), // Gross revenue for this period
+    period: v.string(), // e.g., "2024-10-08" or "October 2024"
+    payoutType: v.union(v.literal("daily"), v.literal("monthly")),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     
-    // Calculate payout amounts
-    const royaltyPercentage = args.royaltyPercentage || 5; // 5% default royalty
-    const platformFeePercentage = args.platformFeePercentage || 2; // 2% default platform fee
+    // Get franchise details
+    const franchise = await ctx.db.get(args.franchiseId);
+    if (!franchise) {
+      throw new Error("Franchise not found");
+    }
     
-    const royaltyAmount = (args.totalRevenue * royaltyPercentage) / 100;
-    const platformFee = (args.totalRevenue * platformFeePercentage) / 100;
-    const managerBonus = (args.totalRevenue * 2) / 100; // 2% manager bonus
-    const employeeBonuses = (args.totalRevenue * 3) / 100; // 3% employee bonus pool
+    // Only allow payouts for ongoing franchises
+    if (franchise.stage !== "ongoing") {
+      throw new Error("Payouts are only available for operational franchises");
+    }
     
-    const netProfit = args.totalRevenue - args.operatingExpenses - royaltyAmount - platformFee - managerBonus - employeeBonuses;
-    const shareholderAmount = netProfit; // Remaining amount goes to shareholders
-
+    // Get franchiser for royalty
+    const franchiser = await ctx.db.get(franchise.franchiserId);
+    if (!franchiser) {
+      throw new Error("Franchiser not found");
+    }
+    
+    // Get investment data for working capital
+    const investment = await ctx.db.get(franchise.investmentId);
+    if (!investment) {
+      throw new Error("Investment data not found");
+    }
+    
+    // Get franchise wallet
+    const franchiseWallet = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+    
+    if (!franchiseWallet) {
+      throw new Error("Franchise wallet not found");
+    }
+    
+    console.log(`💰 Processing payout for ${franchise.franchiseSlug}`);
+    console.log(`📊 Revenue: $${args.revenue.toLocaleString()}`);
+    console.log(`💼 Current wallet balance: $${franchiseWallet.usdBalance.toLocaleString()}`);
+    console.log(`🎯 Working capital target: $${investment.workingCapital.toLocaleString()}`);
+    
+    // Calculate fees
+    const royaltyPercentage = franchiser.royaltyPercentage || 5; // Default 5%
+    const platformFeePercentage = 2; // 2% platform fee
+    
+    const royaltyAmount = (args.revenue * royaltyPercentage) / 100;
+    const platformFeeAmount = (args.revenue * platformFeePercentage) / 100;
+    const netRevenue = args.revenue - royaltyAmount - platformFeeAmount;
+    
+    console.log(`💵 Royalty (${royaltyPercentage}%): $${royaltyAmount.toLocaleString()}`);
+    console.log(`💵 Platform Fee (${platformFeePercentage}%): $${platformFeeAmount.toLocaleString()}`);
+    console.log(`💵 Net Revenue: $${netRevenue.toLocaleString()}`);
+    
+    // Calculate distribution based on reserve balance
+    const distribution = calculatePayoutDistribution(
+      franchiseWallet.usdBalance,
+      investment.workingCapital,
+      netRevenue
+    );
+    
+    console.log(`📈 Distribution Rule: ${distribution.distributionRule}`);
+    console.log(`📈 To Token Holders: $${distribution.toTokenHolders.toLocaleString()}`);
+    console.log(`📈 To Reserve: $${distribution.toReserve.toLocaleString()}`);
+    
+    // Get all token holders (shareholders)
+    const shareholders = await ctx.db
+      .query("franchiseShares")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .filter((q) => q.eq(q.field("status"), "confirmed"))
+      .collect();
+    
+    const totalShares = shareholders.reduce((sum, s) => sum + s.sharesPurchased, 0);
+    
+    if (totalShares === 0) {
+      throw new Error("No shareholders found for this franchise");
+    }
+    
+    console.log(`👥 Total shareholders: ${shareholders.length}`);
+    console.log(`🎫 Total shares: ${totalShares.toLocaleString()}`);
+    
+    // Create payout record
     const payoutId = await ctx.db.insert("franchisePayouts", {
       franchiseId: args.franchiseId,
-      payoutDate: args.payoutDate,
-      totalRevenue: args.totalRevenue,
+      franchiserId: franchise.franchiserId,
+      period: args.period,
+      payoutType: args.payoutType,
+      grossRevenue: args.revenue,
       royaltyAmount,
-      platformFee,
-      shareholderAmount,
-      managerBonus,
-      employeeBonuses,
-      operatingExpenses: args.operatingExpenses,
-      netProfit,
-      status: "pending",
+      platformFeeAmount,
+      netRevenue,
+      toTokenHolders: distribution.toTokenHolders,
+      toReserve: distribution.toReserve,
+      reserveBalanceBefore: franchiseWallet.usdBalance,
+      reserveBalanceAfter: franchiseWallet.usdBalance + distribution.toReserve,
+      reservePercentage: distribution.reservePercentage,
+      distributionRule: distribution.distributionRule,
+      totalShares,
+      shareholderCount: shareholders.length,
+      status: "processing",
+      createdAt: now,
+      processedAt: now,
+    });
+    
+    console.log(`✅ Payout record created:`, payoutId);
+    
+    // Transfer royalty to brand wallet
+    await ctx.db.insert("brandWalletTransactions", {
+      franchiserId: franchise.franchiserId,
+      franchiseId: args.franchiseId,
+      type: "royalty",
+      amount: royaltyAmount,
+      description: `Royalty from ${franchise.franchiseSlug} - ${args.period}`,
+      status: "completed",
+      transactionHash: `royalty_${payoutId}_${now}`,
       createdAt: now,
     });
 
-    // Create shareholder distributions
-    await createShareholderDistributions(ctx, args.franchiseId, payoutId, shareholderAmount);
-
-    return payoutId;
-  },
-});
-
-// Process payout (transfer funds)
-export const processPayout = mutation({
-  args: {
-    payoutId: v.id("franchisePayouts"),
-  },
-  handler: async (ctx, args) => {
-    const payout = await ctx.db.get(args.payoutId);
-    if (!payout) {
-      throw new Error("Payout not found");
-    }
-
-    if (payout.status !== "pending") {
-      throw new Error("Payout is not in pending status");
-    }
-
-    const now = Date.now();
-
-    try {
-      // Update payout status to processing
-      await ctx.db.patch(args.payoutId, {
-        status: "processing",
-      });
-
-      // TODO: Implement actual Solana transactions here
-      // For now, we'll simulate successful transactions
-      const transactionHash = `payout_${args.payoutId}_${now}`;
-
-      // Update payout status to completed
-      await ctx.db.patch(args.payoutId, {
+    console.log(`✅ Royalty transferred to brand wallet: $${royaltyAmount.toLocaleString()}`);
+    
+    // Create platform fee transaction (company income)
+    await ctx.db.insert("companyIncome", {
+      type: "platform_fee_payout",
+      amount: platformFeeAmount,
+      description: `Platform fee from ${franchise.franchiseSlug} payout - ${args.period}`,
+      franchiseId: args.franchiseId,
+      franchiserId: franchise.franchiserId,
+      status: "completed",
+      transactionHash: `platform_fee_${payoutId}_${now}`,
+      createdAt: now,
+    });
+    
+    console.log(`✅ Platform fee recorded: $${platformFeeAmount.toLocaleString()}`);
+    
+    // Update franchise wallet balance (add to reserve)
+    const newWalletBalance = franchiseWallet.usdBalance + distribution.toReserve;
+    await ctx.db.patch(franchiseWallet._id, {
+      usdBalance: newWalletBalance,
+      balance: newWalletBalance / 200, // Convert to SOL
+      totalIncome: franchiseWallet.totalIncome + args.revenue,
+      lastActivity: now,
+      updatedAt: now,
+    });
+    
+    console.log(`✅ Franchise wallet updated: $${franchiseWallet.usdBalance.toLocaleString()} → $${newWalletBalance.toLocaleString()}`);
+    
+    // Distribute to token holders
+    const payoutPerShare = distribution.toTokenHolders / totalShares;
+    const shareholderPayouts = [];
+    
+    for (const shareholder of shareholders) {
+      const shareholderPayout = payoutPerShare * shareholder.sharesPurchased;
+      
+      // Create shareholder payout record
+      const shareholderPayoutId = await ctx.db.insert("shareholderPayouts", {
+        payoutId,
+        franchiseId: args.franchiseId,
+        investorId: shareholder.investorId,
+        shares: shareholder.sharesPurchased,
+        totalShares,
+        sharePercentage: (shareholder.sharesPurchased / totalShares) * 100,
+        payoutAmount: shareholderPayout,
+        period: args.period,
         status: "completed",
-        transactionHash,
-        processedAt: now,
+        createdAt: now,
       });
-
-      // Update shareholder distributions
-      const distributions = await ctx.db
-        .query("shareholderDistributions")
-        .withIndex("by_payoutId", (q) => q.eq("payoutId", args.payoutId))
-        .collect();
-
-      for (const distribution of distributions) {
-        await ctx.db.patch(distribution._id, {
+      
+      shareholderPayouts.push({
+        investorId: shareholder.investorId,
+        shares: shareholder.sharesPurchased,
+        payout: shareholderPayout,
+        payoutId: shareholderPayoutId
+      });
+    }
+    
+    console.log(`✅ Distributed $${distribution.toTokenHolders.toLocaleString()} to ${shareholders.length} shareholders`);
+    
+    // Update payout status to completed
+    await ctx.db.patch(payoutId, {
           status: "completed",
-          transactionHash: `${transactionHash}_${distribution.userId}`,
-          processedAt: now,
+      completedAt: now,
         });
-      }
-
-      // Add royalty to brand wallet
-      const franchise = await ctx.db.get(payout.franchiseId);
-      if (franchise && franchise.franchiserId) {
-        await ctx.db.insert("brandWalletTransactions", {
-          franchiserId: franchise.franchiserId,
-          franchiseId: payout.franchiseId,
-          type: "franchise_fee",
-          amount: payout.royaltyAmount,
-          description: `Daily royalty from ${franchise.businessName}`,
-          status: "completed",
-          transactionHash: `${transactionHash}_royalty`,
-          createdAt: now,
-        });
-      }
+    
+    console.log(`🎉 Payout processing complete!`);
 
       return {
         success: true,
-        transactionHash,
-        message: "Payout processed successfully",
-      };
-
-    } catch (error) {
-      // Update payout status to failed
-      await ctx.db.patch(args.payoutId, {
-        status: "failed",
-      });
-
-      throw error;
-    }
-  },
-});
-
-// Get franchise payouts
-export const getFranchisePayouts = query({
-  args: {
-    franchiseId: v.id("franchises"),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const payouts = await ctx.db
-      .query("franchisePayouts")
-      .withIndex("by_franchiseId", (q) => q.eq("franchiseId", args.franchiseId))
-      .order("desc")
-      .take(args.limit || 30);
-
-    // Get shareholder distributions for each payout
-    const payoutsWithDistributions = await Promise.all(
-      payouts.map(async (payout) => {
-        const distributions = await ctx.db
-          .query("shareholderDistributions")
-          .withIndex("by_payoutId", (q) => q.eq("payoutId", payout._id))
-          .collect();
-
-        const distributionsWithUsers = await Promise.all(
-          distributions.map(async (dist) => {
-            const user = await ctx.db.get(dist.userId);
-            return {
-              ...dist,
-              user: user ? {
-                _id: user._id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-              } : null,
-            };
-          })
-        );
-
-        return {
-          ...payout,
-          distributions: distributionsWithUsers,
-        };
-      })
-    );
-
-    return payoutsWithDistributions;
-  },
-});
-
-// Get payout summary
-export const getPayoutSummary = query({
-  args: {
-    franchiseId: v.id("franchises"),
-    days: v.optional(v.number()), // Number of days to look back
-  },
-  handler: async (ctx, args) => {
-    const days = args.days || 30;
-    const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
-
-    const payouts = await ctx.db
-      .query("franchisePayouts")
-      .withIndex("by_franchiseId", (q) => q.eq("franchiseId", args.franchiseId))
-      .filter((q) => q.gte(q.field("payoutDate"), cutoffDate))
-      .collect();
-
-    const summary = payouts.reduce(
-      (acc, payout) => ({
-        totalRevenue: acc.totalRevenue + payout.totalRevenue,
-        totalRoyalties: acc.totalRoyalties + payout.royaltyAmount,
-        totalPlatformFees: acc.totalPlatformFees + payout.platformFee,
-        totalShareholderAmount: acc.totalShareholderAmount + payout.shareholderAmount,
-        totalManagerBonuses: acc.totalManagerBonuses + payout.managerBonus,
-        totalEmployeeBonuses: acc.totalEmployeeBonuses + payout.employeeBonuses,
-        totalOperatingExpenses: acc.totalOperatingExpenses + payout.operatingExpenses,
-        completedPayouts: acc.completedPayouts + (payout.status === "completed" ? 1 : 0),
-        pendingPayouts: acc.pendingPayouts + (payout.status === "pending" ? 1 : 0),
-        failedPayouts: acc.failedPayouts + (payout.status === "failed" ? 1 : 0),
-      }),
-      {
-        totalRevenue: 0,
-        totalRoyalties: 0,
-        totalPlatformFees: 0,
-        totalShareholderAmount: 0,
-        totalManagerBonuses: 0,
-        totalEmployeeBonuses: 0,
-        totalOperatingExpenses: 0,
-        completedPayouts: 0,
-        pendingPayouts: 0,
-        failedPayouts: 0,
-      }
-    );
-
-    return {
-      ...summary,
-      averageDailyRevenue: summary.totalRevenue / days,
-      totalPayouts: payouts.length,
+      payoutId,
+      grossRevenue: args.revenue,
+      royaltyAmount,
+      platformFeeAmount,
+      netRevenue,
+      toTokenHolders: distribution.toTokenHolders,
+      toReserve: distribution.toReserve,
+      distributionRule: distribution.distributionRule,
+      reservePercentage: distribution.reservePercentage,
+      newReserveBalance: newWalletBalance,
+      shareholderPayouts,
+      payoutPerShare,
     };
   },
 });
 
-// Get user's payout history
-export const getUserPayoutHistory = query({
-  args: {
-    franchiseId: v.id("franchises"),
-    userId: v.id("userProfiles"),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const distributions = await ctx.db
-      .query("shareholderDistributions")
-      .withIndex("by_franchiseId", (q) => q.eq("franchiseId", args.franchiseId))
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+// Get franchise payout history
+export const getFranchisePayouts = query({
+  args: { franchiseId: v.id("franchises") },
+  handler: async (ctx, { franchiseId }) => {
+    const payouts = await ctx.db
+      .query("franchisePayouts")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", franchiseId))
       .order("desc")
-      .take(args.limit || 50);
+          .collect();
 
-    // Get payout details for each distribution
-    const distributionsWithPayouts = await Promise.all(
-      distributions.map(async (dist) => {
-        const payout = await ctx.db.get(dist.payoutId);
-        return {
-          ...dist,
-          payout: payout ? {
-            payoutDate: payout.payoutDate,
-            totalRevenue: payout.totalRevenue,
-            status: payout.status,
-          } : null,
-        };
-      })
-    );
-
-    return distributionsWithPayouts;
+    return payouts;
   },
 });
 
-// Helper function to create shareholder distributions
-async function createShareholderDistributions(
-  ctx: any,
-  franchiseId: Id<"franchises">,
-  payoutId: Id<"franchisePayouts">,
-  totalShareholderAmount: number
-) {
-  // Get franchise shareholders (for now, we'll use a simple approach)
-  // In a real system, you'd have a more complex shareholder management system
-  
-  // For demo purposes, let's assume the franchise owner gets 100% of shareholder distributions
-  const franchise = await ctx.db.get(franchiseId);
-  if (!franchise) {
-    throw new Error("Franchise not found");
-  }
+// Get shareholder payout history for a specific investor
+export const getShareholderPayouts = query({
+  args: {
+    franchiseId: v.id("franchises"),
+    investorId: v.string()
+  },
+  handler: async (ctx, { franchiseId, investorId }) => {
+    const payouts = await ctx.db
+      .query("shareholderPayouts")
+      .withIndex("by_franchise_investor", (q) => 
+        q.eq("franchiseId", franchiseId).eq("investorId", investorId)
+      )
+      .order("desc")
+      .collect();
+    
+    return payouts;
+  },
+});
 
-  // Get the franchise owner
-  const owner = await ctx.db.get(franchise.ownerUserId);
-  if (!owner) {
-    throw new Error("Franchise owner not found");
-  }
+// Get payout summary for franchise
+export const getPayoutSummary = query({
+  args: { franchiseId: v.id("franchises") },
+  handler: async (ctx, { franchiseId }) => {
+    const payouts = await ctx.db
+      .query("franchisePayouts")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", franchiseId))
+      .filter((q) => q.eq(q.field("status"), "completed"))
+      .collect();
 
-  const now = Date.now();
+    const totalGrossRevenue = payouts.reduce((sum, p) => sum + p.grossRevenue, 0);
+    const totalRoyalty = payouts.reduce((sum, p) => sum + p.royaltyAmount, 0);
+    const totalPlatformFee = payouts.reduce((sum, p) => sum + p.platformFeeAmount, 0);
+    const totalToTokenHolders = payouts.reduce((sum, p) => sum + p.toTokenHolders, 0);
+    const totalToReserve = payouts.reduce((sum, p) => sum + p.toReserve, 0);
+    
+    const latestPayout = payouts.length > 0 ? payouts[0] : null;
 
-  await ctx.db.insert("shareholderDistributions", {
-    franchiseId,
-    payoutId,
-    userId: franchise.ownerUserId,
-    sharePercentage: 100,
-    distributionAmount: totalShareholderAmount,
-    status: "pending",
-    createdAt: now,
-  });
-}
+    return {
+      totalPayouts: payouts.length,
+      totalGrossRevenue,
+      totalRoyalty,
+      totalPlatformFee,
+      totalToTokenHolders,
+      totalToReserve,
+      latestPayout,
+      currentReserveBalance: latestPayout?.reserveBalanceAfter || 0,
+      currentReservePercentage: latestPayout?.reservePercentage || 0,
+    };
+  },
+});

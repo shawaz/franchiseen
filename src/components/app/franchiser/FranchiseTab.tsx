@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { MoreHorizontal, Store, CheckCircle, Rocket, Clock, XCircle, Settings } from 'lucide-react';
-import Image from 'next/image';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
@@ -133,12 +132,8 @@ export function FranchiseTab() {
   };
 
   // Navigation functions
-  const navigateToFranchise = (franchiseSlug: string) => {
-    router.push(`/${brandSlug}/${franchiseSlug}`);
-  };
-
   const navigateToFranchiseAccount = (franchiseSlug: string) => {
-    router.push(`/${brandSlug}/${franchiseSlug}/account`);
+    router.push(`/${brandSlug}/${franchiseSlug}/franchise`);
   };
 
 
@@ -601,16 +596,8 @@ export function FranchiseTab() {
                   <TableCell>
                     <div 
                       className="flex items-center space-x-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-md transition-colors"
-                      onClick={() => navigateToFranchise(franchise.name)}
+                      onClick={() => navigateToFranchiseAccount(franchise.name)}
                     >
-                      <div className="relative h-12 w-12 overflow-hidden rounded-md bg-stone-100">
-                        <Image
-                          src={franchise.image}
-                          alt={franchise.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
                       <div>
                         <p className="font-medium hover:text-blue-600 dark:hover:text-blue-400">{franchise.name}</p>
                         <p className="text-xs text-gray-500">Click to view details</p>

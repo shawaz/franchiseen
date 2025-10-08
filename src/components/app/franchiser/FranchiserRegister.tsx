@@ -854,6 +854,10 @@ const FranchiserRegister: React.FC = () => {
         images: product.photo && product.photo.file ? [await uploadFileToConvex(product.photo.file)] : [],
         category: product.category === 'none' ? '' : product.category,
         status: 'active' as const,
+        stockQuantity: 0, // Initialize with 0 stock
+        minStockLevel: 0,
+        maxStockLevel: 1000,
+        unit: 'unit',
       }))
     );
 
