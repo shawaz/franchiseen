@@ -813,6 +813,41 @@ export const purchaseSharesBySlug = mutation({
       createdAt: now,
     });
 
+    // Add funds to franchise wallet
+    const franchiseWallet = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", franchise._id))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (franchiseWallet) {
+      const newBalance = franchiseWallet.usdBalance + args.totalAmount;
+      await ctx.db.patch(franchiseWallet._id, {
+        usdBalance: newBalance,
+        balance: newBalance / 200, // Convert to SOL
+        totalIncome: franchiseWallet.totalIncome + args.totalAmount,
+        lastActivity: now,
+        updatedAt: now,
+      });
+      
+      // Record the transaction
+      await ctx.db.insert("franchiseWalletTransactions", {
+        franchiseWalletId: franchiseWallet._id,
+        franchiseId: franchise._id,
+        transactionType: "funding",
+        amount: args.totalAmount / 200, // SOL
+        usdAmount: args.totalAmount,
+        description: `Share purchase: ${args.sharesPurchased} shares @ $${args.sharePrice} = $${args.totalAmount.toLocaleString()}`,
+        solanaTransactionHash: args.transactionHash || `share_purchase_${shareId}_${now}`,
+        status: "confirmed",
+        createdAt: now,
+      });
+      
+      console.log(`✅ Added $${args.totalAmount.toLocaleString()} to franchise wallet. New balance: $${newBalance.toLocaleString()}`);
+    } else {
+      console.error(`⚠️ No franchise wallet found for ${args.franchiseSlug}. Funds not added to wallet.`);
+    }
+
     // Mint tokens for the share purchase
     try {
       await ctx.runMutation(api.tokenManagement.mintTokensForPurchase, {
@@ -842,65 +877,51 @@ export const purchaseSharesBySlug = mutation({
       ? (newTotalInvested / investment.totalInvestment) * 100 
       : 0;
 
+    // Check if funding just reached 100% - handle fund distribution
     if (fundingProgress >= 100 && franchise.stage === "funding") {
-      // Update franchise stage to launching
-      await ctx.db.patch(franchise._id, {
-        stage: "launching",
-        updatedAt: now,
-      });
+      console.log(`🎯 Funding complete for ${franchise.franchiseSlug}! Distributing funds...`);
+      
+      try {
+        // Get the franchise wallet (should exist from approval)
+        const franchiseWallet = await ctx.db
+          .query("franchiseWallets")
+          .withIndex("by_franchise", (q) => q.eq("franchiseId", franchise._id))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .first();
 
-      // Get franchiser to access brand wallet
-      const franchiser = await ctx.db.get(franchise.franchiserId);
-      if (!franchiser) {
-        throw new Error("Franchiser not found");
-      }
+        if (!franchiseWallet) {
+          console.error(`❌ No franchise wallet found! Wallet should have been created at approval.`);
+          throw new Error("Franchise wallet not found. Contact admin.");
+        }
 
-      // Calculate fund distribution:
-      // - Franchise Fee → Brand Wallet
-      // - Setup Cost → Brand Wallet  
-      // - Working Capital → Franchise Wallet
-      const franchiseFee = investment.franchiseFee;
-      const setupCost = investment.setupCost;
-      const workingCapital = investment.workingCapital;
-
-      // Transfer funds to franchise wallet from escrow/PDA
-      const franchiseWallet = await ctx.db
-        .query("franchiseWallets")
-        .withIndex("by_franchise", (q) => q.eq("franchiseId", franchise._id))
-        .first();
-
-      if (franchiseWallet) {
-        // Update franchise wallet balance with only working capital
-        await ctx.db.patch(franchiseWallet._id, {
-          balance: workingCapital / 200, // Convert USD to SOL (assuming $200 per SOL)
-          usdBalance: workingCapital,
-          updatedAt: now,
+        // Calculate fund distribution
+        const franchiseFee = investment.franchiseFee;
+        const setupCost = investment.setupCost;
+        const workingCapital = investment.workingCapital;
+        
+        console.log(`💰 Distributing funds:`, {
+          franchiseFee,
+          setupCost,
+          workingCapital,
+          total: franchiseFee + setupCost + workingCapital
         });
 
-        // Record the working capital transfer transaction
-        await ctx.db.insert("franchiseWalletTransactions", {
-          franchiseWalletId: franchiseWallet._id,
-          franchiseId: franchise._id,
-          transactionType: "funding",
-          amount: workingCapital / 200, // Convert USD to SOL (assuming $200 per SOL)
-          usdAmount: workingCapital,
-          description: `Working capital transferred to franchise wallet: $${workingCapital.toLocaleString()}`,
-          solanaTransactionHash: `working_capital_${franchise._id}_${now}`,
-          status: "confirmed",
-          createdAt: now,
-        });
-
+        // The franchise wallet already has accumulated all funds from purchases
+        // Now we just need to transfer franchise fee and setup cost to brand wallet
+        
         // Transfer franchise fee to brand wallet
         await ctx.db.insert("brandWalletTransactions", {
           franchiserId: franchise.franchiserId,
           franchiseId: franchise._id,
           type: "franchise_fee",
           amount: franchiseFee,
-          description: `Franchise fee received from ${franchise.franchiseSlug}: $${franchiseFee.toLocaleString()}`,
+          description: `Franchise fee from ${franchise.franchiseSlug}: $${franchiseFee.toLocaleString()}`,
           status: "completed",
           transactionHash: `franchise_fee_${franchise._id}_${now}`,
           createdAt: now,
         });
+        
+        console.log(`✅ Franchise fee transferred to brand: $${franchiseFee.toLocaleString()}`);
 
         // Transfer setup cost to brand wallet
         await ctx.db.insert("brandWalletTransactions", {
@@ -908,31 +929,63 @@ export const purchaseSharesBySlug = mutation({
           franchiseId: franchise._id,
           type: "setup_cost",
           amount: setupCost,
-          description: `Setup cost received from ${franchise.franchiseSlug}: $${setupCost.toLocaleString()}`,
+          description: `Setup cost from ${franchise.franchiseSlug}: $${setupCost.toLocaleString()}`,
           status: "completed",
           transactionHash: `setup_cost_${franchise._id}_${now}`,
           createdAt: now,
         });
+        
+        console.log(`✅ Setup cost transferred to brand: $${setupCost.toLocaleString()}`);
+
+        // Deduct franchise fee and setup cost from franchise wallet (they go to brand)
+        const newFranchiseBalance = franchiseWallet.usdBalance - franchiseFee - setupCost;
+        await ctx.db.patch(franchiseWallet._id, {
+          usdBalance: newFranchiseBalance,
+          balance: newFranchiseBalance / 200,
+          updatedAt: now,
+        });
+        
+        console.log(`💵 Franchise wallet adjusted: $${franchiseWallet.usdBalance.toLocaleString()} → $${newFranchiseBalance.toLocaleString()}`);
+        console.log(`💰 Working capital remaining in franchise wallet: $${newFranchiseBalance.toLocaleString()}`);
+        
+        // Create setup entry
+        const launchDate = now + (45 * 24 * 60 * 60 * 1000);
+        await ctx.db.insert("franchiseSetup", {
+          franchiseId: franchise._id,
+          franchiserId: franchise.franchiserId,
+          projectName: `${franchise.franchiseSlug} Setup`,
+          franchiseeName: franchise.franchiseeContact.name,
+          location: franchise.address,
+          startDate: now,
+          targetLaunchDate: launchDate,
+          status: "not_started",
+          progress: 0,
+          investmentAmount: investment.totalInvestment,
+          investmentReceived: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // Update franchise stage to launching
+        await ctx.db.patch(franchise._id, {
+          stage: "launching",
+          updatedAt: now,
+        });
+        
+        console.log(`🎉 Funding distribution complete!`);
+        console.log(`📊 Final balances:`, {
+          franchiseWallet: newFranchiseBalance,
+          brandReceived: franchiseFee + setupCost
+        });
+      } catch (error) {
+        console.error(`❌ ERROR during fund distribution:`, error);
+        console.error(`❌ Details:`, {
+          franchiseId: franchise._id,
+          franchiseSlug: franchise.franchiseSlug,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw error; // Re-throw to prevent stage update if distribution fails
       }
-
-      // Create setup table entry with 45-day launch timeline
-      const launchDate = now + (45 * 24 * 60 * 60 * 1000); // 45 days from now
-
-      await ctx.db.insert("franchiseSetup", {
-        franchiseId: franchise._id,
-        franchiserId: franchise.franchiserId,
-        projectName: `${franchise.franchiseSlug} Setup`,
-        franchiseeName: franchise.franchiseeContact.name,
-        location: franchise.address,
-        startDate: now,
-        targetLaunchDate: launchDate,
-        status: "not_started",
-        progress: 0,
-        investmentAmount: investment.totalInvestment,
-        investmentReceived: true,
-        createdAt: now,
-        updatedAt: now,
-      });
     }
 
     return shareId;
@@ -1077,15 +1130,27 @@ export const transitionToLaunchingStage = mutation({
     franchiseId: v.id("franchises"),
   },
   handler: async (ctx, args) => {
+    console.log(`🚀 transitionToLaunchingStage called for franchiseId:`, args.franchiseId);
+    
     const franchise = await ctx.db.get(args.franchiseId);
     if (!franchise) {
       throw new Error("Franchise not found");
     }
+    
+    console.log(`✅ Franchise found:`, { franchiseSlug: franchise.franchiseSlug, currentStage: franchise.stage });
 
     const investment = await ctx.db.get(franchise.investmentId);
     if (!investment) {
       throw new Error("Investment data not found");
     }
+    
+    console.log(`✅ Investment found:`, {
+      totalInvestment: investment.totalInvestment,
+      totalInvested: investment.totalInvested,
+      franchiseFee: investment.franchiseFee,
+      setupCost: investment.setupCost,
+      workingCapital: investment.workingCapital
+    });
 
     // Verify funding is complete
     const fundingProgress = investment.totalInvestment > 0 
@@ -1095,18 +1160,45 @@ export const transitionToLaunchingStage = mutation({
     if (fundingProgress < 100) {
       throw new Error("Funding not complete. Cannot transition to launching stage.");
     }
+    
+    console.log(`✅ Funding verified as complete: ${fundingProgress.toFixed(2)}%`);
 
-    // Create franchise wallet and transfer funds from PDA (inlined to avoid circular reference)
-    // Find the funding PDA
+    // Check if franchise wallet already exists (to avoid duplicates)
+    const existingFranchiseWallet = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (existingFranchiseWallet) {
+      console.log(`⚠️ Wallet already exists for this franchise:`, existingFranchiseWallet._id);
+      // Wallet already exists, just update the stage and return
+      await ctx.db.patch(args.franchiseId, {
+        stage: "launching",
+        updatedAt: Date.now(),
+      });
+      
+      return {
+        success: true,
+        newStage: "launching",
+        franchiseWallet: existingFranchiseWallet._id,
+        franchiseFeeTransferred: investment.franchiseFee,
+        setupCostTransferred: investment.setupCost,
+        launchDate: new Date(Date.now() + (45 * 24 * 60 * 60 * 1000)).toISOString(),
+        remainingBalance: investment.workingCapital,
+        message: "Wallet already exists, stage updated to launching"
+      };
+    }
+    
+    console.log(`📝 No existing wallet found, will create new one`);
+
+    // Find any existing wallet (PDA or regular) - optional, may not exist
     const fundingPDA = await ctx.db
       .query("franchiseWallets")
       .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
-      .filter((q) => q.eq(q.field("walletAddress"), q.field("walletAddress")))
       .first();
-
-    if (!fundingPDA) {
-      throw new Error("Funding PDA not found");
-    }
+    
+    console.log(`🔍 Funding PDA search result:`, fundingPDA ? `Found: ${fundingPDA._id}` : 'None found');
 
     // Calculate fund distribution:
     // - Franchise Fee → Brand Wallet
@@ -1122,6 +1214,8 @@ export const transitionToLaunchingStage = mutation({
       console.warn(`Fund distribution mismatch: calculated ${calculatedTotal}, total ${investment.totalInvestment}`);
     }
 
+    console.log(`💰 Creating franchise wallet with working capital: $${workingCapital.toLocaleString()}`);
+    
     // Create the actual franchise wallet with only working capital
     const franchiseWalletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
@@ -1141,6 +1235,8 @@ export const transitionToLaunchingStage = mutation({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+    
+    console.log(`✅ Franchise wallet created successfully:`, franchiseWalletId);
 
     // Record working capital transfer to franchise wallet
     await ctx.db.insert("franchiseWalletTransactions", {
@@ -1155,11 +1251,13 @@ export const transitionToLaunchingStage = mutation({
       createdAt: Date.now(),
     });
 
-    // Mark funding PDA as inactive
-    await ctx.db.patch(fundingPDA._id, {
-      status: "inactive",
-      updatedAt: Date.now(),
-    });
+    // Mark funding PDA as inactive (if it exists)
+    if (fundingPDA) {
+      await ctx.db.patch(fundingPDA._id, {
+        status: "inactive",
+        updatedAt: Date.now(),
+      });
+    }
 
     // Get franchiser to access brand wallet
     const franchiser = await ctx.db.get(franchise.franchiserId);
@@ -1167,8 +1265,10 @@ export const transitionToLaunchingStage = mutation({
       throw new Error("Franchiser not found");
     }
 
+    console.log(`💵 Creating brand wallet transaction for franchise fee: $${franchiseFee.toLocaleString()}`);
+    
     // Transfer franchise fee to brand wallet
-    await ctx.db.insert("brandWalletTransactions", {
+    const franchiseFeeTransactionId = await ctx.db.insert("brandWalletTransactions", {
       franchiserId: franchise.franchiserId,
       franchiseId: args.franchiseId,
       type: "franchise_fee",
@@ -1178,9 +1278,13 @@ export const transitionToLaunchingStage = mutation({
       transactionHash: `franchise_fee_${args.franchiseId}_${Date.now()}`,
       createdAt: Date.now(),
     });
+    
+    console.log(`✅ Franchise fee transaction created:`, franchiseFeeTransactionId);
+    
+    console.log(`💵 Creating brand wallet transaction for setup cost: $${setupCost.toLocaleString()}`);
 
     // Transfer setup cost to brand wallet
-    await ctx.db.insert("brandWalletTransactions", {
+    const setupCostTransactionId = await ctx.db.insert("brandWalletTransactions", {
       franchiserId: franchise.franchiserId,
       franchiseId: args.franchiseId,
       type: "setup_cost",
@@ -1190,6 +1294,8 @@ export const transitionToLaunchingStage = mutation({
       transactionHash: `setup_cost_${args.franchiseId}_${Date.now()}`,
       createdAt: Date.now(),
     });
+    
+    console.log(`✅ Setup cost transaction created:`, setupCostTransactionId);
 
     // Update franchise stage to launching
     await ctx.db.patch(args.franchiseId, {
@@ -1230,6 +1336,16 @@ export const transitionToLaunchingStage = mutation({
       investmentReceived: true,
       createdAt: now,
       updatedAt: now,
+    });
+
+    console.log(`🎉 Transition to launching stage complete!`);
+    console.log(`📋 Summary:`, {
+      franchiseWalletId,
+      franchiseWalletBalance: workingCapital,
+      franchiseFeeTransferred: franchiseFee,
+      setupCostTransferred: setupCost,
+      totalTransferred: franchiseFee + setupCost + workingCapital,
+      launchDate: new Date(launchDate).toISOString()
     });
 
     return {
@@ -1979,6 +2095,143 @@ export const testFundingCompletion = mutation({
       message: `Test funding transfer completed. $${investment.totalInvestment.toLocaleString()} transferred to brand wallet.`,
       amount: investment.totalInvestment,
       franchiserId: franchise.franchiserId
+    };
+  },
+});
+
+// Manual fix: Create wallet for franchises stuck in launching without wallet
+export const fixFranchiseWithoutWallet = mutation({
+  args: {
+    franchiseSlug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`🔧 Manual fix triggered for franchise slug:`, args.franchiseSlug);
+    
+    // Get franchise by slug
+    const franchise = await ctx.db
+      .query("franchises")
+      .withIndex("by_slug", (q) => q.eq("franchiseSlug", args.franchiseSlug))
+      .first();
+      
+    if (!franchise) {
+      throw new Error(`Franchise with slug ${args.franchiseSlug} not found`);
+    }
+    
+    console.log(`✅ Franchise found:`, { 
+      franchiseId: franchise._id, 
+      franchiseSlug: franchise.franchiseSlug,
+      currentStage: franchise.stage,
+      status: franchise.status
+    });
+
+    const investment = await ctx.db.get(franchise.investmentId);
+    if (!investment) {
+      throw new Error("Investment data not found");
+    }
+    
+    console.log(`✅ Investment found:`, {
+      totalInvestment: investment.totalInvestment,
+      totalInvested: investment.totalInvested,
+      franchiseFee: investment.franchiseFee,
+      setupCost: investment.setupCost,
+      workingCapital: investment.workingCapital
+    });
+
+    // Check if wallet already exists
+    const existingWallet = await ctx.db
+      .query("franchiseWallets")
+      .withIndex("by_franchise", (q) => q.eq("franchiseId", franchise._id))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (existingWallet) {
+      console.log(`⚠️ Wallet already exists:`, existingWallet._id);
+      return {
+        success: false,
+        message: "Wallet already exists for this franchise",
+        walletId: existingWallet._id,
+        currentBalance: existingWallet.usdBalance
+      };
+    }
+
+    console.log(`📝 Creating franchise wallet and transferring funds...`);
+
+    // Calculate fund distribution
+    const franchiseFee = investment.franchiseFee;
+    const setupCost = investment.setupCost;
+    const workingCapital = investment.workingCapital;
+    
+    const now = Date.now();
+    
+    // Create franchise wallet
+    const franchiseWalletId = await ctx.db.insert("franchiseWallets", {
+      franchiseId: franchise._id,
+      walletAddress: `franchise_${franchise._id}_${now}`,
+      walletName: `${franchise.franchiseSlug} Wallet`,
+      balance: workingCapital / 200,
+      usdBalance: workingCapital,
+      totalIncome: 0,
+      totalExpenses: 0,
+      totalPayouts: 0,
+      totalRoyalties: 0,
+      monthlyRevenue: 0,
+      monthlyExpenses: 0,
+      transactionCount: 0,
+      lastActivity: now,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    console.log(`✅ Franchise wallet created:`, franchiseWalletId);
+    console.log(`💰 Franchise wallet balance: $${workingCapital.toLocaleString()}`);
+
+    // Create brand wallet transaction for franchise fee
+    const franchiseFeeTransactionId = await ctx.db.insert("brandWalletTransactions", {
+      franchiserId: franchise.franchiserId,
+      franchiseId: franchise._id,
+      type: "franchise_fee",
+      amount: franchiseFee,
+      description: `Franchise fee received from ${franchise.franchiseSlug}: $${franchiseFee.toLocaleString()}`,
+      status: "completed",
+      transactionHash: `franchise_fee_${franchise._id}_${now}`,
+      createdAt: now,
+    });
+    
+    console.log(`✅ Franchise fee transaction created:`, franchiseFeeTransactionId, `Amount: $${franchiseFee.toLocaleString()}`);
+    
+    // Create brand wallet transaction for setup cost
+    const setupCostTransactionId = await ctx.db.insert("brandWalletTransactions", {
+      franchiserId: franchise.franchiserId,
+      franchiseId: franchise._id,
+      type: "setup_cost",
+      amount: setupCost,
+      description: `Setup cost received from ${franchise.franchiseSlug}: $${setupCost.toLocaleString()}`,
+      status: "completed",
+      transactionHash: `setup_cost_${franchise._id}_${now}`,
+      createdAt: now,
+    });
+    
+    console.log(`✅ Setup cost transaction created:`, setupCostTransactionId, `Amount: $${setupCost.toLocaleString()}`);
+    console.log(`💵 Total transferred to brand wallet: $${(franchiseFee + setupCost).toLocaleString()}`);
+
+    // Ensure franchise is in launching stage
+    if (franchise.stage !== "launching") {
+      await ctx.db.patch(franchise._id, {
+        stage: "launching",
+        updatedAt: now,
+      });
+      console.log(`✅ Franchise stage updated to launching`);
+    }
+
+    return {
+      success: true,
+      message: `Wallet created successfully! Franchise wallet: $${workingCapital.toLocaleString()}, Brand wallet received: $${(franchiseFee + setupCost).toLocaleString()}`,
+      franchiseWallet: franchiseWalletId,
+      franchiseFeeTransferred: franchiseFee,
+      setupCostTransferred: setupCost,
+      workingCapitalTransferred: workingCapital,
+      totalTransferred: franchiseFee + setupCost + workingCapital
     };
   },
 });

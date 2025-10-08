@@ -48,6 +48,7 @@ import {
   Search,
   Receipt,
   TrendingUp,
+  ExternalLink,
 } from 'lucide-react';
 import Image from 'next/image';
 // import FranchisePOSWallet from '../FranchisePOSWallet';
@@ -567,7 +568,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       try {
         const transactionsData = localStorage.getItem(`transactions_${userWalletAddress}`);
-        return transactionsData ? JSON.parse(transactionsData) : [];
+        const allTransactions = transactionsData ? JSON.parse(transactionsData) : [];
+        
+        // Filter transactions to only show those for the current franchise
+        return allTransactions.filter((tx: { franchiseSlug?: string }) => 
+          tx.franchiseSlug === franchiseId
+        );
       } catch (error) {
         console.error('Error fetching transactions:', error);
         return [];
@@ -598,9 +604,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           <div className="flex items-center justify-center p-8">
             <div className="text-center">
               <Receipt className="h-12 w-12 text-stone-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-stone-800 mb-2">No Transactions</h3>
-              <p className="text-stone-600">
-                Your transaction history will appear here once you make your first purchase.
+              <h3 className="text-lg font-semibold text-stone-800 dark:text-white mb-2">No Transactions</h3>
+              <p className="text-stone-600 dark:text-stone-400">
+                You haven&apos;t made any purchases in this franchise yet.
+              </p>
+              <p className="text-sm text-stone-500 dark:text-stone-500 mt-2">
+                Click &quot;Buy Tokens&quot; to make your first investment.
               </p>
             </div>
           </div>
@@ -611,10 +620,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Transaction History</h2>
-          <p className="text-sm text-stone-600">
-            {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found
-          </p>
+          <div>
+            <h2 className="text-2xl font-bold">Transaction History</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
+              Showing transactions for {franchiseData?.franchiseSlug || franchiseId}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-medium text-stone-600 dark:text-stone-300">
+              {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              in this franchise
+            </p>
+          </div>
         </div>
         
         <div className="space-y-4">
@@ -659,9 +678,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     </div>
                     {transaction.transactionHash && (
                       <div className="mt-1">
-                        <p className="text-xs text-gray-400 font-mono">
-                          Hash: {transaction.transactionHash.slice(0, 8)}...{transaction.transactionHash.slice(-8)}
-                        </p>
+                        <a
+                          href={`https://explorer.solana.com/tx/${transaction.transactionHash}?cluster=devnet`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-mono flex items-center gap-1 hover:underline"
+                        >
+                          <span>Hash: {transaction.transactionHash.slice(0, 8)}...{transaction.transactionHash.slice(-8)}</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       </div>
                     )}
                   </div>
@@ -1691,8 +1716,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   setTokensToBuy(1);
                   setIsBuyTokensOpen(false);
                   
-                  // Show success message
-                  toast.success(`Successfully purchased ${tokensToBuy} tokens for $${totalCost.toFixed(2)}! Transaction: ${transactionHash.slice(0, 8)}...`);
+                  // Show success message with explorer link
+                  const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}?cluster=devnet`;
+                  toast.success(
+                    <div className="flex flex-col gap-2">
+                      <div>Successfully purchased {tokensToBuy} tokens for ${totalCost.toFixed(2)}!</div>
+                      <a 
+                        href={explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"
+                      >
+                        View on Solana Explorer
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>,
+                    { duration: 10000 }
+                  );
                   
                   // Check if funding is complete
                   if (franchiseData?._id) {

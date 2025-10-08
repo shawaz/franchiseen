@@ -121,6 +121,40 @@ export const approveFranchiseAndCreateToken = mutation({
       // Continue with approval even if token creation fails
     }
 
+    // CREATE FRANCHISE WALLET IMMEDIATELY ON APPROVAL
+    let walletCreated = false;
+    let franchiseWalletId = null;
+    try {
+      console.log(`💼 Creating franchise wallet for ${franchise.franchiseSlug}...`);
+      
+      // Create franchise wallet with $0 balance (will accumulate as funding comes in)
+      franchiseWalletId = await ctx.db.insert("franchiseWallets", {
+        franchiseId: franchiseId,
+        walletAddress: generateMockSolanaAddress(),
+        walletName: `${franchise.franchiseSlug} Wallet`,
+        balance: 0, // Start at $0
+        usdBalance: 0, // Start at $0
+        totalIncome: 0,
+        totalExpenses: 0,
+        totalPayouts: 0,
+        totalRoyalties: 0,
+        monthlyRevenue: 0,
+        monthlyExpenses: 0,
+        transactionCount: 0,
+        lastActivity: now,
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      walletCreated = true;
+      console.log(`✅ Franchise wallet created successfully:`, franchiseWalletId);
+      console.log(`💰 Initial balance: $0 (will accumulate as funding comes in)`);
+    } catch (error) {
+      console.error("Failed to create franchise wallet:", error);
+      // Continue with approval even if wallet creation fails
+    }
+
     // Update property stage if exists
     const property = await ctx.db
       .query("properties")
@@ -136,10 +170,11 @@ export const approveFranchiseAndCreateToken = mutation({
 
     return {
       success: true,
-      message: "Franchise approved and token created successfully. Wallet will be created when funding is complete.",
+      message: `Franchise approved successfully! Token created: ${tokenCreated}, Wallet created: ${walletCreated}`,
       franchiseId,
       tokenCreated,
-      walletCreated: false, // Wallet will be created when funding is complete
+      walletCreated,
+      franchiseWalletId,
     };
   },
 });
