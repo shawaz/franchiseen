@@ -10,7 +10,7 @@ export default function Footer() {
   return (
     <footer className="bg-white hidden md:block dark:bg-stone-800/50 border-t border-stone-200 dark:border-stone-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Logo and tagline */}
           <div className="flex flex-col gap-4 lg:col-span-2">
             <div className="flex items-center gap-2">
@@ -21,25 +21,6 @@ export default function Footer() {
             </div>
 
 
-          </div>
-
-          {/* Services links */}
-          <div className="lg:col-span-1">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Services</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/company/services/franchisee" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchisee</Link>
-              </li>
-              <li>
-                <Link href="/company/services/franchiser" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchiser</Link>
-              </li>
-              <li>
-                <Link href="/company/services/agent" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchise</Link>
-              </li>
-              <li>
-                <Link href="/company/services/training" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Agents</Link>
-              </li>
-            </ul>
           </div>
 
           {/* Company links */}
@@ -61,15 +42,56 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Resources */}
+          {/* Services links */}
           <div className="lg:col-span-1">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Resources</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Services</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/company/help" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Help Center</Link>
+                <Link href="/company/services/franchisee" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchisee</Link>
               </li>
               <li>
+                <Link href="/company/services/franchiser" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchiser</Link>
+              </li>
+              <li>
+                <Link href="/company/services/franchise" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchise</Link>
+              </li>
+              <li>
+                <Link href="/company/services/property" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Property</Link>
+              </li>
+            </ul>
+          </div>
+
+          
+
+          {/* Legal */}
+          <div className="lg:col-span-1">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Legal</h3>
+            <ul className="space-y-3">
+              <li>
+                <Link href="/company/legal/terms" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Service Terms</Link>
+              </li>
+              <li>
+                <Link href="/company/legal/privacy" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link href="/company/legal/franchise" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchise Policy</Link>
+              </li>
+              <li>
+                <Link href="/company/legal/funds" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Investment Policy</Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Resources */}
+          {/* <div className="lg:col-span-1">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Resources</h3>
+            <ul className="space-y-3">
+            <li>
                 <Link href="/company/doc" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Documentation</Link>
+              </li>
+              
+              <li>
+                <Link href="/company/help" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Help Center</Link>
               </li>
               
               <li>
@@ -80,26 +102,7 @@ export default function Footer() {
                 " className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">FAQs</Link>
               </li>
             </ul>
-          </div>
-
-          {/* Resources */}
-          <div className="lg:col-span-1">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Legal</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/company/legal/franchise" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Franchise Policy</Link>
-              </li>
-              <li>
-                <Link href="/company/legal/funds" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Investment Policy</Link>
-              </li>
-              <li>
-                <Link href="/company/legal/terms" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Terms of Service</Link>
-              </li>
-              <li>
-                <Link href="/company/legal/privacy" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Privacy Policy</Link>
-              </li>
-            </ul>
-          </div>
+          </div> */}
 
         </div>
       </div>

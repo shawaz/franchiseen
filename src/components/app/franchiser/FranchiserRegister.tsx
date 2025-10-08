@@ -205,7 +205,7 @@ type FormData = {
   franchiseFee: number | '';
   setupCostPerSqft: number | '';
   workingCapitalPerSqft: number | '';
-  royaltyPercentage: number | '';
+  royaltyPercentage: number;
   // New fields
   setupBy: 'DESIGN_INTERIOR_BY_BRAND' | 'DESIGN_INTERIOR_BY_FRANCHISEEN' | 'DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN';
   estimatedMonthlyRevenue: number | '';
@@ -339,7 +339,7 @@ const FranchiserRegister: React.FC = () => {
     franchiseFee: '',
     setupCostPerSqft: '',
     workingCapitalPerSqft: '',
-    royaltyPercentage: '',
+    royaltyPercentage: 0,
     // New fields
     setupBy: 'DESIGN_INTERIOR_BY_BRAND',
     estimatedMonthlyRevenue: '',
@@ -1584,24 +1584,24 @@ const FranchiserRegister: React.FC = () => {
                         id="royaltyPercentage"
                         type="number"
                         min="0"
-                        max="100"
+                        max="15"
                         step="0.1"
-                        value={formData.royaltyPercentage || ''}
+                        value={formData.royaltyPercentage || 0}
                         onChange={(e) => {
-                          const value = e.target.value ? Math.max(0, Math.min(100, parseFloat(e.target.value))) : '';
+                          const value = e.target.value ? Math.max(0, Math.min(15, parseFloat(e.target.value))) : 0;
                           setFormData(prev => ({
                             ...prev,
-                            royaltyPercentage: value as number | ''
+                            royaltyPercentage: value as number
                           }));
                         }}
                         className="h-9 text-sm"
-                        placeholder="5.0"
+                        placeholder="0"
                         required
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 text-sm">%</span>
                     </div>
                     <p className="text-[10px] text-stone-400">
-                      Monthly royalty of gross revenue
+                      Monthly royalty of gross revenue (max 15%)
                     </p>
                   </div>
 

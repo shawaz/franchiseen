@@ -1048,6 +1048,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           franchiseName={franchiseData.franchiseSlug}
           franchiseLogo={logoUrl || '/logo/logo-4.svg'}
           onBuyTokens={() => setIsBuyTokensOpen(true)}
+          franchiseStatus={franchiseData.status}
+          franchiseStage={franchiseData.stage}
         />
       )}
 

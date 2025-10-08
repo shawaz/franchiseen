@@ -17,7 +17,7 @@ export function AuthHeader() {
       <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
         <DialogTrigger asChild>
           <Button variant="outline">
-            Sign In
+            Get Started
           </Button>
         </DialogTrigger>
         <DialogContent className="w-[45vw] max-w-md mx-auto mt-4 pt-6 bg-white dark:bg-stone-800">

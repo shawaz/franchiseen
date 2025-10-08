@@ -18,6 +18,8 @@ interface FranchiseWalletProps {
   franchiseLogo?: string;
   className?: string;
   onBuyTokens?: () => void;
+  franchiseStatus?: string;
+  franchiseStage?: string;
 }
 
 // Solana connection for fetching real balance
@@ -34,6 +36,8 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
   franchiseLogo = '/logo/logo-4.svg',
   className = '',
   onBuyTokens,
+  franchiseStatus,
+  franchiseStage,
 }) => {
   // State for wallet data
   const [balance, setBalance] = useState<number>(0);
@@ -164,12 +168,12 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
         fetchBalance(walletAddress).finally(() => setLoading(false));
       }
     } else {
-      // No wallet address available
+      // No wallet address available - for approved franchises without wallets yet, start with 0 balance
       setLoading(false);
       setBalance(0);
-      setIsDemoBalance(true);
+      setIsDemoBalance(franchiseStatus === 'approved' ? false : true);
     }
-  }, [walletAddress, fetchBalance, franchiseWallet]);
+  }, [walletAddress, fetchBalance, franchiseWallet, franchiseStatus]);
   
   const formatSol = (value: number) => {
     return value.toFixed(4) + ' SOL';
@@ -297,8 +301,9 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
     );
   }
 
-  // Show waiting for approval state if no wallet exists
-  if (franchiseWallet === null) {
+  // Show waiting for approval state if no wallet exists AND franchise is still pending
+  // If franchise is approved but no wallet yet, continue to show funding stage
+  if (franchiseWallet === null && franchiseStatus === "pending") {
     return (
       <div className={className}>
         {/* Franchise Header */}
@@ -363,8 +368,8 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
     );
   }
 
-  // Determine current stage from wallet data
-  const currentStage = franchiseWallet?.franchise?.stage || 'funding';
+  // Determine current stage from wallet data or props (for approved franchises without wallets yet)
+  const currentStage = franchiseWallet?.franchise?.stage || franchiseStage || 'funding';
   // const franchiseStatus = 'approved'; // If wallet exists, franchise is approved
 
   // Calculate funding progress
@@ -405,7 +410,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
           showBuyShares: false
         };
       case 'ongoing':
-        const workingCapital = (franchiseWallet as { workingCapital?: number } | null)?.workingCapital || 0;
+        const workingCapital = (franchiseWallet as { workingCapital?: number } | null)?.workingCapital || fundraisingData?.workingCapital || 0;
         const currentBalance = franchiseWallet?.usdBalance || 0;
         const tokenSupply = franchiseToken?.totalSupply || 0;
         const remainingToFill = Math.max(0, tokenSupply - currentBalance);
@@ -450,11 +455,11 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
           </div>
           <div>
             <h3 className="font-semibold text-md text-gray-900 dark:text-white">
-                {franchiseToken?.tokenSymbol || franchiseWallet.walletName || franchiseName}
+                {franchiseToken?.tokenSymbol || franchiseWallet?.walletName || franchiseName}
             </h3>
             <div className="flex items-center gap-2">
               <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
-                  {walletAddress ? formatWalletAddress(walletAddress) : 'No wallet address'}
+                  {walletAddress ? formatWalletAddress(walletAddress) : 'Wallet pending creation'}
               </p>
                 {walletAddress && (
                   <>
@@ -496,11 +501,11 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             <Badge 
               variant="default"
               className={`${
-                franchiseWallet.status === 'active' 
+                franchiseWallet?.status === 'active' 
                   ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                  : franchiseWallet.status === 'inactive'
+                  : franchiseWallet?.status === 'inactive'
                     ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                    : franchiseWallet.status === 'suspended'
+                    : franchiseWallet?.status === 'suspended'
                       ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
               }`}
@@ -524,8 +529,8 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               </div>
               <div className="text-2xl sm:text-3xl font-bold">
                 {loading || priceLoading ? '...' : (
-                  franchiseWallet.usdBalance > 0 ? 
-                    formatUsdAmount(franchiseWallet.usdBalance) : 
+                  (franchiseWallet?.usdBalance || 0) > 0 ? 
+                    formatUsdAmount(franchiseWallet?.usdBalance || 0) : 
                     formatAmount(balance)
                 )}
               </div>
@@ -537,7 +542,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             <div className="text-right">
               <div className="text-white/80 text-xs mb-1">SOL Balance</div>
                 <div className="text-2xl sm:text-3xl font-bold">
-                {loading ? '...' : formatSol(franchiseWallet.balance || balance)}
+                {loading ? '...' : formatSol(franchiseWallet?.balance || balance)}
               </div>
               <div className="text-white/70 text-xs mt-1">
                 Updated: {new Date().toLocaleTimeString()}
