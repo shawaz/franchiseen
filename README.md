@@ -39,32 +39,33 @@ npm run dev              # Frontend (http://localhost:3000)
 npm run convex:dev       # Backend
 ```
 
-See **[QUICK_START.md](./QUICK_START.md)** for detailed instructions.
+See **[QUICK_START.md](./docs/QUICK_START.md)** for detailed instructions.
 
 ### For Deployment
 
-See **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** for executive overview.
+See **[DEPLOYMENT_SUMMARY.md](./docs/DEPLOYMENT_SUMMARY.md)** for executive overview.
 
 ---
 
 ## 📚 Documentation
 
 ### Getting Started
-- **[QUICK_START.md](./QUICK_START.md)** - Get running in 5 minutes
-- **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** - Executive overview
-- **[ENVIRONMENT_COMPARISON.md](./ENVIRONMENT_COMPARISON.md)** - Devnet vs Mainnet
+- **[QUICK_START.md](./docs/QUICK_START.md)** - Get running in 5 minutes
+- **[DEPLOYMENT_SUMMARY.md](./docs/DEPLOYMENT_SUMMARY.md)** - Executive overview
+- **[ENVIRONMENT_COMPARISON.md](./docs/ENVIRONMENT_COMPARISON.md)** - Devnet vs Mainnet
 
 ### Deployment Guides
-- **[DUAL_ENVIRONMENT_DEPLOYMENT.md](./DUAL_ENVIRONMENT_DEPLOYMENT.md)** - Complete deployment strategy (12 phases)
-- **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Step-by-step verification checklist
-- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Vercel deployment guide
-- **[MAINNET_DEPLOYMENT.md](./MAINNET_DEPLOYMENT.md)** - Mainnet-specific guide
+- **[DUAL_ENVIRONMENT_DEPLOYMENT.md](./docs/DUAL_ENVIRONMENT_DEPLOYMENT.md)** - Complete deployment strategy (12 phases)
+- **[DEPLOYMENT_CHECKLIST.md](./docs/DEPLOYMENT_CHECKLIST.md)** - Step-by-step verification checklist
+- **[DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - Vercel deployment guide
+- **[MAINNET_DEPLOYMENT.md](./docs/MAINNET_DEPLOYMENT.md)** - Mainnet-specific guide
 
 ### Technical Guides
-- **[SOLANA_TRANSACTIONS_GUIDE.md](./SOLANA_TRANSACTIONS_GUIDE.md)** - Understanding blockchain transactions
-- **[WALLET_FUNDING_GUIDE.md](./WALLET_FUNDING_GUIDE.md)** - How to fund wallets
-- **[PAYOUT_SYSTEM_GUIDE.md](./PAYOUT_SYSTEM_GUIDE.md)** - Payout calculations
-- **[ROUTE_PROTECTION.md](./ROUTE_PROTECTION.md)** - Authentication and authorization
+- **[SOLANA_TRANSACTIONS_GUIDE.md](./docs/SOLANA_TRANSACTIONS_GUIDE.md)** - Understanding blockchain transactions
+- **[WALLET_FUNDING_GUIDE.md](./docs/WALLET_FUNDING_GUIDE.md)** - How to fund wallets
+- **[PAYOUT_SYSTEM_GUIDE.md](./docs/PAYOUT_SYSTEM_GUIDE.md)** - Payout calculations
+- **[COMPLETE_WALLET_AND_PAYOUT_SUMMARY.md](./docs/COMPLETE_WALLET_AND_PAYOUT_SUMMARY.md)** - Wallet & payout overview
+- **[ROUTE_PROTECTION.md](./docs/ROUTE_PROTECTION.md)** - Authentication and authorization
 
 ---
 
@@ -108,7 +109,7 @@ The platform runs on two completely separate environments:
 - Development: **FREE** (test SOL, free tier)
 - Production: **~$50-125/month** (scales with usage)
 
-See **[ENVIRONMENT_COMPARISON.md](./ENVIRONMENT_COMPARISON.md)** for detailed comparison.
+See **[ENVIRONMENT_COMPARISON.md](./docs/ENVIRONMENT_COMPARISON.md)** for detailed comparison.
 
 ---
 
@@ -225,7 +226,7 @@ npm run wallet:verify         # Verify wallet setup
 ⚠️ Set up monitoring and alerts  
 ⚠️ Configure regular backups  
 
-See **Phase 6** in [DUAL_ENVIRONMENT_DEPLOYMENT.md](./DUAL_ENVIRONMENT_DEPLOYMENT.md) for security hardening steps.
+See **Phase 6** in [DUAL_ENVIRONMENT_DEPLOYMENT.md](./docs/DUAL_ENVIRONMENT_DEPLOYMENT.md) for security hardening steps.
 
 ---
 
@@ -261,7 +262,7 @@ After deployment, verify:
 - Small real transaction
 - Monitoring systems
 
-See **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** for complete testing checklist.
+See **[DEPLOYMENT_CHECKLIST.md](./docs/DEPLOYMENT_CHECKLIST.md)** for complete testing checklist.
 
 ---
 
@@ -302,7 +303,7 @@ feature/*     → Local development
 ## 📞 Support
 
 ### Documentation
-Start with **[QUICK_START.md](./QUICK_START.md)** for immediate help.
+Start with **[QUICK_START.md](./docs/QUICK_START.md)** for immediate help.
 
 ### External Resources
 - **Convex:** https://docs.convex.dev
@@ -384,4 +385,4 @@ For questions or support:
 
 **Built with ❤️ for the future of franchising**
 
-🚀 Ready to deploy? Start with **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)**
+🚀 Ready to deploy? Start with **[DEPLOYMENT_SUMMARY.md](./docs/DEPLOYMENT_SUMMARY.md)**
