@@ -333,7 +333,8 @@ export default defineSchema({
   // Franchise Wallets - Each franchise gets its own Solana wallet
   franchiseWallets: defineTable({
     franchiseId: v.id("franchises"),
-    walletAddress: v.string(), // Solana wallet address
+    walletAddress: v.string(), // Solana wallet address (public key)
+    walletSecretKey: v.optional(v.string()), // Encrypted secret key for signing transactions
     walletName: v.string(), // e.g., "Nike Dubai Franchise Wallet"
     balance: v.number(), // Current SOL balance
     usdBalance: v.number(), // USD equivalent
@@ -680,13 +681,21 @@ export default defineSchema({
       v.literal("cash"),
       v.literal("card"),
       v.literal("wallet"),
-      v.literal("transfer")
+      v.literal("transfer"),
+      v.literal("bank_transfer")
     ),
     status: v.union(
       v.literal("pending"),
       v.literal("confirmed"),
+      v.literal("paid"),
       v.literal("cancelled")
     ),
+    // Optional fields for additional functionality
+    approvedBy: v.optional(v.string()),
+    dueDate: v.optional(v.number()),
+    isApproved: v.optional(v.boolean()),
+    isAutoPaid: v.optional(v.boolean()),
+    vendor: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_franchise", ["franchiseId"])

@@ -875,9 +875,30 @@ export default function FranchiseDashboard() {
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
+  // Show loading state while franchise data is loading
+  if (!franchise) {
+    return (
+      <div className="space-y-6 py-12">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading franchise dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 py-12">
-      {franchiseId && <FranchiseWallet franchiseId={franchiseId} />}
+      {franchiseId && (
+        <FranchiseWallet 
+          franchiseId={franchiseId}
+          franchiseName={franchise.businessName}
+          franchiseStatus={franchise.status}
+          franchiseStage={franchise.stage}
+        />
+      )}
       {/* Navigation Tabs */}
       <Card className="p-0">
         <div className="border-b border-gray-200 dark:border-gray-700">

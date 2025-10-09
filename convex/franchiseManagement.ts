@@ -1008,10 +1008,17 @@ export const createFundingPDA = mutation({
       throw new Error("Can only create funding PDA during funding stage");
     }
 
+    // Generate a real Solana keypair for the funding PDA (escrow)
+    const { generateKeypair, encryptSecretKey } = await import('./walletKeypairs');
+    const pdaKeypair = generateKeypair();
+    
+    console.log(`🔑 Generated real PDA wallet for funding escrow: ${pdaKeypair.publicKey}`);
+    
     // Create a funding PDA entry (acts as escrow)
     const walletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
-      walletAddress: `funding_pda_${args.franchiseId}_${Date.now()}`, // Funding PDA address
+      walletAddress: pdaKeypair.publicKey, // Real Solana public key for PDA
+      walletSecretKey: encryptSecretKey(pdaKeypair.secretKey), // Store encrypted secret key
       walletName: `${franchise.franchiseSlug} Funding PDA`,
       balance: 0, // Starts with 0, accumulates as investments come in
       usdBalance: 0,
@@ -1049,8 +1056,9 @@ export const createFundingPDA = mutation({
 
     return {
       walletId,
-      pdaAddress: `funding_pda_${args.franchiseId}_${Date.now()}`,
+      pdaAddress: pdaKeypair.publicKey,
       message: `Funding PDA created as escrow for franchise ${franchise.franchiseSlug}`,
+      explorerUrl: `https://explorer.solana.com/address/${pdaKeypair.publicKey}?cluster=devnet`,
     };
   },
 });
@@ -1216,10 +1224,17 @@ export const transitionToLaunchingStage = mutation({
 
     console.log(`💰 Creating franchise wallet with working capital: $${workingCapital.toLocaleString()}`);
     
+    // Generate a real Solana keypair for the franchise wallet
+    const { generateKeypair, encryptSecretKey } = await import('./walletKeypairs');
+    const walletKeypair = generateKeypair();
+    
+    console.log(`🔑 Generated real Solana wallet: ${walletKeypair.publicKey}`);
+    
     // Create the actual franchise wallet with only working capital
     const franchiseWalletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
-      walletAddress: `franchise_${args.franchiseId}_${Date.now()}`, // Actual franchise wallet address
+      walletAddress: walletKeypair.publicKey, // Real Solana public key
+      walletSecretKey: encryptSecretKey(walletKeypair.secretKey), // Store encrypted secret key
       walletName: `${franchise.franchiseSlug} Wallet`,
       balance: workingCapital / 200, // Convert USD to SOL (assuming $200 per SOL)
       usdBalance: workingCapital,
@@ -1238,6 +1253,10 @@ export const transitionToLaunchingStage = mutation({
     
     console.log(`✅ Franchise wallet created successfully:`, franchiseWalletId);
 
+    // Note: Real Solana transactions will be executed via scheduled action
+    // For now, marking transactions with wallet addresses for future on-chain execution
+    console.log(`ℹ️ Working capital transfer will be recorded. Use separate action to execute on-chain.`);
+
     // Record working capital transfer to franchise wallet
     await ctx.db.insert("franchiseWalletTransactions", {
       franchiseWalletId: franchiseWalletId,
@@ -1246,7 +1265,7 @@ export const transitionToLaunchingStage = mutation({
       amount: workingCapital / 200, // Convert USD to SOL (assuming $200 per SOL)
       usdAmount: workingCapital,
       description: `Working capital transferred to franchise wallet: $${workingCapital.toLocaleString()}`,
-      solanaTransactionHash: `working_capital_${args.franchiseId}_${Date.now()}`,
+      solanaTransactionHash: `pending_working_capital_${args.franchiseId}_${Date.now()}`,
       status: "confirmed",
       createdAt: Date.now(),
     });
@@ -1267,7 +1286,19 @@ export const transitionToLaunchingStage = mutation({
 
     console.log(`💵 Creating brand wallet transaction for franchise fee: $${franchiseFee.toLocaleString()}`);
     
-    // Transfer franchise fee to brand wallet
+    // Schedule on-chain transfer for franchise fee (if keys available)
+    if (fundingPDA?.walletSecretKey && franchiser.brandWalletAddress) {
+      console.log(`📅 Scheduling on-chain transfer for franchise fee...`);
+      ctx.scheduler.runAfter(0, api.solanaTransactions.executeSolanaTransfer, {
+        fromPublicKey: fundingPDA.walletAddress,
+        fromSecretKey: fundingPDA.walletSecretKey,
+        toPublicKey: franchiser.brandWalletAddress,
+        amountSOL: franchiseFee / 150,
+        description: `Franchise fee from ${franchise.franchiseSlug}`,
+      });
+    }
+    
+    // Transfer franchise fee to brand wallet (database record)
     const franchiseFeeTransactionId = await ctx.db.insert("brandWalletTransactions", {
       franchiserId: franchise.franchiserId,
       franchiseId: args.franchiseId,
@@ -1275,7 +1306,7 @@ export const transitionToLaunchingStage = mutation({
       amount: franchiseFee,
       description: `Franchise fee received from ${franchise.franchiseSlug}: $${franchiseFee.toLocaleString()}`,
       status: "completed",
-      transactionHash: `franchise_fee_${args.franchiseId}_${Date.now()}`,
+      transactionHash: `pending_fee_${args.franchiseId}_${Date.now()}`,
       createdAt: Date.now(),
     });
     
@@ -1283,7 +1314,19 @@ export const transitionToLaunchingStage = mutation({
     
     console.log(`💵 Creating brand wallet transaction for setup cost: $${setupCost.toLocaleString()}`);
 
-    // Transfer setup cost to brand wallet
+    // Schedule on-chain transfer for setup cost (if keys available)
+    if (fundingPDA?.walletSecretKey && franchiser.brandWalletAddress) {
+      console.log(`📅 Scheduling on-chain transfer for setup cost...`);
+      ctx.scheduler.runAfter(1000, api.solanaTransactions.executeSolanaTransfer, {
+        fromPublicKey: fundingPDA.walletAddress,
+        fromSecretKey: fundingPDA.walletSecretKey,
+        toPublicKey: franchiser.brandWalletAddress,
+        amountSOL: setupCost / 150,
+        description: `Setup cost from ${franchise.franchiseSlug}`,
+      });
+    }
+
+    // Transfer setup cost to brand wallet (database record)
     const setupCostTransactionId = await ctx.db.insert("brandWalletTransactions", {
       franchiserId: franchise.franchiserId,
       franchiseId: args.franchiseId,
@@ -1291,7 +1334,7 @@ export const transitionToLaunchingStage = mutation({
       amount: setupCost,
       description: `Setup cost received from ${franchise.franchiseSlug}: $${setupCost.toLocaleString()}`,
       status: "completed",
-      transactionHash: `setup_cost_${args.franchiseId}_${Date.now()}`,
+      transactionHash: `pending_setup_${args.franchiseId}_${Date.now()}`,
       createdAt: Date.now(),
     });
     

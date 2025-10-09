@@ -35,28 +35,33 @@ export const createExpense = mutation({
     });
 
     // Also create a wallet transaction for this expense
-    const wallet = await ctx.db
-      .query("franchiseWallets")
-      .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
-      
-    if (wallet) {
-      await ctx.db.insert("franchiseTransactions", {
-        franchiseId: args.franchiseId,
-        walletId: wallet._id,
-        type: "expense",
-        amount: args.amount,
-        description: `Expense: ${args.description}`,
-        status: "completed",
-        createdAt: now,
-      });
+    const franchise = await ctx.db.get(args.franchiseId);
+    if (franchise) {
+      // Get the franchise wallet
+      const wallet = await ctx.db
+        .query("franchiseWallets")
+        .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
+        .filter((q) => q.eq(q.field("status"), "active"))
+        .first();
+        
+      if (wallet) {
+        await ctx.db.insert("franchiseTransactions", {
+          franchiseId: args.franchiseId,
+          walletId: wallet._id,
+          type: "expense",
+          amount: args.amount,
+          description: `Expense: ${args.description}`,
+          status: "completed",
+          createdAt: now,
+        });
 
-      // Update wallet balance
-      await ctx.db.patch(wallet._id, {
-        balance: wallet.balance - args.amount,
-        updatedAt: now,
-      });
+        // Update wallet balance
+        await ctx.db.patch(wallet._id, {
+          usdBalance: wallet.usdBalance - args.amount,
+          totalExpenses: (wallet.totalExpenses || 0) + args.amount,
+          updatedAt: now,
+        });
+      }
     }
 
     return expenseId;
@@ -202,17 +207,17 @@ export const getFranchiseIncome = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get all income transactions from franchise wallet
+    // Get franchise wallet
     const wallet = await ctx.db
       .query("franchiseWallets")
       .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))
-      .filter((q) => q.eq(q.field("status"), "active"))
       .first();
-      
+
     if (!wallet) {
       return { totalIncome: 0, incomeCount: 0 };
     }
 
+    // Get all income/revenue transactions
     let transactions = await ctx.db
       .query("franchiseTransactions")
       .withIndex("by_franchise", (q) => q.eq("franchiseId", args.franchiseId))

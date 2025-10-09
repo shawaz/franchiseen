@@ -133,7 +133,7 @@ export function FranchiseTab() {
 
   // Navigation functions
   const navigateToFranchiseAccount = (franchiseSlug: string) => {
-    router.push(`/${brandSlug}/${franchiseSlug}/franchise`);
+    router.push(`/${brandSlug}/${franchiseSlug}/account`);
   };
 
 
@@ -587,7 +587,6 @@ export function FranchiseTab() {
                 <TableHead>Total Investment</TableHead>
                 <TableHead>Wallet Balance</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -703,12 +702,6 @@ export function FranchiseTab() {
                         </Button>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button type="button" variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">More options</span>
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

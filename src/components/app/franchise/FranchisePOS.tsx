@@ -330,14 +330,23 @@ export default function FranchisePOS() {
       const orderNumber = `#${Date.now().toString().slice(-6)}`;
       const tableInfo = selectedTable ? `Table: ${tables.find(t => t.id === selectedTable)?.number}` : 'Counter Order';
       
+      // Add transaction to franchise wallet as income
+      // Note: POS transactions are OFF-CHAIN (database only) for efficiency
+      // They won't appear in Solana Explorer (to avoid gas fees on every sale)
+      // Only major transfers (funding, payouts) are ON-CHAIN
+      
+      // Convert USD to SOL for balance tracking (assuming $150 per SOL)
+      const solPrice = 150; // You can make this dynamic from CoinGecko later
+      const solAmount = orderTotal / solPrice;
+      
       await addFranchiseWalletTransaction({
         franchiseId: franchise._id,
         transactionType: 'income',
-        amount: orderTotal,
-        usdAmount: orderTotal, // Assuming USD for now
+        amount: solAmount, // SOL amount
+        usdAmount: orderTotal, // USD amount
         description: `POS Sale ${orderNumber} - ${tableInfo}`,
         category: 'Sales',
-        solanaTransactionHash: `pos_sale_${orderNumber}_${Date.now()}`,
+        solanaTransactionHash: `off_chain_${orderNumber}_${Date.now()}`, // Mark as off-chain
         status: 'confirmed',
       });
 
@@ -415,58 +424,16 @@ export default function FranchisePOS() {
                     className="w-full pl-10 pr-4 py-3 border border-stone-300 dark:border-stone-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-stone-800 text-stone-900 dark:text-white"
                   />
                 </div>
-                <div className="relative">
-                  <select
-                    value={orderType}
-                    onChange={(e) => setOrderType(e.target.value as 'counter' | 'table')}
-                    className="appearance-none bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-600 rounded-lg px-4 py-3 pr-8 focus:ring-2 focus:ring-primary focus:border-transparent text-stone-900 dark:text-white"
-                  >
-                    <option value="counter">Counter</option>
-                    <option value="table">Table</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
               </div>
-
-              {/* Tables Section - Only show when table order type is selected */}
-              {orderType === 'table' && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Tables & Categories</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {tables.map((table) => (
-                      <Card
-                        key={table.id}
-                        className={`p-4 cursor-pointer transition-all ${
-                          selectedTable === table.id ? 'ring-2 ring-primary' : ''
-                        } ${
-                          table.status === 'occupied' ? 'bg-orange-100 dark:bg-orange-900/20' : 'bg-stone-50 dark:bg-stone-800'
-                        }`}
-                        onClick={() => setSelectedTable(table.id)}
-                      >
-                        <div className="flex items-center justify-center w-12 h-12 bg-white dark:bg-stone-700 rounded-full mb-3 mx-auto">
-                          <div className="w-3 h-3 bg-stone-400 rounded-full"></div>
-                        </div>
-                        <h4 className="font-medium text-center">{table.number}</h4>
-                        <p className="text-sm text-stone-500 text-center">{table.itemCount} items</p>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Menu Items */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">Menu Items</h3>
                 {filteredMenuItems.length === 0 ? (
                   <div className="text-center py-8 text-stone-500">
                     <p>No menu items found matching {searchQuery}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {filteredMenuItems.map((item) => {
                       const currentQuantity = currentOrder.find(orderItem => orderItem.menuItem._id === item._id)?.quantity || 0;
                       const isOutOfStock = item.stockQuantity <= 0;

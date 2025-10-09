@@ -8,7 +8,18 @@
     "format:check": "prettier --check .",
     "lint": "next lint",
     "seed": "node scripts/seed.js",
-    "start": "next start"
+    "start": "next start",
+    "convex:dev": "npx convex dev",
+    "convex:deploy:prod": "npx convex deploy --prod",
+    "convex:logs:dev": "npx convex logs --tail",
+    "convex:logs:prod": "npx convex logs --prod --tail",
+    "convex:env:dev": "npx convex env list",
+    "convex:env:prod": "npx convex env list --prod",
+    "deploy:devnet": "vercel --prod",
+    "deploy:mainnet": "vercel --prod",
+    "setup:env": "bash scripts/setup-environment.sh",
+    "wallet:fund:devnet": "node scripts/fundWallets.js devnet",
+    "wallet:verify": "node scripts/verifyWallets.js"
   },
   "description": "Next.js, Tailwind, gill (based on @solana/kit), Wallet UI",
   "keywords": [

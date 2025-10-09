@@ -31,20 +31,25 @@ import type * as franchiseManagement from "../franchiseManagement.js";
 import type * as franchiseStoreQueries from "../franchiseStoreQueries.js";
 import type * as franchiseWallet from "../franchiseWallet.js";
 import type * as franchises from "../franchises.js";
+import type * as fundTestWallets from "../fundTestWallets.js";
 import type * as inventoryManagement from "../inventoryManagement.js";
 import type * as investments from "../investments.js";
 import type * as leadsManagement from "../leadsManagement.js";
 import type * as masterData from "../masterData.js";
+import type * as migrateWallets from "../migrateWallets.js";
 import type * as payoutManagement from "../payoutManagement.js";
 import type * as productManagement from "../productManagement.js";
 import type * as propertyManagement from "../propertyManagement.js";
 import type * as seedData from "../seedData.js";
 import type * as seedProducts from "../seedProducts.js";
+import type * as solanaTransactions from "../solanaTransactions.js";
 import type * as stockManagement from "../stockManagement.js";
 import type * as teamManagement from "../teamManagement.js";
 import type * as testData from "../testData.js";
 import type * as tokenManagement from "../tokenManagement.js";
 import type * as userManagement from "../userManagement.js";
+import type * as walletFunding from "../walletFunding.js";
+import type * as walletKeypairs from "../walletKeypairs.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -73,20 +78,25 @@ declare const fullApi: ApiFromModules<{
   franchiseStoreQueries: typeof franchiseStoreQueries;
   franchiseWallet: typeof franchiseWallet;
   franchises: typeof franchises;
+  fundTestWallets: typeof fundTestWallets;
   inventoryManagement: typeof inventoryManagement;
   investments: typeof investments;
   leadsManagement: typeof leadsManagement;
   masterData: typeof masterData;
+  migrateWallets: typeof migrateWallets;
   payoutManagement: typeof payoutManagement;
   productManagement: typeof productManagement;
   propertyManagement: typeof propertyManagement;
   seedData: typeof seedData;
   seedProducts: typeof seedProducts;
+  solanaTransactions: typeof solanaTransactions;
   stockManagement: typeof stockManagement;
   teamManagement: typeof teamManagement;
   testData: typeof testData;
   tokenManagement: typeof tokenManagement;
   userManagement: typeof userManagement;
+  walletFunding: typeof walletFunding;
+  walletKeypairs: typeof walletKeypairs;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

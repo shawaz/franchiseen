@@ -1105,7 +1105,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="px-6">
           
           {activeTab === 'finances' && (
         <div className="space-y-6">

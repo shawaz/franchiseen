@@ -211,7 +211,9 @@ export const addFranchiseWalletTransaction = mutation({
     });
 
     // Update wallet balances based on transaction type
-    let balanceChange = 0;
+    // Note: args.amount is SOL, args.usdAmount is USD
+    let solBalanceChange = 0;
+    let usdBalanceChange = 0;
     let incomeChange = 0;
     let expenseChange = 0;
     let payoutChange = 0;
@@ -221,25 +223,27 @@ export const addFranchiseWalletTransaction = mutation({
       case "income":
       case "transfer_in":
       case "funding":
-        balanceChange = args.amount;
-        if (args.transactionType === "income") incomeChange = args.amount;
+        solBalanceChange = args.amount; // SOL amount
+        usdBalanceChange = args.usdAmount; // USD amount
+        if (args.transactionType === "income") incomeChange = args.usdAmount; // Track income in USD
         break;
       case "expense":
       case "payout":
       case "royalty":
       case "transfer_out":
       case "refund":
-        balanceChange = -args.amount;
-        if (args.transactionType === "expense") expenseChange = args.amount;
-        if (args.transactionType === "payout") payoutChange = args.amount;
-        if (args.transactionType === "royalty") royaltyChange = args.amount;
+        solBalanceChange = -args.amount; // SOL amount
+        usdBalanceChange = -args.usdAmount; // USD amount
+        if (args.transactionType === "expense") expenseChange = args.usdAmount; // Track expenses in USD
+        if (args.transactionType === "payout") payoutChange = args.usdAmount;
+        if (args.transactionType === "royalty") royaltyChange = args.usdAmount;
         break;
     }
 
     // Update wallet
     await ctx.db.patch(wallet._id, {
-      balance: wallet.balance + balanceChange,
-      usdBalance: wallet.usdBalance + (args.usdAmount * (balanceChange > 0 ? 1 : -1)),
+      balance: wallet.balance + solBalanceChange, // Update SOL balance
+      usdBalance: wallet.usdBalance + usdBalanceChange, // Update USD balance
       totalIncome: wallet.totalIncome + incomeChange,
       totalExpenses: wallet.totalExpenses + expenseChange,
       totalPayouts: wallet.totalPayouts + payoutChange,
@@ -248,6 +252,19 @@ export const addFranchiseWalletTransaction = mutation({
       lastActivity: now,
       updatedAt: now,
     });
+
+    // Also create franchiseTransactions record for revenue tracking (for payouts)
+    if (args.transactionType === "income") {
+      await ctx.db.insert("franchiseTransactions", {
+        franchiseId: args.franchiseId,
+        walletId: wallet._id,
+        type: "revenue",
+        amount: args.usdAmount,
+        description: args.description,
+        status: "completed",
+        createdAt: now,
+      });
+    }
 
     return {
       transactionId,
