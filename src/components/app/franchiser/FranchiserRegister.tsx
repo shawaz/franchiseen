@@ -854,6 +854,10 @@ const FranchiserRegister: React.FC = () => {
         images: product.photo && product.photo.file ? [await uploadFileToConvex(product.photo.file)] : [],
         category: product.category === 'none' ? '' : product.category,
         status: 'active' as const,
+        stockQuantity: 0, // Default stock quantity for brand registration
+        unit: 'unit', // Default unit
+        minStockLevel: 0, // Optional: minimum stock alert level
+        maxStockLevel: 100, // Optional: maximum stock level
       }))
     );
 
@@ -1636,8 +1640,8 @@ const FranchiserRegister: React.FC = () => {
                       />
                     </div>
                     <p className="text-[10px] text-stone-400">
-                      {formData.minCarpetArea && formData.setupCostPerSqft ? 
-                        `Total: $${(formData.minCarpetArea * formData.setupCostPerSqft).toLocaleString()}` : 
+                      {(formData.minCarpetArea && formData.setupCostPerSqft) ? 
+                        `Total: $${((Number(formData.minCarpetArea) || 0) * (Number(formData.setupCostPerSqft) || 0)).toLocaleString()}` : 
                         'Per sq.ft, one-time'}
                     </p>
                   </div>
@@ -1671,8 +1675,8 @@ const FranchiserRegister: React.FC = () => {
                       />
                     </div>
                     <p className="text-[10px] text-stone-400">
-                      {formData.minCarpetArea && formData.workingCapitalPerSqft ? 
-                        `1 Year: $${(formData.minCarpetArea * formData.workingCapitalPerSqft).toLocaleString()}` : 
+                      {(formData.minCarpetArea && formData.workingCapitalPerSqft) ? 
+                        `1 Year: $${((Number(formData.minCarpetArea) || 0) * (Number(formData.workingCapitalPerSqft) || 0)).toLocaleString()}` : 
                         'Per sq.ft, 1 year'}
                     </p>
                   </div>
@@ -1706,7 +1710,7 @@ const FranchiserRegister: React.FC = () => {
                         )}
                       </span>
                       <span className="font-medium">
-                        ${(formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0).toLocaleString()}
+                        ${((Number(formData.minCarpetArea) || 0) * (Number(formData.setupCostPerSqft) || 0)).toLocaleString()}
                       </span>
                     </div>
                     
@@ -1720,7 +1724,7 @@ const FranchiserRegister: React.FC = () => {
                         )}
                       </span>
                       <span className="font-medium">
-                        ${(formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0).toLocaleString()}
+                        ${((Number(formData.minCarpetArea) || 0) * (Number(formData.workingCapitalPerSqft) || 0)).toLocaleString()}
                       </span>
                     </div>
                     
@@ -1730,9 +1734,9 @@ const FranchiserRegister: React.FC = () => {
                         <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">
                           ${
                             (
-                              (formData.franchiseFee || 0) +
-                              (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
-                              (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0)
+                              (Number(formData.franchiseFee) || 0) +
+                              ((Number(formData.minCarpetArea) || 0) * (Number(formData.setupCostPerSqft) || 0)) +
+                              ((Number(formData.minCarpetArea) || 0) * (Number(formData.workingCapitalPerSqft) || 0))
                             ).toLocaleString(undefined, {
                               minimumFractionDigits: 0,
                               maximumFractionDigits: 0
@@ -1748,11 +1752,11 @@ const FranchiserRegister: React.FC = () => {
                             <span className="text-sm font-medium text-green-800 dark:text-green-200">Estimated ROI</span>
                             <span className="text-lg font-bold text-green-600 dark:text-green-400">
                               {(() => {
-                                const totalInvestment = (formData.franchiseFee || 0) +
-                                  (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
-                                  (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0);
+                                const totalInvestment = (Number(formData.franchiseFee) || 0) +
+                                  ((Number(formData.minCarpetArea) || 0) * (Number(formData.setupCostPerSqft) || 0)) +
+                                  ((Number(formData.minCarpetArea) || 0) * (Number(formData.workingCapitalPerSqft) || 0));
                                 
-                                const monthlyRevenue = formData.estimatedMonthlyRevenue || 0;
+                                const monthlyRevenue = Number(formData.estimatedMonthlyRevenue) || 0;
                                 const annualRevenue = monthlyRevenue * 12;
                                 
                                 if (totalInvestment > 0) {
@@ -1772,11 +1776,11 @@ const FranchiserRegister: React.FC = () => {
                               <span>Payback Period:</span>
                               <span>
                                 {(() => {
-                                  const totalInvestment = (formData.franchiseFee || 0) +
-                                    (formData.minCarpetArea && formData.setupCostPerSqft ? formData.minCarpetArea * formData.setupCostPerSqft : 0) +
-                                    (formData.minCarpetArea && formData.workingCapitalPerSqft ? formData.minCarpetArea * formData.workingCapitalPerSqft : 0);
+                                  const totalInvestment = (Number(formData.franchiseFee) || 0) +
+                                    ((Number(formData.minCarpetArea) || 0) * (Number(formData.setupCostPerSqft) || 0)) +
+                                    ((Number(formData.minCarpetArea) || 0) * (Number(formData.workingCapitalPerSqft) || 0));
                                   
-                                  const monthlyRevenue = formData.estimatedMonthlyRevenue || 0;
+                                  const monthlyRevenue = Number(formData.estimatedMonthlyRevenue) || 0;
                                   
                                   if (monthlyRevenue > 0) {
                                     const months = totalInvestment / monthlyRevenue;

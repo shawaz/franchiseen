@@ -31,7 +31,6 @@ import type * as franchiseManagement from "../franchiseManagement.js";
 import type * as franchiseStoreQueries from "../franchiseStoreQueries.js";
 import type * as franchiseWallet from "../franchiseWallet.js";
 import type * as franchises from "../franchises.js";
-import type * as fundTestWallets from "../fundTestWallets.js";
 import type * as inventoryManagement from "../inventoryManagement.js";
 import type * as investments from "../investments.js";
 import type * as leadsManagement from "../leadsManagement.js";
@@ -48,7 +47,6 @@ import type * as teamManagement from "../teamManagement.js";
 import type * as testData from "../testData.js";
 import type * as tokenManagement from "../tokenManagement.js";
 import type * as userManagement from "../userManagement.js";
-import type * as walletFunding from "../walletFunding.js";
 import type * as walletKeypairs from "../walletKeypairs.js";
 
 /**
@@ -78,7 +76,6 @@ declare const fullApi: ApiFromModules<{
   franchiseStoreQueries: typeof franchiseStoreQueries;
   franchiseWallet: typeof franchiseWallet;
   franchises: typeof franchises;
-  fundTestWallets: typeof fundTestWallets;
   inventoryManagement: typeof inventoryManagement;
   investments: typeof investments;
   leadsManagement: typeof leadsManagement;
@@ -95,7 +92,6 @@ declare const fullApi: ApiFromModules<{
   testData: typeof testData;
   tokenManagement: typeof tokenManagement;
   userManagement: typeof userManagement;
-  walletFunding: typeof walletFunding;
   walletKeypairs: typeof walletKeypairs;
 }>;
 export declare const api: FilterApi<

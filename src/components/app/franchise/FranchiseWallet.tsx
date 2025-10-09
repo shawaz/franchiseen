@@ -11,6 +11,7 @@ import { Id } from '../../../../convex/_generated/dataModel';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useSolPrice } from '@/lib/coingecko';
 import { getSolanaExplorerUrl, formatWalletAddress } from '@/lib/franchiseWalletUtils';
+import { Button } from '@/components/ui/button';
 
 interface FranchiseWalletProps {
   franchiseId: Id<"franchises">;
@@ -484,35 +485,20 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
           {/* Right side - Buy Tokens button for funding stage */}
           <div className="flex items-center gap-2">
             {stageContent.showBuyShares && (
-              <button
-                onClick={() => {
-                  if (onBuyTokens) {
-                    onBuyTokens();
-                  } else {
-                    toast.info('Buy tokens functionality will be implemented');
-                  }
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+              <Button
+                variant="outline"
+              onClick={() => {
+                if (onBuyTokens) {
+                  onBuyTokens();
+                } else {
+                  toast.info('Buy tokens functionality will be implemented');
+                }
+              }}
               >
                 Buy Tokens
-              </button>
+              </Button>
             )}
             
-            <Badge 
-              variant="default"
-              className={`${
-                franchiseWallet?.status === 'active' 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                  : franchiseWallet?.status === 'inactive'
-                    ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                    : franchiseWallet?.status === 'suspended'
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-              }`}
-            >
-              <Wallet className="h-3 w-3 mr-1" />
-              {currentStage}
-            </Badge>
           </div>
         </div>
       </div>
