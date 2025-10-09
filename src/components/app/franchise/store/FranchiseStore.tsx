@@ -1368,81 +1368,99 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         <DialogTrigger asChild>
           <div className="hidden"></div>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[500px] dark:bg-stone-900">
-          <DialogHeader>
-            <div className="flex items-center space-x-3">
-              <div>
-                <DialogTitle className="text-xl">Buy Franchise Tokens</DialogTitle>
-                <p className="text-sm text-stone-600 dark:text-stone-400 mt-1">
-                  Each token represents 1 share in this franchise
+        <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[500px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
+          {/* Fixed Header */}
+          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-lg sm:text-xl font-bold">Buy Franchise Tokens</DialogTitle>
+                <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
+                  Each token = 1 share in this franchise
                 </p>
               </div>
             </div>
           </DialogHeader>
           
-          {/* Franchise Details */}
-          <div className="space-y-4 p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
-            
-            <div className="flex items-start space-x-4">
-              {/* Brand Logo */}
-              <div className="flex-shrink-0">
-                <div className="w-16 h-16 rounded-lg bg-white dark:bg-stone-700 flex items-center justify-center overflow-hidden border border-stone-200 dark:border-stone-700">
-                  <Image 
-                    src={franchise.brandLogo} 
-                    alt={`${franchise.name} logo`} 
-                    width={64}
-                    height={64}
-                    className="object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/images/placeholder-logo.svg';
-                    }}
-                    unoptimized
-                  />
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+            {/* Franchise Details */}
+            <div className="p-3 sm:p-4 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 rounded-xl border border-yellow-200 dark:border-yellow-800/30 mb-4">
+              <div className="flex items-start space-x-3 sm:space-x-4">
+                {/* Brand Logo */}
+                <div className="flex-shrink-0">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white dark:bg-stone-700 flex items-center justify-center overflow-hidden border-2 border-white dark:border-stone-600 shadow-md">
+                    <Image 
+                      src={franchise.brandLogo} 
+                      alt={`${franchise.name} logo`} 
+                      width={64}
+                      height={64}
+                      className="object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/images/placeholder-logo.svg';
+                      }}
+                      unoptimized
+                    />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex-1">
-                <h4 className="font-medium text-lg">{franchise.name}</h4>
                 
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center text-sm text-stone-500 dark:text-stone-400">
-                    <span>
-                      {franchise.location.area}, {franchise.location.city}, {franchise.location.country}
-                    </span>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-base sm:text-lg text-stone-900 dark:text-white truncate">{franchise.name}</h4>
+                  
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center text-xs sm:text-sm text-stone-600 dark:text-stone-400">
+                      <span className="truncate">
+                        {franchise.location.area}, {franchise.location.city}
+                      </span>
+                    </div>
+                    <div className="text-xs text-stone-500 dark:text-stone-500">
+                      {franchise.location.country}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-4">
+            {/* Token Selection */}
+            <div className="space-y-4 mb-4">
               <div className="flex justify-between items-center">
-                <Label htmlFor="shares">Select Number of Tokens</Label>
-                <span className="text-sm font-medium">{tokensToBuy} tokens</span>
+                <Label htmlFor="shares" className="text-sm sm:text-base font-medium">Number of Tokens</Label>
+                <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                  <span className="text-base sm:text-lg font-bold text-yellow-900 dark:text-yellow-200">{tokensToBuy}</span>
+                  <span className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-300 ml-1">tokens</span>
+                </div>
               </div>
-              <Button variant="outline" className="w-full">
+              
+              {/* Slider */}
+              <div className="px-1">
                 <Slider
                   value={[tokensToBuy]}
                   onValueChange={(value) => setTokensToBuy(value[0])}
                   min={1}
                   max={maxTokensToBuy}
                   step={1}
-                  className=""
+                  className="py-2"
                 />
-
-              </Button>
+              </div>
               
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-4">
+              {/* Plus/Minus Controls */}
+              <div className="flex items-center gap-3 sm:gap-4">
                 <Button 
                   variant="outline" 
-                  size="icon" 
+                  size="lg"
+                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
+                  onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 10))}
+                  disabled={tokensToBuy <= 1}
+                >
+                  -10
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
                   onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 1))}
                   disabled={tokensToBuy <= 1}
                 >
-                  -
+                  -1
                 </Button>
                 <Input
                   id="shares"
@@ -1451,115 +1469,137 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   max={maxTokensToBuy}
                   value={tokensToBuy}
                   onChange={(e) => setTokensToBuy(Math.min(maxTokensToBuy, Math.max(1, parseInt(e.target.value) || 1)))}
-                  className="text-center"
+                  className="text-center h-12 sm:h-14 text-base sm:text-lg font-semibold flex-[1.5]"
                 />
                 <Button 
                   variant="outline" 
-                  size="icon"
+                  size="lg"
+                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
                   onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 1))}
                   disabled={tokensToBuy >= maxTokensToBuy}
                 >
-                  +
+                  +1
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
+                  onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 10))}
+                  disabled={tokensToBuy >= maxTokensToBuy}
+                >
+                  +10
                 </Button>
               </div>
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>Min: 1</span>
-                <span>Max: {maxTokensToBuy}</span>
+              
+              <div className="flex justify-between text-xs sm:text-sm text-stone-500 dark:text-stone-400">
+                <span>Min: 1 token</span>
+                <span>Max: {maxTokensToBuy} tokens</span>
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label>Price Breakdown</Label>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>{tokensToBuy} tokens × $1.00</span>
-                  <span>${(tokensToBuy * 1.00).toFixed(2)}</span>
+            {/* Price Breakdown */}
+            <div className="space-y-3 mb-4 p-3 sm:p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
+              <Label className="text-sm sm:text-base font-semibold">Price Breakdown</Label>
+              <div className="space-y-2.5 text-sm sm:text-base">
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600 dark:text-stone-400">{tokensToBuy} tokens × $1.00</span>
+                  <span className="font-semibold">${(tokensToBuy * 1.00).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between border-b pb-2 mt-2">
-                  <span>Platform fee ({platformFeePercentage}%)</span>
-                  <span>${((tokensToBuy * 1.00 * platformFeePercentage) / 100).toFixed(2)}</span>
+                <div className="flex justify-between items-center pb-2.5 border-b border-stone-300 dark:border-stone-600">
+                  <span className="text-stone-600 dark:text-stone-400">Platform fee ({platformFeePercentage}%)</span>
+                  <span className="font-semibold text-stone-500 dark:text-stone-400">${((tokensToBuy * 1.00 * platformFeePercentage) / 100).toFixed(2)}</span>
                 </div>
-                {/* <div className="border-t pt-2 mt-2 flex justify-between font-medium">
-                  <span>Total</span>
-                  <span>${(tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)).toFixed(2)}</span>
-                </div> */}
               </div>
             </div>
-          </div>
-          {/* User Wallet Status */}
-          {isWalletLoaded && userWallet.publicKey ? (
-            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                  <span className="text-sm text-green-700 dark:text-green-400">
-                    User Wallet Ready
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-mono text-green-600 dark:text-green-400">
-                    {userWallet.publicKey.slice(0, 6)}...{userWallet.publicKey.slice(-4)}
-                  </span>
-                  <div className="text-xs text-green-600 dark:text-green-400">
-                    Balance: {userWallet.balance.toFixed(4)} SOL
+            {/* User Wallet Status */}
+            {isWalletLoaded && userWallet.publicKey ? (
+              <div className="p-3 sm:p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="text-sm sm:text-base font-medium text-green-700 dark:text-green-400">
+                      Wallet Connected
+                    </span>
+                  </div>
+                  <div className="text-left sm:text-right pl-4 sm:pl-0">
+                    <span className="text-xs sm:text-sm font-mono text-green-600 dark:text-green-400 block">
+                      {userWallet.publicKey.slice(0, 8)}...{userWallet.publicKey.slice(-6)}
+                    </span>
+                    <div className="text-xs sm:text-sm font-semibold text-green-700 dark:text-green-300 mt-0.5">
+                      {userWallet.balance.toFixed(4)} SOL
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                <span className="text-sm text-red-700 dark:text-red-400">
-                  User wallet not found. Please complete your profile setup first.
-                </span>
+            ) : (
+              <div className="p-3 sm:p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 mb-4">
+                <div className="flex items-start space-x-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1"></div>
+                  <span className="text-xs sm:text-sm text-red-700 dark:text-red-400">
+                    Wallet not connected. Please complete your profile setup first.
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* No Shares Available Warning */}
-          {maxTokensToBuy <= 0 && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-red-700 dark:text-red-400">No shares available for purchase</span>
+            {/* No Shares Available Warning */}
+            {maxTokensToBuy <= 0 && (
+              <div className="p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 mb-4">
+                <div className="flex items-start space-x-2">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full mt-1"></div>
+                  <span className="text-xs sm:text-sm font-medium text-red-700 dark:text-red-400">No tokens available for purchase</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Insufficient Balance Warning */}
-          {isWalletLoaded && userWallet.publicKey && userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-red-700 dark:text-red-400">
-                  Insufficient balance. You need {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL but have {userWallet.balance.toFixed(4)} SOL
-                </span>
+            {/* Insufficient Balance Warning */}
+            {isWalletLoaded && userWallet.publicKey && userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate && (
+              <div className="p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 mb-4">
+                <div className="flex items-start space-x-2">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full mt-1"></div>
+                  <div className="text-xs sm:text-sm text-red-700 dark:text-red-400">
+                    <span className="font-semibold">Insufficient balance.</span>
+                    <div className="mt-1">Need: {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL</div>
+                    <div>Have: {userWallet.balance.toFixed(4)} SOL</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Total Cost in SOL */}
-          <div className="p-4 bg-stone-50 dark:bg-stone-800 rounded-lg">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-stone-600 dark:text-stone-300">Total Solana</p>
-                
-                <p className="text-sm text-stone-500 dark:text-stone-400">
-                  ≈ {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL
-                </p>
+            {/* Total Cost - Highlighted */}
+            <div className="p-4 sm:p-5 bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-xl border-2 border-yellow-300 dark:border-yellow-700 mb-4">
+              <div className="flex justify-between items-center gap-4">
+                <div>
+                  <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-medium">Total Cost</p>
+                  <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 mt-1">
+                    ≈ {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl sm:text-3xl font-bold text-yellow-900 dark:text-yellow-200">
+                    ${(tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-stone-600 dark:text-stone-400">USD</p>
+                </div>
               </div>
-              <p className="text-2xl font-bold">
-                  ${(tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)} USD
-                </p>
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-2">
-            <Button variant="outline" onClick={() => setIsBuyTokensOpen(false)}>Cancel</Button>
-            <Button 
-              className="bg-yellow-600 hover:bg-yellow-700"
-              disabled={isProcessing || maxTokensToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
+          {/* Fixed Footer with Actions */}
+          <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 sticky bottom-0">
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => setIsBuyTokensOpen(false)}
+                className="flex-1 h-12 sm:h-14 text-sm sm:text-base"
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="lg"
+                className="flex-[2] h-12 sm:h-14 text-sm sm:text-base bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 font-semibold shadow-lg"
+                disabled={isProcessing || maxTokensToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
               onClick={async () => {
                 if (!isWalletLoaded || !userWallet.publicKey) {
                   toast.error('User wallet not found. Please complete your profile setup first.');
@@ -1751,11 +1791,28 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 }
               }}
             >
-              {isProcessing ? 'Processing...' : 
-               !isWalletLoaded || !userWallet.publicKey ? 'Wallet Not Ready' : 
-               userWallet.balance < (tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)) / solToUsdRate ? 'Insufficient Balance' :
-               'Buy Tokens'}
-            </Button>
+                {isProcessing ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : !isWalletLoaded || !userWallet.publicKey ? (
+                  'Connect Wallet'
+                ) : userWallet.balance < (tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)) / solToUsdRate ? (
+                  'Insufficient Balance'
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                    </svg>
+                    Buy {tokensToBuy} Token{tokensToBuy > 1 ? 's' : ''}
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
