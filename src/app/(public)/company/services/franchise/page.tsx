@@ -305,6 +305,6 @@ export default function FranchisePage() {
           </div>
         </div>
       </div>
-      </div>
+    </div>
   );
 }

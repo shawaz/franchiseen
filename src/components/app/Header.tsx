@@ -384,7 +384,7 @@ function Header() {
               <form onSubmit={handleSearchSubmit} className="relative">
               <input
                 type="text"
-                placeholder="Search businesses..."
+                placeholder="Search Franchises..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                   onFocus={() => searchSuggestions.length > 0 && setIsSearchDropdownOpen(true)}

@@ -8,8 +8,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { UnifiedAuth } from "@/components/auth/UnifiedAuth";
 import Link from "next/link";
 
 function HomeContent() {
@@ -301,29 +299,7 @@ function HomeContent() {
                   </>
                 ) : (
                   <>
-                <Dialog >
-                  <DialogTrigger asChild>
-                  <Button className="mt-4">
-                    Register Brand
-                  </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[45vw] max-w-md mx-auto mt-4 pt-6 bg-white dark:bg-stone-800">
-                    <DialogTitle className="sr-only">Register Brand</DialogTitle>
-                    <UnifiedAuth onSuccess={() => setShowAuthModal(false)} />
-                  </DialogContent>
-                </Dialog>
-                <Dialog>
-                  <DialogTrigger asChild>
-                  <Button variant="outline" className="mt-4">
-                    Create Franchise
-                  </Button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[45vw] max-w-md mx-auto mt-4 pt-6 bg-white dark:bg-stone-800">
-                    <DialogTitle className="sr-only">Create Franchise</DialogTitle>
-                    <UnifiedAuth onSuccess={() => setShowAuthModal(false)} />
-                  </DialogContent>
-                </Dialog>
-                
+
                </>
                 )}
                </div>

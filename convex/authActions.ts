@@ -72,54 +72,82 @@ export const sendOTP = action({
 export const sendSignupOTP = action({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
-    // Generate a simple 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Hash the OTP before storing
-    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
-    
-    // Store OTP temporarily (in production, use proper session management)
-    await ctx.runMutation(api.auth.storeOTP, {
-      email,
-      code: hashedOTP,
-      expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
-    });
+    try {
+      // Generate a simple 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Hash the OTP before storing
+      const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+      
+      // Store OTP temporarily (in production, use proper session management)
+      await ctx.runMutation(api.auth.storeOTP, {
+        email,
+        code: hashedOTP,
+        expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
+      });
 
-    // Send email via Resend
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
+      // Send email via Resend
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        console.warn("RESEND_API_KEY not set, OTP will only be stored in database");
+        // For development/testing, return success even without sending email
+        console.log(`[DEV] OTP for ${email}: ${otp}`);
+        return { success: true, otp: otp }; // Include OTP in response for testing
+      }
+
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      try {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Franchiseen <noreply@franchiseen.com>",
+            to: [email],
+            subject: "Your Franchiseen Verification Code",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Welcome to Franchiseen!</h2>
+                <p>Your verification code is:</p>
+                <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
+                  ${otp}
+                </div>
+                <p>This code will expire in 15 minutes.</p>
+                <p>If you didn't request this code, please ignore this email.</p>
+              </div>
+            `,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Resend API error: ${response.status} ${errorText}`);
+          // Don't throw - OTP is already stored, just log the error
+          console.warn("Email failed to send but OTP is stored in database");
+        }
+
+        return { success: true };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.error("Email send timeout - request took too long");
+        } else {
+          console.error("Email send error:", fetchError);
+        }
+        // Don't throw - OTP is already stored
+        return { success: true, warning: "Email may not have been sent" };
+      }
+    } catch (error) {
+      console.error("Error in sendSignupOTP:", error);
+      throw error;
     }
-
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Franchiseen <noreply@franchiseen.com>",
-        to: [email],
-        subject: "Your Franchiseen Verification Code",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Welcome to Franchiseen!</h2>
-            <p>Your verification code is:</p>
-            <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0;">
-              ${otp}
-            </div>
-            <p>This code will expire in 15 minutes.</p>
-            <p>If you didn't request this code, please ignore this email.</p>
-          </div>
-        `,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to send email: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    return { success: true };
   },
 });

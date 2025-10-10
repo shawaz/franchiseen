@@ -950,4 +950,65 @@ export default defineSchema({
     .index("by_source", ["source"])
     .index("by_assignedTo", ["assignedTo"])
     .index("by_createdAt", ["createdAt"]),
+
+  // News/Blog Management
+  news: defineTable({
+    // Basic Information
+    title: v.string(),
+    slug: v.string(), // URL-friendly slug
+    excerpt: v.string(), // Short summary
+    content: v.string(), // Full article content (markdown or HTML)
+    
+    // Media
+    featuredImage: v.optional(v.id("_storage")),
+    images: v.array(v.id("_storage")), // Additional images
+    
+    // Categorization
+    category: v.union(
+      v.literal("company_news"),
+      v.literal("industry_insights"),
+      v.literal("success_stories"),
+      v.literal("product_updates"),
+      v.literal("tips_guides"),
+      v.literal("announcements")
+    ),
+    tags: v.array(v.string()), // e.g., ["franchise", "investment", "blockchain"]
+    
+    // Author Information
+    authorId: v.optional(v.string()), // Admin user ID
+    authorName: v.string(),
+    authorAvatar: v.optional(v.id("_storage")),
+    
+    // Publishing
+    status: v.union(
+      v.literal("draft"),
+      v.literal("published"),
+      v.literal("archived")
+    ),
+    publishedAt: v.optional(v.number()),
+    scheduledFor: v.optional(v.number()), // For scheduled publishing
+    
+    // SEO
+    metaTitle: v.optional(v.string()),
+    metaDescription: v.optional(v.string()),
+    metaKeywords: v.array(v.string()),
+    
+    // Engagement
+    views: v.number(),
+    likes: v.number(),
+    
+    // Settings
+    isFeatured: v.boolean(), // Show on homepage
+    allowComments: v.boolean(),
+    
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_slug", ["slug"])
+    .index("by_status", ["status"])
+    .index("by_category", ["category"])
+    .index("by_author", ["authorId"])
+    .index("by_publishedAt", ["publishedAt"])
+    .index("by_isFeatured", ["isFeatured"])
+    .index("by_createdAt", ["createdAt"]),
 });

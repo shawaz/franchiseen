@@ -180,6 +180,7 @@ export default function FranchisePOS() {
   const [currentOrder, setCurrentOrder] = useState<OrderItem[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [orderType, setOrderType] = useState<'counter' | 'table'>('table');
 
   // Get franchise and products data

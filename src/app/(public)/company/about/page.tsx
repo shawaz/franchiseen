@@ -1,7 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   Target, 
@@ -49,24 +47,16 @@ export default function AboutPage() {
   return (
     <div>
       {/* Hero Section */}
-      <div className="bg-stone-50 dark:bg-stone-800 py-20">
+      <div className="bg-stone-800 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-stone-900 dark:text-white mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
               ABOUT FRANCHISEEN
             </h1>
-            <p className="text-xl text-stone-600 dark:text-stone-300 mb-8 max-w-4xl mx-auto">
+            <p className="text-xl text-stone-300 mb-8 max-w-4xl mx-auto">
               We&apos;re revolutionizing the franchise industry through innovative blockchain technology, 
               AI-powered analytics, and a commitment to democratizing business ownership worldwide.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild>
-                <Link href="#our-story">Our Story</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/company/careers">Join Our Team</Link>
-              </Button>
-            </div>
           </div>
         </div>
       </div>

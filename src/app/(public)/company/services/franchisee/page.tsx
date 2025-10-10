@@ -14,20 +14,6 @@ export default function FranchiseePage() {
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
               Discover, invest, and manage franchise opportunities with our comprehensive platform designed for franchisees.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/login" 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
-              >
-                Get Started
-              </Link>
-              <Link 
-                href="/company/services/franchiser" 
-                className="border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-8 py-3 rounded-lg font-semibold transition-colors"
-              >
-                Learn More
-              </Link>
-            </div>
           </div>
         </div>
       </div>
@@ -46,21 +32,15 @@ export default function FranchiseePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* View Franchises */}
-            <div className="bg-white dark:bg-stone-800 p-8 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-6">
-                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </div>
+            <div className="bg-white dark:bg-stone-800 p-8 border border-stone-200 dark:border-stone-700">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                 View Franchise Opportunities
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Browse through our extensive catalog of franchise opportunities from verified brands across various industries.
+                Browse through our franchise opportunities from verified brands across various industries.
               </p>
               <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
-                <li>• Detailed franchise information and requirements</li>
+                <li>• Detailed franchise information</li>
                 <li>• Financial projections and ROI estimates</li>
                 <li>• Location-based search and filtering</li>
                 <li>• Brand reputation and success metrics</li>
@@ -68,7 +48,7 @@ export default function FranchiseePage() {
             </div>
 
             {/* Start New Franchise */}
-            <div className="bg-white dark:bg-stone-800 p-8 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700">
+            <div className="bg-white dark:bg-stone-800 p-8 shadow-lg border border-stone-200 dark:border-stone-700">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-6">
                 <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -89,7 +69,7 @@ export default function FranchiseePage() {
             </div>
 
             {/* Buy Franchise Shares */}
-            <div className="bg-white dark:bg-stone-800 p-8 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700">
+            <div className="bg-white dark:bg-stone-800 p-8 shadow-lg border border-stone-200 dark:border-stone-700">
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-6">
                 <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -110,7 +90,7 @@ export default function FranchiseePage() {
             </div>
 
             {/* Trade Franchise Shares */}
-            <div className="bg-white dark:bg-stone-800 p-8 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700">
+            <div className="bg-white dark:bg-stone-800 p-8 shadow-lg border border-stone-200 dark:border-stone-700">
               <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mb-6">
                 <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -131,7 +111,7 @@ export default function FranchiseePage() {
             </div>
 
             {/* Daily Payouts */}
-            <div className="bg-white dark:bg-stone-800 p-8 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700">
+            <div className="bg-white dark:bg-stone-800 p-8 shadow-lg border border-stone-200 dark:border-stone-700">
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center mb-6">
                 <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
@@ -152,7 +132,7 @@ export default function FranchiseePage() {
             </div>
 
             {/* Portfolio Management */}
-            <div className="bg-white dark:bg-stone-800 p-8 rounded-xl shadow-lg border border-stone-200 dark:border-stone-700">
+            <div className="bg-white dark:bg-stone-800 p-8 shadow-lg border border-stone-200 dark:border-stone-700">
               <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mb-6">
                 <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />

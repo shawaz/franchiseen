@@ -55,7 +55,7 @@ function FooterMobile() {
             </Link>
           </div>
         ) : (
-          <div className="px-4 py-2">
+          <div className="p-6">
             <Button 
               variant="default" 
               className="w-full"
