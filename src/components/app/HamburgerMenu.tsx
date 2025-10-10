@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Menu, X, Store, Building2, User, Power, Plus, Settings, Sun, Moon, Monitor } from "lucide-react";
+import { Menu, X, Store, Building2, User, Power, Plus, Settings, Sun, Moon, Monitor, Banknote, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeSwitcher } from "../default/theme-switcher";
 import { UnifiedAuth } from "../auth/UnifiedAuth";
 import { useTheme } from "next-themes";
+import { useNetwork } from "@/contexts/NetworkContext";
 import { useAllFranchisersByUserId } from '@/hooks/useFranchises';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { Id } from '../../../convex/_generated/dataModel';
@@ -15,6 +16,49 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
 
+
+// Custom network switcher for hamburger menu
+const HamburgerNetworkSwitcher = () => {
+  const [mounted, setMounted] = useState(false);
+  const { network, switchNetwork } = useNetwork();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  const networks = [
+    { value: "mainnet", label: "Money", icon: Banknote },
+    { value: "devnet", label: "Paper", icon: Receipt }
+  ];
+
+  return (
+    <div className="flex items-center gap-2">
+      {networks.map((networkOption) => {
+        const IconComponent = networkOption.icon;
+        return (
+          <button
+            key={networkOption.value}
+            onClick={() => switchNetwork(networkOption.value as 'mainnet' | 'devnet')}
+            className={`p-2 rounded-lg text-sm transition-colors ${
+              network === networkOption.value
+                ? networkOption.value === 'mainnet'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-yellow-500 text-yellow-900'
+                : 'bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600'
+            }`}
+            title={networkOption.label}
+          >
+            <IconComponent className="w-4 h-4" />
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 // Custom theme switcher for hamburger menu
 const HamburgerThemeSwitcher = () => {
@@ -291,7 +335,16 @@ export function HamburgerMenu() {
       {/* Settings */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Settings</h3>
-        <div className="p-3 rounded-lg bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700">
+        <div className="p-3 rounded-lg bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">
+                <Banknote className="w-4 h-4 text-stone-600 dark:text-stone-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Network</span>
+            </div>
+            <HamburgerNetworkSwitcher />
+          </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">

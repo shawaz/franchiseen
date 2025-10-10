@@ -39,8 +39,8 @@ export function NetworkBanner() {
   // Show info banner when user toggles to devnet on main site
   if (isDevnet && !isDevnetDomain) {
     return (
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-2">
-        <div className="container mx-auto flex items-center justify-between">
+      <div className="bg-yellow-50 sticky top-0 z-50 dark:bg-stone-900 border-b border-yellow-200 dark:border-yellow-800 px-4 py-2">
+        <div className="container mx-auto flex items-center justify-center">
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-yellow-700 dark:text-yellow-400 flex-shrink-0" />
             <span className="text-sm text-yellow-700 dark:text-yellow-400">

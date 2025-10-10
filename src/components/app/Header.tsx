@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { ThemeSwitcher } from "../default/theme-switcher";
+import { NetworkSwitcher } from "../default/network-switcher";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { useRouter, usePathname } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -518,6 +519,7 @@ function Header() {
 
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center gap-4">
+                <NetworkSwitcher />
                 <ThemeSwitcher />
                 <AuthHeader />
               </div>

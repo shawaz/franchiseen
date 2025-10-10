@@ -22,11 +22,10 @@ export function NetworkToggle() {
   };
   
   return (
-    <div className="border-t border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-      <div className="p-3 flex justify-center">
+    <div className="border-b p-3 flex justify-center">
         
         {/* Toggle Control */}
-        <div className="flex items-center justify-between w-full max-w-md mx-auto">
+        <div className="">
           <div className="flex items-center gap-3">
             <span className={`text-sm font-medium transition-colors ${
               isMainnet ? 'text-green-600 dark:text-green-400' : 'text-gray-400'
@@ -50,7 +49,6 @@ export function NetworkToggle() {
             </span>
           </div>
         </div>
-      </div>
     </div>
   );
 }

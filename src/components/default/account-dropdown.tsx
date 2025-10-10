@@ -16,7 +16,6 @@ import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { useUserWallet } from '@/hooks/useUserWallet';
 import { Id } from '../../../convex/_generated/dataModel';
 import { useAuth } from '@/contexts/AuthContext';
-import { NetworkToggle } from '@/components/NetworkToggle';
 import { useNetwork } from '@/contexts/NetworkContext';
 import { getSolanaConnection } from '@/lib/solanaConnection';
 
@@ -203,10 +202,6 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
         className="w-56 mt-3 bg-white dark:bg-neutral-900 dark:border-neutral-600 dark:border-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-0"
         align="end"
       >
-        {/* Network Toggle */}
-        <NetworkToggle />
-
-
           <Link href="/account">
             <div className="flex border-b items-center gap-3 px-5 py-2 ">
               <div className="relative h-8 w-8 flex-shrink-0 z-0">
