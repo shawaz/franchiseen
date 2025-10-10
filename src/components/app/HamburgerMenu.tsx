@@ -6,7 +6,6 @@ import { Menu, X, Store, Building2, User, Power, Plus, Settings, Sun, Moon, Moni
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeSwitcher } from "../default/theme-switcher";
-import { UnifiedAuth } from "../auth/UnifiedAuth";
 import { useTheme } from "next-themes";
 import { useNetwork } from "@/contexts/NetworkContext";
 import { useAllFranchisersByUserId } from '@/hooks/useFranchises';
@@ -104,7 +103,6 @@ const HamburgerThemeSwitcher = () => {
 
 export function HamburgerMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const { isAuthenticated, userProfile, signOut } = useAuth();
   const router = useRouter();
   
@@ -128,7 +126,7 @@ export function HamburgerMenu() {
 
   // Prevent body scroll when menu is open
   useEffect(() => {
-    if (isMenuOpen || showAuthModal) {
+    if (isMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -138,7 +136,7 @@ export function HamburgerMenu() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isMenuOpen, showAuthModal]);
+  }, [isMenuOpen]);
 
   const footerLinks = {
     services: [
@@ -174,7 +172,10 @@ export function HamburgerMenu() {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Get Started</h3>
         <div className="space-y-3">
           <Button 
-            onClick={() => setShowAuthModal(true)}
+            onClick={() => {
+              setIsMenuOpen(false);
+              router.push('/auth');
+            }}
             className="w-full"
           >
             Sign In / Sign Up
@@ -424,46 +425,6 @@ export function HamburgerMenu() {
             {/* Menu Content */}
             <div className="flex-1 px-6 py-6 overflow-y-auto min-h-0">
               {isAuthenticated ? renderSignedInMenu() : renderSignedOutMenu()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Auth Full Screen */}
-      {showAuthModal && (
-        <div 
-          className="fixed top-0 left-0 right-0 bottom-0 w-full h-full z-[9999] bg-white dark:bg-stone-900 md:hidden"
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 9999
-          }}
-        >
-          <div className="w-full h-full flex flex-col">
-            {/* Header */}
-            <div className="flex-shrink-0 bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-700 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Sign In
-              </h2>
-              <button
-                onClick={() => setShowAuthModal(false)}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Auth Content */}
-            <div className="flex-1 px-6 py-6 overflow-y-auto min-h-0">
-              <UnifiedAuth 
-                onSuccess={() => {
-                  setShowAuthModal(false);
-                  setIsMenuOpen(false);
-                }}
-              />
             </div>
           </div>
         </div>

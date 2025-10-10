@@ -5,17 +5,15 @@ import {
   UserCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import React from "react";
 import { Button } from "../ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { UnifiedAuth } from "../auth/UnifiedAuth";
 
 function FooterMobile() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   // Function to check if a path is active
   const isActive = (path: string) => {
@@ -59,25 +57,13 @@ function FooterMobile() {
             <Button 
               variant="default" 
               className="w-full"
-              onClick={() => setShowAuthDialog(true)}
+              onClick={() => router.push('/auth')}
             >
               GET STARTED
             </Button>
           </div>
         )}
       </div>
-
-      {/* Clean modal for mobile sign-in */}
-      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-        <DialogContent className="w-[95vw] max-w-md mx-auto my-4 p-0 rounded-xl border-0 shadow-2xl bg-white dark:bg-stone-900">
-          <DialogTitle className="sr-only">Sign In</DialogTitle>
-          <div className="p-6">
-            <UnifiedAuth 
-              onSuccess={() => setShowAuthDialog(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

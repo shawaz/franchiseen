@@ -519,8 +519,8 @@ function Header() {
 
               {/* Desktop Navigation */}
               <div className="hidden md:flex items-center gap-4">
-                <NetworkSwitcher />
                 <ThemeSwitcher />
+                <NetworkSwitcher />
                 <AuthHeader />
               </div>
 

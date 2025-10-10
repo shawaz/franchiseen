@@ -83,10 +83,10 @@ export default function ProfileDashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: PieChart },
-    { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'invoices', label: 'Invoices', icon: FileText },
     { id: 'shares', label: 'Shares', icon: Store },
     { id: 'payouts', label: 'Payouts', icon: Receipt },
-    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 

@@ -59,6 +59,7 @@ import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
 import { UnifiedAuth } from '@/components/auth/UnifiedAuth';
+import { useRouter } from 'next/navigation';
 import { Id } from "../../../../../convex/_generated/dataModel";
 import type { 
   Product, 
@@ -101,6 +102,7 @@ const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' 
 };
 
 function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>('franchise');
   const [franchise, setFranchise] = useState({
     name: "Loading...",
@@ -124,7 +126,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // Solana wallet hooks with error handling
   // Solana wallet hooks - always call them unconditionally
   // User wallet integration
-  const { userProfile } = useAuth();
+  const { userProfile, isAuthenticated } = useAuth();
   const { wallet: userWallet, isWalletLoaded, updateWalletBalance } = useUserWallet({ 
     userId: userProfile?.userId ? userProfile.userId as Id<"users"> : undefined 
   });
@@ -1073,7 +1075,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           franchiseId={franchiseData._id}
           franchiseName={franchiseData.franchiseSlug}
           franchiseLogo={logoUrl || '/logo/logo-4.svg'}
-          onBuyTokens={() => setIsBuyTokensOpen(true)}
+          onBuyTokens={() => {
+            if (!isAuthenticated) {
+              // Redirect to auth page with return URL
+              const currentPath = window.location.pathname;
+              router.push(`/auth?redirect=${encodeURIComponent(currentPath)}`);
+            } else {
+              setIsBuyTokensOpen(true);
+            }
+          }}
           franchiseStatus={franchiseData.status}
           franchiseStage={franchiseData.stage}
         />

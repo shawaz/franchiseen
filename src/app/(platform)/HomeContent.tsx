@@ -1,47 +1,20 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import FranchiseCardWithData from "@/components/app/franchise/FranchiseCardWithData";
 import { useFranchises, useFranchisersByStatus, useFranchisesWithStages } from "@/hooks/useFranchises";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { AuthModal } from "@/components/auth/AuthModal";
 import Link from "next/link";
 
 function HomeContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"register" | "create" | null>(null);
   const { isAuthenticated } = useAuth();
   
-  const handleAuthSuccess = useCallback(() => {
-    console.log("handleAuthSuccess called");
-    console.log("pendingAction:", pendingAction);
-    
-    if (pendingAction) {
-      console.log("Navigating to:", pendingAction);
-      if (pendingAction === "register") {
-        window.location.href = "/register";
-      } else {
-        window.location.href = "/create";
-      }
-      setPendingAction(null);
-    }
-  }, [pendingAction]);
-  
-  // Monitor authentication state changes
-  useEffect(() => {
-    console.log("Authentication state changed:", isAuthenticated);
-    if (isAuthenticated && showAuthModal && pendingAction) {
-      console.log("User became authenticated, executing pending action:", pendingAction);
-      handleAuthSuccess();
-      setShowAuthModal(false);
-    }
-  }, [isAuthenticated, showAuthModal, pendingAction, handleAuthSuccess]);
   
 
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
@@ -351,11 +324,6 @@ function HomeContent() {
   return (
     <>
       <div className="min-h-screen py-12">{renderTabContent()}</div>
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-        onSuccess={handleAuthSuccess}
-      />
     </>
   );
 }
