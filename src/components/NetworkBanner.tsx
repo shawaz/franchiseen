@@ -21,8 +21,8 @@ export function NetworkBanner() {
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0" />
           <div>
-            <div className="font-bold">DEVNET ENVIRONMENT - TEST NETWORK ONLY</div>
-            <div className="text-sm">All balances and transactions use test SOL with no real value</div>
+            <div className="font-bold">PAPER MONEY MODE - TEST NETWORK ONLY</div>
+            <div className="text-sm">All balances and transactions use paper money with no real value</div>
           </div>
         </div>
         <Link 
@@ -44,7 +44,7 @@ export function NetworkBanner() {
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-yellow-700 dark:text-yellow-400 flex-shrink-0" />
             <span className="text-sm text-yellow-700 dark:text-yellow-400">
-              <strong>Test Mode:</strong> You&apos;re viewing Devnet. Switch to Mainnet in account menu for real transactions.
+              <strong>Paper Money Mode:</strong> You&apos;re viewing Devnet. Switch to Mainnet in account menu for real money.
             </span>
           </div>
         </div>

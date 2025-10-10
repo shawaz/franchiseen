@@ -17,6 +17,8 @@ import { useUserWallet } from '@/hooks/useUserWallet';
 import { Id } from '../../../convex/_generated/dataModel';
 import { useAuth } from '@/contexts/AuthContext';
 import { NetworkToggle } from '@/components/NetworkToggle';
+import { useNetwork } from '@/contexts/NetworkContext';
+import { getSolanaConnection } from '@/lib/solanaConnection';
 
 interface AccountDropdownProps {
   balance?: number;
@@ -73,6 +75,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   const [mounted, setMounted] = useState(false);
   const { isAuthenticated, userProfile, signOut } = useAuth();
   const router = useRouter();
+  const { isDevnet } = useNetwork();
   
   // Get user's wallet balance
   const { wallet, updateWalletBalance } = useUserWallet({ userId: userProfile?.userId as Id<"users"> });
@@ -112,32 +115,33 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   }, [updateWalletBalance]);
 
   // Periodic balance refresh (every 30 seconds) to ensure balance stays current
+  // Also refresh when network changes
   useEffect(() => {
     if (!wallet.publicKey) return;
 
     const refreshBalance = async () => {
       try {
-        const { getWalletBalance } = await import('@/lib/solanaWalletUtils');
-        const currentBalance = await getWalletBalance(wallet.publicKey);
+        // Use the robust connection that's network-aware
+        const network = isDevnet ? 'devnet' : 'mainnet-beta';
+        const connection = getSolanaConnection(network);
+        const currentBalance = await connection.getBalance(wallet.publicKey);
         
-        // Only update if the balance has changed significantly
-        if (Math.abs(currentBalance - wallet.balance) > 0.001) {
-          console.log(`Account dropdown: Balance changed from ${wallet.balance} to ${currentBalance}`);
-          updateWalletBalance(currentBalance);
-        }
+        // Update balance
+        console.log(`Account dropdown: Balance for ${isDevnet ? 'devnet' : 'mainnet'}: ${currentBalance} SOL`);
+        updateWalletBalance(currentBalance);
       } catch (error) {
         console.error('Error refreshing balance in account dropdown:', error);
       }
     };
 
-    // Refresh immediately when wallet is loaded
+    // Refresh immediately when wallet is loaded or network changes
     refreshBalance();
 
     // Set up interval for periodic refresh
     const intervalId = setInterval(refreshBalance, 30000); // 30 seconds
 
     return () => clearInterval(intervalId);
-  }, [wallet.publicKey, wallet.balance, updateWalletBalance]);
+  }, [wallet.publicKey, isDevnet, updateWalletBalance]);
   
   // Get user's franchiser data using user ID from user profile
   const franchisers = useAllFranchisersByUserId(userProfile?._id || '');

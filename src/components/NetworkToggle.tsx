@@ -76,7 +76,7 @@ export function NetworkToggle() {
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-semibold">Test Network Active</div>
+                <div className="font-semibold">Paper Money Mode</div>
                 <div className="mt-1">Using test SOL with no real value. Safe to experiment!</div>
               </div>
             </div>
@@ -84,7 +84,7 @@ export function NetworkToggle() {
             <div className="flex items-start gap-2">
               <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-semibold">Production Network Active</div>
+                <div className="font-semibold">Real Money Mode</div>
                 <div className="mt-1">Real SOL and real money. All transactions are permanent.</div>
               </div>
             </div>
