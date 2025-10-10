@@ -13,7 +13,7 @@ export default function HowItWorksPage() {
         },
         {
           title: 'Choose Investment Amount',
-          description: 'Decide how much you want to invest — starting from $1 per share or fractional ownership.'
+          description: 'Decide how much you want to invest — starting from $1 per share.'
         },
         {
           title: 'Buy Franchise Tokens',
@@ -31,7 +31,7 @@ export default function HowItWorksPage() {
       const register = [
         {
           title: 'Sign Up as a Brand Owner',
-          description: 'Create your business account on Franchiseen.com and verify your brand identity.'
+          description: 'Create your business account and verify your brand.'
         },
         {
           title: 'Build Brand Profile',
@@ -47,7 +47,7 @@ export default function HowItWorksPage() {
         },
         {
           title: 'Tokenize Your Franchise',
-          description: 'Franchiseen converts your franchise into digital ownership tokens, enabling fractional investment.'
+          description: 'Franchiseen converts your franchise into digital ownership tokens as investment.'
         },
         {
           title: 'Publish & Go Live',

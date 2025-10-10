@@ -16,6 +16,7 @@ import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { useUserWallet } from '@/hooks/useUserWallet';
 import { Id } from '../../../convex/_generated/dataModel';
 import { useAuth } from '@/contexts/AuthContext';
+import { NetworkToggle } from '@/components/NetworkToggle';
 
 interface AccountDropdownProps {
   balance?: number;
@@ -217,7 +218,8 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
             </div>
           </Link>  
           
-          
+          {/* Network Toggle */}
+          <NetworkToggle />
 
           {/* User's Registered Brands */}
           {franchisers === undefined ? (

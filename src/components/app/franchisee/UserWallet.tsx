@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { useSolPrice } from '@/lib/coingecko';
 import { getSolanaConnection } from '@/lib/solanaConnection';
+import { useNetwork } from '@/contexts/NetworkContext';
 
 interface WalletProps {
   onAddMoney?: () => void;
@@ -30,12 +31,14 @@ const UserWallet: React.FC<WalletProps> = ({
   const avatarUrl = useConvexImageUrl(userProfile?.avatar);
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isDevnet, setIsDevnet] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState<boolean>(false);
   const [lastAirdropTime, setLastAirdropTime] = useState<number | null>(null);
   const [nextAirdropIn, setNextAirdropIn] = useState<number | null>(null);
+  
+  // Get network state from context
+  const { isDevnet } = useNetwork();
   
   // Get SOL to USD price from CoinGecko
   const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
@@ -44,12 +47,6 @@ const UserWallet: React.FC<WalletProps> = ({
   useEffect(() => {
     setIsClient(true);
     setLastUpdated(new Date());
-  }, []);
-
-  // Check environment to determine if we're on devnet or mainnet
-  useEffect(() => {
-    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
-    setIsDevnet(network === 'devnet');
   }, []);
 
   // Load last airdrop time from localStorage on component mount
