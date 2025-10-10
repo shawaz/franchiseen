@@ -285,7 +285,7 @@ export default function InvoicesTab() {
                         </div>
                         {invoice.transactionHash && (
                           <a 
-                            href={`https://explorer.solana.com/tx/${invoice.transactionHash}`} 
+                            href={`https://explorer.solana.com/tx/${invoice.transactionHash}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet'}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"

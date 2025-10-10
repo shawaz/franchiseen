@@ -52,10 +52,10 @@ const UserWallet: React.FC<WalletProps> = ({
     setLastUpdated(new Date());
   }, []);
 
-  // Assume devnet by default since the app is configured with devnet/localnet clusters.
-  // This avoids a slow/brittle network probe that can hang the UI.
+  // Check environment to determine if we're on devnet or mainnet
   useEffect(() => {
-    setIsDevnet(true);
+    const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+    setIsDevnet(network === 'devnet');
   }, []);
 
   // Load last airdrop time from localStorage on component mount
@@ -372,11 +372,13 @@ const UserWallet: React.FC<WalletProps> = ({
               <div className="text-right">
                 <div className="flex items-center justify-end gap-2">
                   <span className="text-yellow-100 text-xs">SOL Balance</span>
-                  {isDevnet && (
-                    <span className="bg-yellow-500 text-yellow-900 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                      DEVNET
-                    </span>
-                  )}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    isDevnet 
+                      ? 'bg-yellow-500 text-yellow-900' 
+                      : 'bg-green-500 text-green-900'
+                  }`}>
+                    {isDevnet ? 'DEVNET' : 'MAINNET'}
+                  </span>
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold">
                   {loading ? '...' : formatSol(balance)}

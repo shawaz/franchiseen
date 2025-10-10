@@ -407,7 +407,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       console.log(`REAL payment processed successfully!`);
       console.log(`Transaction signature: ${signature}`);
-      console.log(`View on Solscan: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+      const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
+      console.log(`View on Solscan: https://explorer.solana.com/tx/${signature}${network}`);
       
       return signature;
     } catch (error) {
@@ -679,7 +680,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     {transaction.transactionHash && (
                       <div className="mt-1">
                         <a
-                          href={`https://explorer.solana.com/tx/${transaction.transactionHash}?cluster=devnet`}
+                          href={`https://explorer.solana.com/tx/${transaction.transactionHash}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet'}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-mono flex items-center gap-1 hover:underline"
@@ -1758,7 +1759,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   setIsBuyTokensOpen(false);
                   
                   // Show success message with explorer link
-                  const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}?cluster=devnet`;
+                  const networkParam = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
+                  const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}${networkParam}`;
                   toast.success(
                     <div className="flex flex-col gap-2">
                       <div>Successfully purchased {tokensToBuy} tokens for ${totalCost.toFixed(2)}!</div>
