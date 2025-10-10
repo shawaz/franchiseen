@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { ArrowUpDown, Copy, ArrowDownLeft, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Button } from '../../ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { useSolPrice } from '@/lib/coingecko';
+import { getSolanaConnection } from '@/lib/solanaConnection';
 
 interface WalletProps {
   onAddMoney?: () => void;
@@ -38,13 +39,6 @@ const UserWallet: React.FC<WalletProps> = ({
   
   // Get SOL to USD price from CoinGecko
   const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
-
-  // List of reliable RPC endpoints to try (memoized to prevent recreation on every render)
-  const MAINNET_RPC_ENDPOINTS = useMemo(() => [
-    'https://api.mainnet-beta.solana.com',
-    'https://solana-api.projectserum.com',
-    'https://solana-mainnet.rpc.extrnode.com',
-  ], []);
 
   // Initialize client-side state to prevent hydration mismatches
   useEffect(() => {
@@ -103,35 +97,7 @@ const UserWallet: React.FC<WalletProps> = ({
     ].join(':');
   };
 
-  // Create a connection with retry logic
-  const createConnection = useCallback(async (endpoint: string, retries = 1, delay = 800): Promise<number> => {
-    if (!walletAddress) {
-      throw new Error('No wallet address available');
-    }
-
-    try {
-      const connection = new Connection(endpoint, {
-        commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 60000,
-      });
-      
-      const publicKey = new PublicKey(walletAddress);
-      // Add a timeout so hung RPCs don't freeze the UI indefinitely
-      const balanceInLamports = await Promise.race([
-        connection.getBalance(publicKey),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('RPC timeout')), 4000)),
-      ]);
-      return balanceInLamports / LAMPORTS_PER_SOL;
-    } catch (error) {
-      if (retries > 0) {
-        console.warn(`Failed to fetch balance from ${endpoint}, retrying... (${retries} attempts left)`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return createConnection(endpoint, retries - 1, delay * 2);
-      }
-      throw error;
-    }
-  }, [walletAddress]);
-
+  // Fetch balance using Helius RPC with automatic fallback
   const fetchBalance = useCallback(async () => {
     if (!connected || !walletAddress) {
       setBalance(0);
@@ -142,48 +108,20 @@ const UserWallet: React.FC<WalletProps> = ({
     setLoading(true);
     
     try {
-      // Use the correct network based on environment
-      if (isDevnet) {
-        // Try devnet endpoints
-        try {
-          const balanceInSol = await createConnection(clusterApiUrl('devnet'));
-          setBalance(balanceInSol);
-          setLastUpdated(new Date());
-          return;
-        } catch (e) {
-          console.warn('Failed to fetch balance from devnet:', e);
-          // Try alternate devnet RPC
-          try {
-            const balanceInSol = await createConnection('https://api.devnet.solana.com');
-            setBalance(balanceInSol);
-            setLastUpdated(new Date());
-            return;
-          } catch (e2) {
-            console.warn('Failed to fetch from alternate devnet RPC:', e2);
-          }
-        }
-      } else {
-        // Try mainnet endpoints
-        for (const endpoint of MAINNET_RPC_ENDPOINTS) {
-          try {
-            const balanceInSol = await createConnection(endpoint);
-            setBalance(balanceInSol);
-            setLastUpdated(new Date());
-            return;
-          } catch (e) {
-            console.warn(`Failed to fetch balance from ${endpoint}:`, e);
-            continue;
-          }
-        }
-      }
-
-      // Final fallback: zero balance
-      setBalance(0);
+      // Use robust connection with Helius + fallbacks
+      const network = isDevnet ? 'devnet' : 'mainnet-beta';
+      const connection = getSolanaConnection(network);
+      
+      // Fetch balance with automatic retry and fallback
+      const balanceInSol = await connection.getBalance(walletAddress);
+      
+      setBalance(balanceInSol);
+      setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error fetching balance from all endpoints:', error);
+      console.error('Error fetching balance:', error);
       toast.error('Failed to fetch balance. Please try again later.');
       
-      // If we have a cached balance, don't show 0
+      // If we have a cached balance, show warning but keep it
       if (balance > 0) {
         toast.info('Showing cached balance. Some features may be limited.');
       } else {
@@ -192,7 +130,7 @@ const UserWallet: React.FC<WalletProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [connected, walletAddress, balance, createConnection, MAINNET_RPC_ENDPOINTS, isDevnet]);
+  }, [connected, walletAddress, balance, isDevnet]);
 
   useEffect(() => {
     fetchBalance();
