@@ -142,26 +142,38 @@ const UserWallet: React.FC<WalletProps> = ({
     setLoading(true);
     
     try {
-      // Prefer devnet first based on app configuration
-      try {
-        const balanceInSol = await createConnection(clusterApiUrl('devnet'));
-        setBalance(balanceInSol);
-        setLastUpdated(new Date());
-        return;
-      } catch (e) {
-        console.warn('Failed to fetch balance from devnet:', e);
-      }
-
-      // Fallback to common mainnet RPCs (with short timeouts)
-      for (const endpoint of MAINNET_RPC_ENDPOINTS) {
+      // Use the correct network based on environment
+      if (isDevnet) {
+        // Try devnet endpoints
         try {
-          const balanceInSol = await createConnection(endpoint);
+          const balanceInSol = await createConnection(clusterApiUrl('devnet'));
           setBalance(balanceInSol);
           setLastUpdated(new Date());
           return;
         } catch (e) {
-          console.warn(`Failed to fetch balance from ${endpoint}:`, e);
-          continue;
+          console.warn('Failed to fetch balance from devnet:', e);
+          // Try alternate devnet RPC
+          try {
+            const balanceInSol = await createConnection('https://api.devnet.solana.com');
+            setBalance(balanceInSol);
+            setLastUpdated(new Date());
+            return;
+          } catch (e2) {
+            console.warn('Failed to fetch from alternate devnet RPC:', e2);
+          }
+        }
+      } else {
+        // Try mainnet endpoints
+        for (const endpoint of MAINNET_RPC_ENDPOINTS) {
+          try {
+            const balanceInSol = await createConnection(endpoint);
+            setBalance(balanceInSol);
+            setLastUpdated(new Date());
+            return;
+          } catch (e) {
+            console.warn(`Failed to fetch balance from ${endpoint}:`, e);
+            continue;
+          }
         }
       }
 
@@ -180,7 +192,7 @@ const UserWallet: React.FC<WalletProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [connected, walletAddress, balance, createConnection, MAINNET_RPC_ENDPOINTS]);
+  }, [connected, walletAddress, balance, createConnection, MAINNET_RPC_ENDPOINTS, isDevnet]);
 
   useEffect(() => {
     fetchBalance();
