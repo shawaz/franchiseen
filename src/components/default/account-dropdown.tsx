@@ -117,20 +117,33 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   // Periodic balance refresh (every 30 seconds) to ensure balance stays current
   // Also refresh when network changes
   useEffect(() => {
-    if (!wallet.publicKey) return;
+    if (!wallet.publicKey) {
+      console.log('[Account Dropdown] No wallet.publicKey, skipping balance fetch');
+      return;
+    }
 
     const refreshBalance = async () => {
       try {
-        // Use the robust connection that's network-aware
         const network = isDevnet ? 'devnet' : 'mainnet-beta';
+        console.log(`[Account Dropdown] Fetching balance for wallet: ${wallet.publicKey.slice(0, 8)}...`);
+        console.log(`[Account Dropdown] Network: ${network}`);
+        
+        // Use the robust connection that's network-aware
         const connection = getSolanaConnection(network);
+        console.log(`[Account Dropdown] Using RPC: ${connection.getCurrentRpcUrl()}`);
+        
         const currentBalance = await connection.getBalance(wallet.publicKey);
         
         // Update balance
-        console.log(`Account dropdown: Balance for ${isDevnet ? 'devnet' : 'mainnet'}: ${currentBalance} SOL`);
+        console.log(`[Account Dropdown] ✅ Balance fetched: ${currentBalance} SOL on ${network}`);
         updateWalletBalance(currentBalance);
       } catch (error) {
-        console.error('Error refreshing balance in account dropdown:', error);
+        console.error('[Account Dropdown] ❌ Error fetching balance:', error);
+        console.error('[Account Dropdown] Error details:', {
+          wallet: wallet.publicKey,
+          network: isDevnet ? 'devnet' : 'mainnet',
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     };
 
@@ -190,8 +203,12 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
         className="w-56 mt-3 bg-white dark:bg-neutral-900 dark:border-neutral-600 dark:border-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-0"
         align="end"
       >
+        {/* Network Toggle */}
+        <NetworkToggle />
+
+
           <Link href="/account">
-            <div className="flex border-b items-center gap-3 px-5 py-2 text-gray-700 dark:text-gray-100 dark:hover:bg-stone-900/30 hover:bg-gray-50 transition-colors">
+            <div className="flex border-b items-center gap-3 px-5 py-2 ">
               <div className="relative h-8 w-8 flex-shrink-0 z-0">
                 {avatarUrl ? (
                   <Image
@@ -215,15 +232,23 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
                     : userProfile?.email || 'User'
                   }
                 </h3>
-                <p className="text-xs text-gray-500 truncate">
-                  {balanceLoading ? 'Loading...' : `${walletBalance.toFixed(4)} SOL`}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-gray-500 truncate">
+                    {balanceLoading ? 'Loading...' : `${walletBalance.toFixed(4)} SOL`}
+                  </p>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    isDevnet 
+                      ? 'bg-yellow-500 text-yellow-900' 
+                      : 'bg-green-500 text-green-900'
+                  }`}>
+                    {/* {isDevnet ? '📄' : '💵'} */}
+                  </span>
+                </div>
               </div>
             </div>
           </Link>  
           
-          {/* Network Toggle */}
-          <NetworkToggle />
+          
 
           {/* User's Registered Brands */}
           {franchisers === undefined ? (

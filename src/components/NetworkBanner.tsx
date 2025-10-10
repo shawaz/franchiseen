@@ -21,7 +21,7 @@ export function NetworkBanner() {
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0" />
           <div>
-            <div className="font-bold">PAPER MONEY MODE - TEST NETWORK ONLY</div>
+            <div className="font-bold">PAPER MONEY MODE - SOLANA DEVNET</div>
             <div className="text-sm">All balances and transactions use paper money with no real value</div>
           </div>
         </div>
