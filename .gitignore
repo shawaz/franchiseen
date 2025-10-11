@@ -34,6 +34,11 @@ yarn-error.log*
 .env*
 .env.local
 
+# wallet credentials (NEVER commit these!)
+platform-wallet.json
+*-wallet-*.json
+*-keypair.json
+
 # vercel
 .vercel
 
