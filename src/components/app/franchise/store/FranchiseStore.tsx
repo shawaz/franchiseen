@@ -49,6 +49,7 @@ import {
   Receipt,
   TrendingUp,
   ExternalLink,
+  CreditCard,
 } from 'lucide-react';
 import Image from 'next/image';
 // import FranchisePOSWallet from '../FranchisePOSWallet';
@@ -103,7 +104,7 @@ const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' 
 
 function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabId>('franchise');
+  const [activeTab, setActiveTab] = useState<TabId>('products');
   const [franchise, setFranchise] = useState({
     name: "Loading...",
     brandLogo: "/logo/logo-4.svg",
@@ -289,8 +290,59 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isBuyTokensOpen, setIsBuyTokensOpen] = useState(false);
   const [isSignupOpen, setIsSignupOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const platformFeePercentage = 2; // 2% platform fee
   const solToUsdRate = 150; // Current SOL to USD rate (example)
+  
+  // Shopping cart state
+  const [cart, setCart] = useState<Record<string, number>>({});
+  
+  // Cart functions
+  const addToCart = (productId: string) => {
+    setCart(prev => ({
+      ...prev,
+      [productId]: (prev[productId] || 0) + 1
+    }));
+    toast.success('Added to cart');
+  };
+  
+  const removeFromCart = (productId: string) => {
+    setCart(prev => {
+      const newCart = { ...prev };
+      if (newCart[productId] > 1) {
+        newCart[productId]--;
+      } else {
+        delete newCart[productId];
+      }
+      return newCart;
+    });
+  };
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const updateCartQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      setCart(prev => {
+        const newCart = { ...prev };
+        delete newCart[productId];
+        return newCart;
+      });
+    } else {
+      setCart(prev => ({
+        ...prev,
+        [productId]: quantity
+      }));
+    }
+  };
+  
+  const clearCart = () => {
+    setCart({});
+  };
+  
+  const cartItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+  const cartTotal = Object.entries(cart).reduce((sum, [productId, qty]) => {
+    const product = products.find(p => p.id === productId);
+    return sum + (product?.price || 0) * qty;
+  }, 0);
   
   // Get real data from fundraising data
   const totalShares = fundraisingData.totalShares || 100000;
@@ -552,11 +604,11 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
  
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'franchise', label: 'Franchise', icon: Store },
     { id: 'products', label: 'Products', icon: Box },
-    { id: 'franchisee', label: 'Franchisee', icon: Users },
-    { id: 'finances', label: 'Finances', icon: DollarSign },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'finances', label: 'Finances', icon: DollarSign },
+    { id: 'franchisee', label: 'Franchisee', icon: Users },
+    { id: 'franchise', label: 'Franchise', icon: Store },
     // { id: 'reviews', label: 'Reviews', icon: Star },
   ];
 
@@ -1084,13 +1136,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               setIsBuyTokensOpen(true);
             }
           }}
+          onCheckout={cartItemsCount > 0 ? () => setIsCheckoutOpen(true) : undefined}
+          cartItemsCount={cartItemsCount}
           franchiseStatus={franchiseData.status}
           franchiseStage={franchiseData.stage}
         />
       )}
 
       {/* Navigation Tabs */}
-      <Card className="p-0">
+      <Card className="">
         <div className="border-b border-stone-200 dark:border-stone-700">
           <div className="flex items-center justify-between px-6">
             <nav className="flex space-x-8 overflow-x-auto">
@@ -1116,7 +1170,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           </div>
         </div>
 
-        <div className="px-6">
+        <div className="px-6 pb-6">
           
           {activeTab === 'finances' && (
         <div className="space-y-6">
@@ -1271,93 +1325,125 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       {activeTab === 'products' && (
             <div className="space-y-6">
-              {/* Categories and Search */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex space-x-2 overflow-x-auto pb-1">
+            {/* Categories and Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex space-x-2 overflow-x-auto pb-1">
+              <button 
+                onClick={() => setSelectedCategory('All Items')}
+                className={`px-4 py-2  text-sm font-medium transition-colors ${
+                  selectedCategory === 'All Items'
+                    ? 'bg-neutral-500 dark:bg-neutral-800 text-white hover:bg-neutral-600'
+                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200'
+                }`}
+              >
+                All Items
+              </button>
+              {Array.from(new Set(products.map(p => p.category))).map(category => (
                 <button 
-                  onClick={() => setSelectedCategory('All Items')}
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
                   className={`px-4 py-2  text-sm font-medium transition-colors ${
-                    selectedCategory === 'All Items'
+                    selectedCategory === category
                       ? 'bg-neutral-500 dark:bg-neutral-800 text-white hover:bg-neutral-600'
                       : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200'
                   }`}
                 >
-                  All Items
+                  {category}
                 </button>
-                {Array.from(new Set(products.map(p => p.category))).map(category => (
-                  <button 
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`px-4 py-2  text-sm font-medium transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-neutral-500 dark:bg-neutral-800 text-white hover:bg-neutral-600'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-                </div>
-                
-                {/* Search Bar */}
-                <div className="relative w-full sm:w-auto">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-4 w-4 text-stone-500" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-stone-200 bg-white text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-500 focus:border-stone-500 text-sm h-9"
-                  />
-                </div>
+              ))}
               </div>
-
-              {/* Product Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products
-                  .filter(product => 
-                    (selectedCategory === 'All Items' || product.category === selectedCategory) &&
-                    (searchQuery === '' || 
-                      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      product.description.toLowerCase().includes(searchQuery.toLowerCase()))
-                  )
-                  .map((product) => (
-                  <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200">
-                    <div className="relative h-48 bg-stone-100">
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                      />
-                      {/* <div className="absolute top-2 right-2 bg-white/90  p-1.5 shadow-sm">
-                        <Heart className="h-4 w-4 text-stone-500" />
-                      </div> */}
-                    </div>
-                    <div className="p-4">
-                      <div className="mb-2">
-                        <h3 className="font-semibold text-lg text-stone-800 dark:text-white">{product.name}</h3>
-                        <p className="text-sm text-stone-600 line-clamp-2 mt-1 dark:text-stone-400">
-                          {product.description}
-                        </p>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between">
-                        <span className="text-stone-600 font-bold text-lg">${product.price.toFixed(2)}</span>
-                        {/* <button
-                          // onClick={() => addToCart(product)}
-                          className="bg-stone-500 hover:bg-stone-600 text-white py-2 px-4  font-medium transition-colors"
-                          disabled
-                        >
-                          Coming Soon
-                        </button> */}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+              
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-auto">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-stone-500" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-500 focus:border-stone-500 text-sm h-9"
+                />
               </div>
             </div>
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products
+                .filter(product => 
+                  (selectedCategory === 'All Items' || product.category === selectedCategory) &&
+                  (searchQuery === '' || 
+                    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    product.description.toLowerCase().includes(searchQuery.toLowerCase()))
+                )
+                .map((product) => {
+                  const quantityInCart = cart[product.id] || 0;
+                  const isOngoing = fundraisingData.stage === 'ongoing';
+                  
+                  return (
+                    <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200 dark:border-stone-700 gap-0">
+                      <div className="relative h-64 aspect-square bg-stone-100 dark:bg-stone-700">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <h3 className="font-semibold text-lg text-stone-800 dark:text-stone-200">{product.name}</h3>
+                          <p className="text-sm text-stone-600 line-clamp-2 mt-1 dark:text-stone-400">
+                            {product.description}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-stone-600 dark:text-stone-400 font-bold text-lg">${product.price.toFixed(2)}</span>
+                        </div>
+                        
+                        {/* Cart Controls - Only show if franchise is ongoing */}
+                        {isOngoing && (
+                          <div className="pt-2">
+                            {quantityInCart === 0 ? (
+                              <Button
+                                onClick={() => addToCart(product.id)}
+                                className="w-full bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700"
+                                size="sm"
+                              >
+                                Add to Cart
+                              </Button>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <Button
+                                  onClick={() => removeFromCart(product.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  −
+                                </Button>
+                                <div className="px-4 py-2 bg-stone-100 dark:bg-stone-800 rounded font-semibold min-w-[60px] text-center">
+                                  {quantityInCart}
+                                </div>
+                                <Button
+                                  onClick={() => addToCart(product.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                >
+                                  +
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+            </div>
+          </div> 
           )}
 
 
@@ -1844,6 +1930,273 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               setIsBuyTokensOpen(true);
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Checkout Modal */}
+      <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+        <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[600px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
+          {/* Fixed Header */}
+          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-lg sm:text-xl font-bold">Checkout</DialogTitle>
+                <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
+                  Review your order and complete purchase
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+            {/* Cart Items */}
+            <div className="space-y-4 mb-4">
+              <h3 className="font-semibold text-lg">Order Summary</h3>
+              {Object.entries(cart).map(([productId, quantity]) => {
+                const product = products.find(p => p.id === productId);
+                if (!product) return null;
+                
+                return (
+                  <div key={productId} className="flex items-center gap-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-lg border border-stone-200 dark:border-stone-700">
+                    <div className="relative w-20 h-20 flex-shrink-0 bg-stone-200 dark:bg-stone-700 rounded">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-stone-900 dark:text-white truncate">{product.name}</h4>
+                      <p className="text-sm text-stone-600 dark:text-stone-400">${product.price.toFixed(2)} each</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          onClick={() => removeFromCart(productId)}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          −
+                        </Button>
+                        <span className="px-3 py-1 bg-white dark:bg-stone-900 rounded font-semibold min-w-[40px] text-center border border-stone-200 dark:border-stone-700">
+                          {quantity}
+                        </span>
+                        <Button
+                          onClick={() => addToCart(productId)}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-stone-900 dark:text-white">
+                        ${(product.price * quantity).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Price Breakdown */}
+            <div className="space-y-3 mb-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
+              <h3 className="font-semibold">Price Breakdown</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600 dark:text-stone-400">Subtotal</span>
+                  <span className="font-semibold">${cartTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600 dark:text-stone-400">Tax (0%)</span>
+                  <span className="font-semibold">$0.00</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-stone-300 dark:border-stone-600 text-base">
+                  <span className="font-semibold">Total</span>
+                  <span className="font-bold text-lg text-yellow-600">${cartTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* User Wallet Status */}
+            {isWalletLoaded && userWallet.publicKey ? (
+              <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                      Wallet Connected
+                    </span>
+                  </div>
+                  <div className="text-left sm:text-right pl-4 sm:pl-0">
+                    <span className="text-xs font-mono text-green-600 dark:text-green-400 block">
+                      {userWallet.publicKey.slice(0, 8)}...{userWallet.publicKey.slice(-6)}
+                    </span>
+                    <div className="text-sm font-semibold text-green-700 dark:text-green-300 mt-0.5">
+                      {userWallet.balance.toFixed(4)} SOL
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 mb-4">
+                <div className="flex items-start space-x-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1"></div>
+                  <span className="text-sm text-red-700 dark:text-red-400">
+                    Wallet not connected. Please complete your profile setup first.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Insufficient Balance Warning */}
+            {isWalletLoaded && userWallet.publicKey && userWallet.balance < (cartTotal / solToUsdRate) && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 mb-4">
+                <div className="flex items-start space-x-2">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full mt-1"></div>
+                  <div className="text-sm text-red-700 dark:text-red-400">
+                    <span className="font-semibold">Insufficient balance.</span>
+                    <div className="mt-1">Need: {(cartTotal / solToUsdRate).toFixed(4)} SOL</div>
+                    <div>Have: {userWallet.balance.toFixed(4)} SOL</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Fixed Footer with Actions */}
+          <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 sticky bottom-0">
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => setIsCheckoutOpen(false)}
+                className="flex-1 h-12 sm:h-14"
+              >
+                Continue Shopping
+              </Button>
+              <Button 
+                size="lg"
+                className="flex-[2] h-12 sm:h-14 bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 font-semibold shadow-lg"
+                disabled={isProcessing || cartItemsCount === 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (cartTotal / solToUsdRate)}
+                onClick={async () => {
+                  if (!isWalletLoaded || !userWallet.publicKey) {
+                    toast.error('User wallet not found. Please complete your profile setup first.');
+                    return;
+                  }
+
+                  console.log('Processing order...');
+                  console.log('Cart:', cart);
+                  console.log('Total:', cartTotal);
+
+                  setIsProcessing(true);
+                  
+                  try {
+                    // Calculate SOL amount
+                    const totalInSOL = cartTotal / solToUsdRate;
+                    
+                    // For now, we'll use a placeholder destination (franchise wallet)
+                    const destinationAddress = franchise.brandWalletAddress || '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+                    
+                    console.log('Payment details:', {
+                      totalUSD: cartTotal,
+                      totalSOL: totalInSOL,
+                      destination: destinationAddress
+                    });
+
+                    // Process Solana payment
+                    const transactionHash = await handleSolanaPayment(
+                      totalInSOL,
+                      destinationAddress
+                    );
+
+                    // Record transaction
+                    const transaction = {
+                      id: `product_purchase_${Date.now()}`,
+                      type: 'product_purchase',
+                      amount: cartTotal,
+                      amountSOL: totalInSOL,
+                      description: `Purchased ${cartItemsCount} items from ${franchise.name}`,
+                      franchiseSlug: franchiseId,
+                      status: 'confirmed',
+                      transactionHash: transactionHash,
+                      timestamp: Date.now(),
+                      fromAddress: userWallet.publicKey,
+                      toAddress: destinationAddress,
+                      items: Object.entries(cart).map(([productId, quantity]) => {
+                        const product = products.find(p => p.id === productId);
+                        return {
+                          productId,
+                          productName: product?.name,
+                          quantity,
+                          price: product?.price
+                        };
+                      })
+                    };
+
+                    // Save transaction to localStorage
+                    const existingTransactions = localStorage.getItem(`transactions_${userWallet.publicKey}`);
+                    const transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
+                    transactions.unshift(transaction);
+                    localStorage.setItem(`transactions_${userWallet.publicKey}`, JSON.stringify(transactions));
+                    
+                    console.log('✅ Order completed:', transaction);
+                    
+                    // Clear cart and close modal
+                    clearCart();
+                    setIsCheckoutOpen(false);
+                    
+                    // Show success message
+                    const networkParam = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
+                    const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}${networkParam}`;
+                    toast.success(
+                      <div className="flex flex-col gap-2">
+                        <div>Order completed successfully! Total: ${cartTotal.toFixed(2)}</div>
+                        <a 
+                          href={explorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"
+                        >
+                          View on Solana Explorer
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>,
+                      { duration: 10000 }
+                    );
+                    
+                  } catch (error) {
+                    console.error('Error processing order:', error);
+                    toast.error(`Failed to process order: ${(error as Error).message || 'Please try again.'}`);
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+              >
+                {isProcessing ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : !isWalletLoaded || !userWallet.publicKey ? (
+                  'Connect Wallet'
+                ) : userWallet.balance < (cartTotal / solToUsdRate) ? (
+                  'Insufficient Balance'
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Complete Order • ${cartTotal.toFixed(2)}
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

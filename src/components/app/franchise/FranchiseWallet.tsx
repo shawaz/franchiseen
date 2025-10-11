@@ -19,6 +19,8 @@ interface FranchiseWalletProps {
   franchiseLogo?: string;
   className?: string;
   onBuyTokens?: () => void;
+  onCheckout?: () => void;
+  cartItemsCount?: number;
   franchiseStatus?: string;
   franchiseStage?: string;
 }
@@ -37,6 +39,8 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
   franchiseLogo = '/logo/logo-4.svg',
   className = '',
   onBuyTokens,
+  onCheckout,
+  cartItemsCount = 0,
   franchiseStatus,
   franchiseStage,
 }) => {
@@ -482,7 +486,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             </div>
           </div>
           
-          {/* Right side - Buy Tokens button for funding stage */}
+          {/* Right side - Buy Tokens button for funding stage and Checkout for ongoing */}
           <div className="flex items-center gap-2">
             {stageContent.showBuyShares && (
               <Button
@@ -499,6 +503,22 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               </Button>
             )}
             
+            {/* Checkout button for ongoing stage */}
+            {franchiseStage === 'ongoing' && onCheckout && (
+              <Button
+                onClick={onCheckout}
+                className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 relative"
+                disabled={cartItemsCount === 0}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Checkout
+                {cartItemsCount > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-white text-yellow-700 rounded-full text-xs font-bold">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>

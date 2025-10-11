@@ -147,8 +147,8 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
 
         {/* First value - show total budget and current balance */}
         <div className="flex justify-between items-center mt-2">
-          <p className="font-semibold">{formatCurrency(firstValue)}</p>
-          <p className="font-semibold">{formatCurrency(currentBalance || 0)}</p>
+        <p className="font-semibold">{formatCurrency(currentBalance || 0)} </p>
+          <p className="font-semibold">{formatCurrency(firstValue)} </p>
           {/* <div className="text-sm font-medium">
             {stage === 'funding' && <span className="text-blue-600">Funding</span>}
             {stage === 'launching' && <span className="text-yellow-600">Launching</span>}
@@ -287,10 +287,6 @@ const FranchiseCard: React.FC<FranchiseCardProps> = ({
               
 
           </div>
-         
-          
-          
-          
           {renderCardContent()}
         </div>
       </div>

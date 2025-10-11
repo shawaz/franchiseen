@@ -58,7 +58,7 @@ export function ProductsTab({
             placeholder="Search products..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-stone-200 bg-white text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm h-9"
+            className="block w-full pl-10 pr-3 py-2 border border-stone-200 bg-white dark:bg-stone-800 text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm h-9"
           />
         </div>
       </div>
@@ -73,8 +73,8 @@ export function ProductsTab({
               product.description.toLowerCase().includes(searchQuery.toLowerCase()))
           )
           .map((product) => (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200">
-              <div className="relative h-48 bg-stone-100">
+            <Card key={product.id} className="overflow-hidden ">
+              <div className="relative h-64 bg-stone-100 dark:bg-stone-700">
                 <Image
                   src={product.image}
                   alt={product.name}
