@@ -319,3 +319,41 @@ export const getPayoutSummary = query({
     };
   },
 });
+
+// Get all payouts for an investor across all franchises
+export const getAllInvestorPayouts = query({
+  args: { investorId: v.string() },
+  handler: async (ctx, { investorId }) => {
+    const payouts = await ctx.db
+      .query("shareholderPayouts")
+      .withIndex("by_investor", (q) => q.eq("investorId", investorId))
+      .order("desc")
+      .collect();
+    
+    // Get franchise details for each payout
+    const payoutsWithDetails = await Promise.all(
+      payouts.map(async (payout) => {
+        const franchise = await ctx.db.get(payout.franchiseId);
+        const franchisePayout = await ctx.db.get(payout.payoutId);
+        
+        return {
+          ...payout,
+          franchise: franchise ? {
+            _id: franchise._id,
+            franchiseSlug: franchise.franchiseSlug,
+            businessName: franchise.businessName,
+            stage: franchise.stage,
+            status: franchise.status
+          } : null,
+          franchisePayout: franchisePayout ? {
+            grossRevenue: franchisePayout.grossRevenue,
+            distributionRule: franchisePayout.distributionRule,
+            reservePercentage: franchisePayout.reservePercentage
+          } : null
+        };
+      })
+    );
+    
+    return payoutsWithDetails;
+  },
+});

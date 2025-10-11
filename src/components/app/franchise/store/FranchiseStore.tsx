@@ -70,7 +70,7 @@ import type {
   FranchiseStoreProps
 } from "@/types/ui"; // Updated TabId type
 
-type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' | 'transactions';
+type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' | 'transactions' | 'payouts';
 
 // Helper function to add income records to the income table
 const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' | 'subscription', amount: number, source: string, description: string, transactionHash?: string) => {
@@ -657,6 +657,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'products', label: 'Products', icon: Box },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'payouts', label: 'Payouts', icon: TrendingUp },
     { id: 'finances', label: 'Finances', icon: DollarSign },
     { id: 'franchisee', label: 'Franchisee', icon: Users },
     { id: 'franchise', label: 'Franchise', icon: Store },
@@ -818,6 +819,140 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
             </Card>
           ))}
         </div>
+      </div>
+    );
+  };
+
+  // Payouts Tab Component
+  const PayoutsTab = ({ franchiseId }: { franchiseId: string }) => {
+    // Get franchise payouts
+    const franchisePayouts = useQuery(
+      api.payoutManagement.getFranchisePayouts,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      franchiseId ? { franchiseId: franchiseId as any } : "skip"
+    );
+
+    // Get payout summary
+    const payoutSummary = useQuery(
+      api.payoutManagement.getPayoutSummary,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      franchiseId ? { franchiseId: franchiseId as any } : "skip"
+    );
+
+    if (!franchisePayouts || franchisePayouts.length === 0) {
+      return (
+        <div className="space-y-6 py-12">
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <TrendingUp className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-stone-800 dark:text-white mb-2">No Payouts Yet</h3>
+              <p className="text-stone-600 dark:text-stone-400">
+                This franchise hasn&apos;t distributed any payouts to token holders yet.
+              </p>
+              <p className="text-sm text-stone-500 dark:text-stone-500 mt-2">
+                Payouts will appear here once the franchise processes revenue distributions.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Total Distributed</p>
+            <p className="text-2xl font-bold text-green-600">
+              ${payoutSummary?.totalToTokenHolders?.toLocaleString() || '0'}
+            </p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">To investors</p>
+          </Card>
+          
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Total Revenue</p>
+            <p className="text-2xl font-bold">${payoutSummary?.totalGrossRevenue?.toLocaleString() || '0'}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Gross revenue</p>
+          </Card>
+
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Reserve Fund</p>
+            <p className="text-2xl font-bold text-blue-600">
+              ${payoutSummary?.currentReserveBalance?.toLocaleString() || '0'}
+            </p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              {payoutSummary?.currentReservePercentage?.toFixed(1)}% of target
+            </p>
+          </Card>
+          
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Total Payouts</p>
+            <p className="text-2xl font-bold text-purple-600">{payoutSummary?.totalPayouts || 0}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Distributions</p>
+          </Card>
+        </div>
+
+        {/* Payouts Table */}
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-stone-50 dark:bg-stone-800">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Period</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Revenue</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">To Holders</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">To Reserve</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Royalty</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Platform Fee</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Rule</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
+                {franchisePayouts.map((payout) => (
+                  <tr key={payout._id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="text-sm font-medium">{payout.period}</div>
+                      <div className="text-xs text-stone-500">
+                        {new Date(payout.createdAt).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
+                      ${payout.grossRevenue.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-green-600">
+                      ${payout.toTokenHolders.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-blue-600">
+                      ${payout.toReserve.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-purple-600">
+                      ${payout.royaltyAmount.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-orange-600">
+                      ${payout.platformFeeAmount.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="text-xs text-stone-600 dark:text-stone-400">{payout.distributionRule}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        payout.status === 'completed'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                          : payout.status === 'processing'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                      }`}>
+                        {payout.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
     );
   };
@@ -1387,6 +1522,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       {activeTab === 'franchise' && <FranchiseTab />}
       
       {activeTab === 'transactions' && <TransactionsTab />}
+      
+      {activeTab === 'payouts' && franchiseData && (
+        <PayoutsTab franchiseId={franchiseData._id} />
+      )}
       
       {activeTab === 'products' && (
             <div className="space-y-6">
