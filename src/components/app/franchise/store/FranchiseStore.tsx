@@ -33,7 +33,8 @@ const FranchiseeAvatar: React.FC<{
 // import { useWallet } from "@solana/wallet-adapter-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1667,23 +1668,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       </Card>
 
      
-      {/* Buy Tokens Modal */}
-      <Dialog open={isBuyTokensOpen} onOpenChange={setIsBuyTokensOpen}>
-        <DialogTrigger asChild>
+      {/* Buy Tokens Sheet */}
+      <Sheet open={isBuyTokensOpen} onOpenChange={setIsBuyTokensOpen}>
+        <SheetTrigger asChild>
           <div className="hidden"></div>
-        </DialogTrigger>
-        <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[500px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
+        </SheetTrigger>
+        <SheetContent className="w-full sm:w-[500px] p-0 gap-0 flex flex-col max-h-screen">
           {/* Fixed Header */}
-          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+          <SheetHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <DialogTitle className="text-lg sm:text-xl font-bold">Buy Franchise Tokens</DialogTitle>
+                <SheetTitle className="text-lg sm:text-xl font-bold">Buy Franchise Tokens</SheetTitle>
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
                   Each token = 1 share in this franchise
                 </p>
               </div>
             </div>
-          </DialogHeader>
+          </SheetHeader>
           
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -2119,8 +2120,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Signup Form Modal */}
       <Dialog open={isSignupOpen} onOpenChange={setIsSignupOpen}>
@@ -2140,20 +2141,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </DialogContent>
       </Dialog>
 
-      {/* Checkout Modal */}
-      <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[600px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
+      {/* Checkout Sheet */}
+      <Sheet open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+        <SheetContent className="w-full sm:w-[600px] p-0 gap-0 flex flex-col max-h-screen">
           {/* Fixed Header */}
-          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+          <SheetHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <DialogTitle className="text-lg sm:text-xl font-bold">Checkout</DialogTitle>
+                <SheetTitle className="text-lg sm:text-xl font-bold">Checkout</SheetTitle>
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
                   Review your order and complete purchase
                 </p>
               </div>
             </div>
-          </DialogHeader>
+          </SheetHeader>
           
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -2453,8 +2454,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
