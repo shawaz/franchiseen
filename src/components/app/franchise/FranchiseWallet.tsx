@@ -504,7 +504,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             )}
             
             {/* Checkout button for ongoing stage */}
-            {franchiseStage === 'ongoing' && onCheckout && (
+            {(franchiseStage === 'ongoing' || process.env.NODE_ENV === 'development') && onCheckout && (
               <Button
                 onClick={onCheckout}
                 className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 relative"
