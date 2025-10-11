@@ -230,6 +230,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   // Purchase shares mutation for addInvestment function
   const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
+  const addFranchiseTransaction = useMutation(api.franchiseWallet.addFranchiseWalletTransaction);
   
   const addInvestment = async (sharesPurchased: number, sharePrice: number, totalAmount: number, investorId: string, transactionHash?: string) => {
     if (!franchiseData?._id) {
@@ -2138,7 +2139,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     // Calculate SOL amount
                     const totalInSOL = cartTotal / solToUsdRate;
                     
-                    // For now, we'll use a placeholder destination (franchise wallet)
+                    // Get franchise wallet address - payments go to brand wallet for now
+                    // TODO: Update to use franchise-specific wallet once implemented
                     const destinationAddress = franchise.brandWalletAddress || '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
                     
                     console.log('Payment details:', {
@@ -2153,7 +2155,39 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                       destinationAddress
                     );
 
-                    // Record transaction
+                    // Prepare transaction items description
+                    const itemsList = Object.entries(cart).map(([productId, quantity]) => {
+                      const product = products.find(p => p.id === productId);
+                      return `${product?.name || 'Product'} (x${quantity})`;
+                    }).join(', ');
+
+                    // Record transaction in database
+                    if (franchiseData?._id) {
+                      try {
+                        await addFranchiseTransaction({
+                          franchiseId: franchiseData._id,
+                          transactionType: "income" as const,
+                          amount: totalInSOL,
+                          usdAmount: cartTotal,
+                          description: `Product purchase: ${itemsList}`,
+                          category: "product_sales",
+                          solanaTransactionHash: transactionHash,
+                          fromAddress: userWallet.publicKey,
+                          toAddress: destinationAddress,
+                          status: "confirmed" as const,
+                          metadata: {
+                            notes: `Customer purchased ${cartItemsCount} items`,
+                            tags: ["product_purchase", "customer_order"],
+                          }
+                        });
+                        console.log('✅ Transaction recorded in database');
+                      } catch (dbError) {
+                        console.error('Failed to record transaction in database:', dbError);
+                        // Don't throw - transaction was successful even if DB recording failed
+                      }
+                    }
+
+                    // Record transaction (for backwards compatibility with localStorage tracking)
                     const transaction = {
                       id: `product_purchase_${Date.now()}`,
                       type: 'product_purchase',
