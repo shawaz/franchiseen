@@ -10,11 +10,16 @@ export default function DailyPayoutsTab() {
   const { userProfile } = useAuth();
   const investorId = userProfile?.walletAddress;
 
+  console.log('DailyPayoutsTab - investorId:', investorId);
+  console.log('DailyPayoutsTab - userProfile:', userProfile);
+
   // Get all payouts for this investor across all franchises
   const payouts = useQuery(
     api.payoutManagement.getAllInvestorPayouts,
     investorId ? { investorId } : "skip"
   );
+
+  console.log('DailyPayoutsTab - payouts:', payouts);
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
