@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // Calculate payout distribution based on reserve balance
 function calculatePayoutDistribution(
@@ -228,6 +229,62 @@ export const processFranchisePayout = mutation({
     }
     
     console.log(`✅ Distributed $${distribution.toTokenHolders.toLocaleString()} to ${shareholders.length} shareholders`);
+    
+    // Schedule blockchain transactions if franchise wallet has secret key
+    if (franchiseWallet.walletSecretKey) {
+      console.log(`📅 Scheduling blockchain transactions for payouts...`);
+      
+      // 1. Transfer royalty to brand wallet
+      if (royaltyAmount > 0 && franchiser.brandWalletAddress) {
+        const royaltySOL = royaltyAmount / 200; // Convert USD to SOL
+        console.log(`📅 Scheduling royalty transfer: $${royaltyAmount} (${royaltySOL} SOL) -> ${franchiser.brandWalletAddress}`);
+        
+        ctx.scheduler.runAfter(0, api.solanaTransactions.executeSolanaTransfer, {
+          fromPublicKey: franchiseWallet.walletAddress,
+          fromSecretKey: franchiseWallet.walletSecretKey,
+          toPublicKey: franchiser.brandWalletAddress,
+          amountSOL: royaltySOL,
+          description: `Royalty payment from ${franchise.franchiseSlug} - ${args.period}`,
+        });
+      }
+      
+      // 2. Transfer platform fee to platform wallet
+      if (platformFeeAmount > 0) {
+        const platformFeeSOL = platformFeeAmount / 200; // Convert USD to SOL
+        const platformWallet = process.env.PLATFORM_WALLET_PUBLIC_KEY || '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+        console.log(`📅 Scheduling platform fee transfer: $${platformFeeAmount} (${platformFeeSOL} SOL) -> ${platformWallet}`);
+        
+        ctx.scheduler.runAfter(0, api.solanaTransactions.executeSolanaTransfer, {
+          fromPublicKey: franchiseWallet.walletAddress,
+          fromSecretKey: franchiseWallet.walletSecretKey,
+          toPublicKey: platformWallet,
+          amountSOL: platformFeeSOL,
+          description: `Platform fee from ${franchise.franchiseSlug} - ${args.period}`,
+        });
+      }
+      
+      // 3. Transfer payouts to all shareholders (batch transaction for efficiency)
+      if (shareholderPayouts.length > 0) {
+        const shareholderTransfers = shareholderPayouts.map(sp => ({
+          toPublicKey: sp.investorId, // Investor wallet address
+          amountSOL: sp.payout / 200, // Convert USD to SOL
+          description: `Payout from ${franchise.franchiseSlug} - ${args.period} (${sp.shares} shares)`,
+        }));
+        
+        console.log(`📅 Scheduling ${shareholderTransfers.length} shareholder payouts via batch transfer`);
+        
+        ctx.scheduler.runAfter(0, api.solanaTransactions.executeBatchSolanaTransfers, {
+          fromPublicKey: franchiseWallet.walletAddress,
+          fromSecretKey: franchiseWallet.walletSecretKey,
+          transfers: shareholderTransfers,
+        });
+      }
+      
+      console.log(`✅ All blockchain transactions scheduled!`);
+    } else {
+      console.log(`⚠️ Franchise wallet secret key not available. Payouts recorded but not executed on blockchain.`);
+      console.log(`💡 Blockchain transfers require franchise wallet secret key to sign transactions.`);
+    }
     
     // Update payout status to completed
     await ctx.db.patch(payoutId, {
