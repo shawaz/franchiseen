@@ -1,5 +1,6 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 /**
  * Send a real Solana transaction from server
@@ -231,6 +232,7 @@ export const fundFranchiseWallet = action({
       console.log(`💰 ${args.amountSOL} SOL -> ${args.franchiseWalletAddress}`);
       console.log(`📝 ${args.description}`);
       console.log(`🔗 https://explorer.solana.com/tx/${signature}?cluster=${network}`);
+      console.log(`📝 Blockchain transaction completed. Signature: ${signature}`);
       
       return {
         success: true,

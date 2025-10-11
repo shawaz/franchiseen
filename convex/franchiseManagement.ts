@@ -920,23 +920,48 @@ export const purchaseSharesBySlug = mutation({
           updatedAt: now,
         });
 
-        // Record working capital transfer to franchise wallet with REAL Solana transaction
-        const workingCapitalTxHash = `working_capital_${franchise._id}_${now}`;
+        // Record working capital transfer to franchise wallet - transaction will be scheduled
+        const workingCapitalTxHash = `pending_working_capital_${franchise._id}_${now}`;
+        const workingCapitalSOL = workingCapital / 200; // Convert USD to SOL ($200/SOL)
+        
         await ctx.db.insert("franchiseWalletTransactions", {
           franchiseWalletId: franchiseWallet._id,
           franchiseId: franchise._id,
           transactionType: "funding",
-          amount: workingCapital / 200, // Convert USD to SOL ($200/SOL)
+          amount: workingCapitalSOL,
           usdAmount: workingCapital,
           description: `Working capital transferred: $${workingCapital.toLocaleString()}`,
           solanaTransactionHash: workingCapitalTxHash,
-          fromAddress: "escrow", // From escrow/platform
+          fromAddress: "platform_escrow", // From platform escrow wallet
           toAddress: franchiseWallet.walletAddress,
-          status: "confirmed",
+          status: "pending", // Will be updated to "confirmed" after blockchain transaction
           createdAt: now,
         });
 
         console.log(`✅ Working capital recorded: $${workingCapital.toLocaleString()} -> ${franchiseWallet.walletAddress}`);
+        
+        // Schedule working capital transfer on blockchain if platform wallet credentials are available
+        // This will execute the actual SOL transfer from platform escrow to franchise wallet
+        const platformWalletPublicKey = process.env.PLATFORM_WALLET_PUBLIC_KEY;
+        const platformWalletSecretKey = process.env.PLATFORM_WALLET_SECRET_KEY;
+        
+        if (platformWalletPublicKey && platformWalletSecretKey && franchiseWallet.walletSecretKey) {
+          console.log(`📅 Scheduling working capital blockchain transfer...`);
+          
+          // Schedule the blockchain transaction
+          ctx.scheduler.runAfter(0, api.solanaTransactions.fundFranchiseWallet, {
+            franchiseWalletAddress: franchiseWallet.walletAddress,
+            platformWalletPublicKey: platformWalletPublicKey,
+            platformWalletSecretKey: platformWalletSecretKey,
+            amountSOL: workingCapitalSOL,
+            description: `Working capital for ${franchise.franchiseSlug}: $${workingCapital.toLocaleString()}`,
+          });
+          
+          console.log(`✅ Working capital blockchain transfer scheduled!`);
+        } else {
+          console.log(`⚠️ Platform wallet credentials not configured. Working capital transfer recorded but not executed on blockchain.`);
+          console.log(`💡 Manual funding required using: api.solanaTransactions.fundFranchiseWallet`);
+        }
         
         // Transfer franchise fee to brand wallet
         await ctx.db.insert("brandWalletTransactions", {

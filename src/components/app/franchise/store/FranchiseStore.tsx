@@ -2176,23 +2176,26 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                       destinationAddress
                     );
 
+                    console.log(`✅ Blockchain transaction successful: ${transactionHash}`);
+                    console.log(`🔗 View on Solana Explorer: https://explorer.solana.com/tx/${transactionHash}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet'}`);
+
                     // Prepare transaction items description
                     const itemsList = Object.entries(cart).map(([productId, quantity]) => {
                       const product = products.find(p => p.id === productId);
                       return `${product?.name || 'Product'} (x${quantity})`;
                     }).join(', ');
 
-                    // Record transaction in database
+                    // Record transaction in database with REAL Solana transaction hash
                     if (franchiseData?._id) {
                       try {
-                        await addFranchiseTransaction({
+                        const dbResult = await addFranchiseTransaction({
                           franchiseId: franchiseData._id,
                           transactionType: "income" as const,
                           amount: totalInSOL,
                           usdAmount: cartTotal,
                           description: `Product purchase: ${itemsList}`,
                           category: "product_sales",
-                          solanaTransactionHash: transactionHash,
+                          solanaTransactionHash: transactionHash, // REAL blockchain transaction hash
                           fromAddress: userWallet.publicKey,
                           toAddress: destinationAddress,
                           status: "confirmed" as const,
@@ -2201,10 +2204,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                             tags: ["product_purchase", "customer_order"],
                           }
                         });
-                        console.log('✅ Transaction recorded in database');
+                        console.log('✅ Transaction recorded in database:', dbResult);
+                        console.log(`📊 Transaction ID: ${dbResult.transactionId}`);
                       } catch (dbError) {
                         console.error('Failed to record transaction in database:', dbError);
                         // Don't throw - transaction was successful even if DB recording failed
+                        toast.error('Transaction succeeded but failed to record in database. Contact support with transaction hash: ' + transactionHash);
                       }
                     }
 
