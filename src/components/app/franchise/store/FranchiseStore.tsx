@@ -1416,8 +1416,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 )
                 .map((product) => {
                   const quantityInCart = cart[product.id] || 0;
-                  // For testing: force ongoing stage if in development
-                  const isOngoing = process.env.NODE_ENV === 'development' ? true : fundraisingData.stage === 'ongoing';
+                  // Only show cart controls when franchise is in ongoing stage
+                  const isOngoing = fundraisingData.stage === 'ongoing';
                   
                   console.log('Product:', product.name, 'Stage:', fundraisingData.stage, 'isOngoing:', isOngoing, 'quantityInCart:', quantityInCart);
                   
