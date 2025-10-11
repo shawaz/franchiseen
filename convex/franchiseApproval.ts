@@ -2,26 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-// Generate a mock Solana address for development (valid base58 format)
-function generateMockSolanaAddress(): string {
-  // Use a very conservative approach - create addresses that look like real Solana addresses
-  // Start with a known good pattern and add deterministic suffix
-  const timestamp = Date.now().toString();
-  const safeChars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  
-  // Use a simpler, more predictable pattern
-  let address = '';
-  const seed = parseInt(timestamp.slice(-6)); // Use last 6 digits
-  
-  // Generate address using a more conservative pattern
-  for (let i = 0; i < 44; i++) {
-    const charIndex = (seed + i * 3) % safeChars.length;
-    address += safeChars[charIndex];
-  }
-  
-  return address;
-}
-
 // Get pending franchises for approval
 export const getPendingFranchises = query({
   args: { franchiserId: v.id("franchiser") },
@@ -127,10 +107,17 @@ export const approveFranchiseAndCreateToken = mutation({
     try {
       console.log(`💼 Creating franchise wallet for ${franchise.franchiseSlug}...`);
       
+      // Generate a real Solana keypair for the franchise wallet
+      const { generateKeypair, encryptSecretKey } = await import('./walletKeypairs');
+      const walletKeypair = generateKeypair();
+      
+      console.log(`🔑 Generated real Solana wallet: ${walletKeypair.publicKey}`);
+      
       // Create franchise wallet with $0 balance (will accumulate as funding comes in)
       franchiseWalletId = await ctx.db.insert("franchiseWallets", {
         franchiseId: franchiseId,
-        walletAddress: generateMockSolanaAddress(),
+        walletAddress: walletKeypair.publicKey, // Real Solana public key
+        walletSecretKey: encryptSecretKey(walletKeypair.secretKey), // Store encrypted secret key
         walletName: `${franchise.franchiseSlug} Wallet`,
         balance: 0, // Start at $0
         usdBalance: 0, // Start at $0
@@ -149,6 +136,7 @@ export const approveFranchiseAndCreateToken = mutation({
 
       walletCreated = true;
       console.log(`✅ Franchise wallet created successfully:`, franchiseWalletId);
+      console.log(`💰 Wallet address: ${walletKeypair.publicKey}`);
       console.log(`💰 Initial balance: $0 (will accumulate as funding comes in)`);
     } catch (error) {
       console.error("Failed to create franchise wallet:", error);

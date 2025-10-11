@@ -207,13 +207,17 @@ export const checkAndTransitionFranchiseStage = mutation({
       let walletCreated = false;
       let walletCreationError = null;
       try {
-        // Generate wallet address
-        const walletAddress = `franchise_wallet_${args.franchiseId}_${now}`;
+        // Generate a real Solana keypair for the franchise wallet
+        const { generateKeypair, encryptSecretKey } = await import('./walletKeypairs');
+        const walletKeypair = generateKeypair();
+        
+        console.log(`🔑 Generated real Solana wallet: ${walletKeypair.publicKey}`);
         
         // Create the franchise wallet record
         const walletId = await ctx.db.insert("franchiseWallets", {
           franchiseId: args.franchiseId,
-          walletAddress: walletAddress,
+          walletAddress: walletKeypair.publicKey, // Real Solana public key
+          walletSecretKey: encryptSecretKey(walletKeypair.secretKey), // Store encrypted secret key
           walletName: `${franchise.businessName} Wallet`,
           balance: 0, // Start with 0 SOL balance
           usdBalance: investment.workingCapital, // Working capital in USD

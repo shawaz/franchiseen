@@ -2,27 +2,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-
-// Generate a mock Solana address for development (valid base58 format)
-function generateMockSolanaAddress(): string {
-  // Use a very conservative approach - create addresses that look like real Solana addresses
-  // Start with a known good pattern and add deterministic suffix
-  const timestamp = Date.now().toString();
-  const safeChars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  
-  // Use a simpler, more predictable pattern
-  let address = '';
-  const seed = parseInt(timestamp.slice(-6)); // Use last 6 digits
-  
-  // Generate address using a more conservative pattern
-  for (let i = 0; i < 44; i++) {
-    const charIndex = (seed + i * 3) % safeChars.length;
-    address += safeChars[charIndex];
-  }
-  
-  return address;
-}
-
 // Create a franchise wallet when franchise is approved
 export const createFranchiseWallet = mutation({
   args: {
@@ -341,32 +320,34 @@ export const fixInvalidFranchiseWalletAddresses = mutation({
   handler: async (ctx) => {
     const wallets = await ctx.db.query("franchiseWallets").collect();
     const results = [];
+    const { generateKeypair, encryptSecretKey } = await import('./walletKeypairs');
     
     for (const wallet of wallets) {
       try {
-        // Try to validate the address by attempting to create a PublicKey
-        // This is a simple way to check if the address is valid
-        if (wallet.walletAddress && wallet.walletAddress.length === 44) {
-          // Check if it contains invalid characters that would fail Solana validation
-          const hasInvalidChars = /[0OlI]/.test(wallet.walletAddress);
+        // Check if the address is invalid (contains invalid base58 characters or wrong length)
+        const hasInvalidFormat = 
+          !wallet.walletAddress ||
+          wallet.walletAddress.length !== 44 ||
+          /[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]/.test(wallet.walletAddress);
+        
+        if (hasInvalidFormat) {
+          // Generate a new valid Solana keypair
+          const walletKeypair = generateKeypair();
           
-          if (hasInvalidChars) {
-            // Generate a new valid address
-            const newAddress = generateMockSolanaAddress();
-            
-            // Update the wallet with the new address
-            await ctx.db.patch(wallet._id, {
-              walletAddress: newAddress,
-              updatedAt: Date.now(),
-            });
-            
-            results.push({
-              walletId: wallet._id,
-              oldAddress: wallet.walletAddress,
-              newAddress: newAddress,
-              status: 'fixed'
-            });
-          }
+          // Update the wallet with the new address
+          await ctx.db.patch(wallet._id, {
+            walletAddress: walletKeypair.publicKey,
+            walletSecretKey: encryptSecretKey(walletKeypair.secretKey),
+            updatedAt: Date.now(),
+          });
+          
+          results.push({
+            walletId: wallet._id,
+            franchiseId: wallet.franchiseId,
+            oldAddress: wallet.walletAddress,
+            newAddress: walletKeypair.publicKey,
+            status: 'fixed'
+          });
         }
       } catch (error) {
         results.push({
@@ -379,7 +360,9 @@ export const fixInvalidFranchiseWalletAddresses = mutation({
     }
     
     return {
-      message: `Processed ${wallets.length} franchise wallets`,
+      message: `Processed ${wallets.length} franchise wallets, fixed ${results.length}`,
+      fixed: results.filter(r => r.status === 'fixed').length,
+      errors: results.filter(r => r.status === 'error').length,
       results: results
     };
   },
@@ -480,14 +463,18 @@ export const createTestFranchiseWallet = mutation({
       throw new Error("Franchise not found");
     }
 
-    // Generate a mock wallet address (valid base58 format for development)
-    const walletAddress = generateMockSolanaAddress();
+    // Generate a real Solana keypair for the test wallet
+    const { generateKeypair, encryptSecretKey } = await import('./walletKeypairs');
+    const walletKeypair = generateKeypair();
     const walletName = `${franchise.businessName} Wallet`;
+
+    console.log(`🔑 Generated real Solana wallet for test: ${walletKeypair.publicKey}`);
 
     // Create franchise wallet
     const walletId = await ctx.db.insert("franchiseWallets", {
       franchiseId,
-      walletAddress,
+      walletAddress: walletKeypair.publicKey, // Real Solana public key
+      walletSecretKey: encryptSecretKey(walletKeypair.secretKey), // Store encrypted secret key
       walletName,
       balance: 0, // Start with 0 balance
       usdBalance: 0, // Start with 0 USD balance
@@ -506,7 +493,7 @@ export const createTestFranchiseWallet = mutation({
 
     return {
       walletId,
-      walletAddress,
+      walletAddress: walletKeypair.publicKey,
       message: `Test franchise wallet created for ${franchise.businessName}`,
     };
   },
