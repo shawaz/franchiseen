@@ -20,6 +20,8 @@ export default function DailyPayoutsTab() {
   );
 
   console.log('DailyPayoutsTab - payouts:', payouts);
+  console.log('DailyPayoutsTab - payouts type:', typeof payouts);
+  console.log('DailyPayoutsTab - payouts is array:', Array.isArray(payouts));
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
@@ -40,6 +42,16 @@ export default function DailyPayoutsTab() {
   const totalPayout = payouts?.reduce((sum, payout) => sum + payout.payoutAmount, 0) || 0;
   const averagePayout = payouts && payouts.length > 0 ? totalPayout / payouts.length : 0;
   const activeFranchises = payouts ? new Set(payouts.map(p => p.franchiseId)).size : 0;
+
+  // Show loading state
+  if (payouts === undefined) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-400">Loading payouts...</p>
+      </div>
+    );
+  }
 
   if (!investorId) {
     return (
