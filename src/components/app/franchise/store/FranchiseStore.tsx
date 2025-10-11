@@ -387,10 +387,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       console.log(`Current balance: ${userWallet.balance.toFixed(4)} SOL`);
       
       // Create a real Solana transaction
-      const { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+      const { Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
       
-      // Connect to Solana network (using devnet for testing)
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      // Use network-aware connection from solanaConnection helper
+      const { getSolanaConnection } = await import('@/lib/solanaConnection');
+      const solanaNetwork = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet-beta' : 'devnet';
+      const robustConnection = getSolanaConnection(solanaNetwork);
+      const connection = robustConnection.getConnection(); // Get the underlying Connection object
+      
+      console.log(`Using ${solanaNetwork} network for payment`);
       
       // Create the transaction
       const transaction = new Transaction();
@@ -410,25 +415,42 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       transaction.feePayer = new PublicKey(userWallet.publicKey);
       
       console.log('Created Solana transaction:', transaction);
+      console.log('Transaction details:', {
+        fromPubkey: userWallet.publicKey,
+        toPubkey: destinationAddress,
+        amount: amountInSOL,
+        lamports: Math.round(amountInSOL * LAMPORTS_PER_SOL),
+        feePayer: userWallet.publicKey,
+        blockhash: blockhash
+      });
       
       // Sign and send the transaction
       console.log('Signing transaction with user keypair...');
       transaction.sign(userWallet.keypair);
       
       console.log('Sending transaction to Solana network...');
-      const signature = await connection.sendRawTransaction(transaction.serialize());
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
       
-      console.log(`Transaction sent! Signature: ${signature}`);
+      console.log(`✅ Transaction sent! Signature: ${signature}`);
+      const networkParam = solanaNetwork === 'mainnet-beta' ? '' : '?cluster=devnet';
+      console.log(`🔍 View on Solana Explorer: https://explorer.solana.com/tx/${signature}${networkParam}`);
       
       // Wait for confirmation
       console.log('Waiting for transaction confirmation...');
-      const confirmation = await connection.confirmTransaction(signature);
+      const confirmation = await connection.confirmTransaction({
+        signature: signature,
+        blockhash: blockhash,
+        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+      });
       
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
       }
       
-      console.log('Transaction confirmed!', confirmation);
+      console.log('✅ Transaction confirmed!', confirmation);
       
       // Now update the local balance after successful transaction
       const newBalance = userWallet.balance - amountInSOL;
@@ -461,10 +483,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       localStorage.setItem(`transaction_${signature}`, JSON.stringify(transactionData));
       
-      console.log(`REAL payment processed successfully!`);
-      console.log(`Transaction signature: ${signature}`);
-      const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
-      console.log(`View on Solscan: https://explorer.solana.com/tx/${signature}${network}`);
+      console.log(`✅ REAL payment processed successfully!`);
+      console.log(`💰 Transaction signature: ${signature}`);
+      console.log(`📊 Final balance: ${newBalance.toFixed(4)} SOL`);
       
       return signature;
     } catch (error) {
