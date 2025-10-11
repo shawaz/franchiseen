@@ -342,12 +342,6 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const clearCart = () => {
     setCart({});
   };
-  
-  const cartItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-  const cartTotal = Object.entries(cart).reduce((sum, [productId, qty]) => {
-    const product = products.find(p => p.id === productId);
-    return sum + (product?.price || 0) * qty;
-  }, 0);
 
   // Debug logging will be added after products are defined
   
@@ -608,7 +602,19 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     };
   }) || [];
 
-  // Debug logging after products are defined
+  // Cart calculations after products are defined
+  const cartItemsCount = useMemo(() => {
+    return Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+  }, [cart]);
+
+  const cartTotal = useMemo(() => {
+    return Object.entries(cart).reduce((sum, [productId, qty]) => {
+      const product = products.find(p => p.id === productId);
+      return sum + (product?.price || 0) * qty;
+    }, 0);
+  }, [cart, products]);
+
+  // Debug logging after products and cart calculations are defined
   console.log('FranchiseStore Debug:', {
     franchiseStage: fundraisingData.stage,
     isOngoing: fundraisingData.stage === 'ongoing',
