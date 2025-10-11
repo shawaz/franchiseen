@@ -152,3 +152,104 @@ export const executeBatchSolanaTransfers = action({
   },
 });
 
+/**
+ * Fund a franchise wallet with working capital after funding completes
+ * This should be called manually from admin panel with platform escrow wallet credentials
+ * 
+ * Usage:
+ * 1. Get franchise wallet address from database
+ * 2. Calculate working capital amount in SOL
+ * 3. Call this action with platform wallet credentials
+ * 4. Transaction will be executed on blockchain and signature returned
+ */
+export const fundFranchiseWallet = action({
+  args: {
+    franchiseWalletAddress: v.string(),
+    platformWalletPublicKey: v.string(),
+    platformWalletSecretKey: v.string(), // Platform escrow wallet secret key
+    amountSOL: v.number(),
+    description: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const { Connection, PublicKey, Transaction, SystemProgram, Keypair, LAMPORTS_PER_SOL, clusterApiUrl } = await import('@solana/web3.js');
+      
+      // Setup connection
+      const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet-beta' : 'devnet';
+      const connection = new Connection(clusterApiUrl(network), 'confirmed');
+      
+      console.log(`💰 Funding franchise wallet: ${args.franchiseWalletAddress}`);
+      console.log(`📊 Amount: ${args.amountSOL} SOL`);
+      console.log(`🌐 Network: ${network}`);
+      
+      // Parse platform wallet secret key
+      const secretKeyArray = JSON.parse(args.platformWalletSecretKey);
+      const platformKeypair = Keypair.fromSecretKey(Uint8Array.from(secretKeyArray));
+      
+      // Verify public key matches
+      if (platformKeypair.publicKey.toBase58() !== args.platformWalletPublicKey) {
+        throw new Error('Platform wallet public key does not match secret key');
+      }
+      
+      // Check platform wallet balance
+      const platformBalance = await connection.getBalance(platformKeypair.publicKey);
+      const platformBalanceSOL = platformBalance / LAMPORTS_PER_SOL;
+      
+      console.log(`💼 Platform wallet balance: ${platformBalanceSOL.toFixed(4)} SOL`);
+      
+      if (platformBalanceSOL < args.amountSOL) {
+        throw new Error(`Insufficient platform wallet balance. Have: ${platformBalanceSOL.toFixed(4)} SOL, Need: ${args.amountSOL} SOL`);
+      }
+      
+      // Create transfer transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: platformKeypair.publicKey,
+          toPubkey: new PublicKey(args.franchiseWalletAddress),
+          lamports: Math.round(args.amountSOL * LAMPORTS_PER_SOL),
+        })
+      );
+      
+      // Get recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = platformKeypair.publicKey;
+      
+      // Sign and send
+      transaction.sign(platformKeypair);
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
+      
+      console.log(`📤 Transaction sent: ${signature}`);
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      console.log(`✅ Franchise wallet funded successfully!`);
+      console.log(`💰 ${args.amountSOL} SOL -> ${args.franchiseWalletAddress}`);
+      console.log(`📝 ${args.description}`);
+      console.log(`🔗 https://explorer.solana.com/tx/${signature}?cluster=${network}`);
+      
+      return {
+        success: true,
+        signature,
+        explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=${network}`,
+        franchiseWallet: args.franchiseWalletAddress,
+        amount: args.amountSOL,
+        network,
+      };
+      
+    } catch (error) {
+      console.error('❌ Franchise wallet funding failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        signature: null,
+        explorerUrl: null,
+      };
+    }
+  },
+});
+
