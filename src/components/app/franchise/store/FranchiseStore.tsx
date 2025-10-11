@@ -138,6 +138,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     franchiseId ? { franchiseSlug: franchiseId } : "skip"
   );
   
+  // Get franchise wallet
+  const franchiseWallet = useQuery(
+    api.franchiseManagement.getFranchiseWalletBySlug,
+    franchiseId ? { franchiseSlug: franchiseId } : "skip"
+  );
+  
   // Get franchiser products
   const franchiserProducts = useQuery(
     api.franchiseStoreQueries.getFranchiserProductsByFranchiseSlug,
@@ -2160,14 +2166,25 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     // Calculate SOL amount
                     const totalInSOL = cartTotal / solToUsdRate;
                     
-                    // Get franchise wallet address - payments go to brand wallet for now
-                    // TODO: Update to use franchise-specific wallet once implemented
-                    const destinationAddress = franchise.brandWalletAddress || '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+                    // Get franchise wallet address
+                    // This is the FRANCHISE's wallet where product sales go, not the brand's wallet
+                    const franchiseWalletAddress = franchiseWallet?.walletAddress;
+                    
+                    if (!franchiseWalletAddress) {
+                      toast.error('Franchise wallet not found. Please contact support.');
+                      console.error('Franchise wallet address is missing. Franchise:', franchiseData?.franchiseSlug, 'Wallet:', franchiseWallet);
+                      throw new Error('Franchise wallet address not found');
+                    }
+                    
+                    const destinationAddress = franchiseWalletAddress;
                     
                     console.log('Payment details:', {
                       totalUSD: cartTotal,
                       totalSOL: totalInSOL,
-                      destination: destinationAddress
+                      destination: destinationAddress,
+                      franchiseWallet: franchiseWalletAddress,
+                      brandWallet: franchise.brandWalletAddress,
+                      franchiseId: franchiseData?._id
                     });
 
                     // Process Solana payment
