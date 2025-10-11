@@ -508,7 +508,6 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               <Button
                 onClick={onCheckout}
                 className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 relative"
-                disabled={cartItemsCount === 0}
               >
                 <CreditCard className="h-4 w-4 mr-2" />
                 Checkout

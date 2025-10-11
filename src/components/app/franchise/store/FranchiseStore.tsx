@@ -299,10 +299,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   
   // Cart functions
   const addToCart = (productId: string) => {
-    setCart(prev => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1
-    }));
+    console.log('Adding product to cart:', productId);
+    setCart(prev => {
+      const newCart = {
+        ...prev,
+        [productId]: (prev[productId] || 0) + 1
+      };
+      console.log('Updated cart:', newCart);
+      return newCart;
+    });
     toast.success('Added to cart');
   };
   
@@ -343,6 +348,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     const product = products.find(p => p.id === productId);
     return sum + (product?.price || 0) * qty;
   }, 0);
+
+  // Debug logging will be added after products are defined
   
   // Get real data from fundraising data
   const totalShares = fundraisingData.totalShares || 100000;
@@ -600,6 +607,16 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       category: product.categoryName || product.category || 'Uncategorized' // Provide fallback for undefined category
     };
   }) || [];
+
+  // Debug logging after products are defined
+  console.log('FranchiseStore Debug:', {
+    franchiseStage: fundraisingData.stage,
+    isOngoing: fundraisingData.stage === 'ongoing',
+    cart,
+    cartItemsCount,
+    cartTotal,
+    productsCount: products.length
+  });
 
  
 
@@ -1136,7 +1153,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               setIsBuyTokensOpen(true);
             }
           }}
-          onCheckout={cartItemsCount > 0 ? () => setIsCheckoutOpen(true) : undefined}
+          onCheckout={() => setIsCheckoutOpen(true)}
           cartItemsCount={cartItemsCount}
           franchiseStatus={franchiseData.status}
           franchiseStage={franchiseData.stage}
@@ -1171,6 +1188,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </div>
 
         <div className="px-6 pb-6">
+          
+          {/* Debug Info */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Debug Info</h3>
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <p><strong>Franchise Stage:</strong> {fundraisingData.stage}</p>
+                <p><strong>Is Ongoing:</strong> {fundraisingData.stage === 'ongoing' ? 'Yes' : 'No'}</p>
+                <p><strong>Cart Items:</strong> {cartItemsCount}</p>
+                <p><strong>Products Count:</strong> {products.length}</p>
+                <p><strong>Cart State:</strong> {JSON.stringify(cart)}</p>
+              </div>
+            </div>
+          )}
           
           {activeTab === 'finances' && (
         <div className="space-y-6">
@@ -1380,6 +1411,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 .map((product) => {
                   const quantityInCart = cart[product.id] || 0;
                   const isOngoing = fundraisingData.stage === 'ongoing';
+                  
+                  console.log('Product:', product.name, 'Stage:', fundraisingData.stage, 'isOngoing:', isOngoing, 'quantityInCart:', quantityInCart);
                   
                   return (
                     <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200 dark:border-stone-700 gap-0">
