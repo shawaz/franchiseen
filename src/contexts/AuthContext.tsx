@@ -3,20 +3,24 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 
 interface UserProfile {
   _id: string;
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+  email?: string;
+  name?: string;
+  fullName?: string;
+  image?: string;
+  avatarUrl?: string;
+  firstName?: string;
+  lastName?: string;
   dateOfBirth?: number;
-  avatar?: Id<"_storage">;
+  country?: string;
   walletAddress?: string;
-  isWalletGenerated: boolean;
-  createdAt: number;
-  updatedAt: number;
+  privateKey?: string;
+  isWalletGenerated?: boolean;
+  privyUserId?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 interface AuthContextType {

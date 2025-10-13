@@ -77,7 +77,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   const { isDevnet } = useNetwork();
   
   // Get user's wallet balance
-  const { wallet, updateWalletBalance } = useUserWallet({ userId: userProfile?.userId as Id<"users"> });
+  const { wallet, updateWalletBalance } = useUserWallet({ userId: userProfile?._id as Id<"users"> });
   const walletBalance = wallet.balance;
   const balanceLoading = wallet.isLoading;
   
@@ -162,7 +162,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   const isCompanyUser = userProfile?.email?.endsWith('@franchiseen.com') || false;
   
   // Get user avatar URL
-  const avatarUrl = useConvexImageUrl(userProfile?.avatar);
+  const avatarUrl = userProfile?.avatarUrl || userProfile?.image || null;
   
   // Debug logging
   console.log('Account dropdown - userProfile:', userProfile);

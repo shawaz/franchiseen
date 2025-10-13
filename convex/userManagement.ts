@@ -17,22 +17,13 @@ export const getCurrentUserProfile = query({
       return null;
     }
 
-    // Find user by email
+    // Find user by email - now all profile data is in users table
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("email"), email))
       .first();
 
-    if (!user) {
-      return null;
-    }
-
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .first();
-
-    return profile;
+    return user;
   },
 });
 
@@ -48,20 +39,15 @@ export const createUserProfile = mutation({
   },
   handler: async (ctx, { userId, firstName, lastName, dateOfBirth, country, avatar }) => {
 
-    // Check if profile already exists
-    const existingProfile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .first();
-
-    if (existingProfile) {
-      throw new Error("Profile already exists");
-    }
-
-    // Get user email from auth
+    // Get user
     const user = await ctx.db.get(userId);
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Check if profile data already exists
+    if (user.walletAddress) {
+      throw new Error("Profile already exists");
     }
 
     // Generate user-specific key for encryption
@@ -71,19 +57,16 @@ export const createUserProfile = mutation({
     const walletData = generateWalletWithEncryptedPrivateKey(userKey);
     const walletAddress = walletData.publicKey;
 
-    // Create user profile
-    const profileId = await ctx.db.insert("userProfiles", {
-      userId,
-      email: user.email || "",
+    // Update user record with profile data
+    await ctx.db.patch(userId, {
       firstName,
       lastName,
+      fullName: `${firstName} ${lastName}`,
       dateOfBirth,
       country,
-      avatar,
       walletAddress,
       privateKey: walletData.encryptedPrivateKey,
       isWalletGenerated: true,
-      createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
@@ -91,7 +74,7 @@ export const createUserProfile = mutation({
     const privateKeyBase58 = bs58.encode(walletData.privateKeyBytes);
     
     return { 
-      profileId, 
+      profileId: userId, 
       walletAddress: walletData.publicKey,
       privateKey: privateKeyBase58 // Return base58-encoded private key for display
     };
@@ -110,26 +93,29 @@ export const updateUserProfile = mutation({
   },
   handler: async (ctx, { userId, firstName, lastName, dateOfBirth, country, avatar }) => {
 
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .first();
+    const user = await ctx.db.get(userId);
 
-    if (!profile) {
-      throw new Error("Profile not found");
+    if (!user) {
+      throw new Error("User not found");
     }
 
-    // Update profile
-    await ctx.db.patch(profile._id, {
-      ...(firstName && { firstName }),
-      ...(lastName && { lastName }),
-      ...(dateOfBirth !== undefined && { dateOfBirth }),
-      ...(country && { country }),
-      ...(avatar && { avatar }),
+    // Update user with profile data
+    const updates: any = {
       updatedAt: Date.now(),
-    });
+    };
+    
+    if (firstName) updates.firstName = firstName;
+    if (lastName) updates.lastName = lastName;
+    if (firstName || lastName) {
+      updates.fullName = `${firstName || user.firstName || ''} ${lastName || user.lastName || ''}`.trim();
+    }
+    if (dateOfBirth !== undefined) updates.dateOfBirth = dateOfBirth;
+    if (country) updates.country = country;
+    if (avatar) updates.avatarUrl = avatar;
 
-    return profile._id;
+    await ctx.db.patch(userId, updates);
+
+    return userId;
   },
 });
 
@@ -137,12 +123,12 @@ export const updateUserProfile = mutation({
 export const getUserByWalletAddress = query({
   args: { walletAddress: v.string() },
   handler: async (ctx, { walletAddress }) => {
-    const profile = await ctx.db
-      .query("userProfiles")
+    const user = await ctx.db
+      .query("users")
       .withIndex("by_walletAddress", (q) => q.eq("walletAddress", walletAddress))
       .first();
 
-    return profile;
+    return user;
   },
 });
 
@@ -150,31 +136,25 @@ export const getUserByWalletAddress = query({
 export const getUserPrivateKey = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    // Get user profile
-    const profile = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .first();
-
-    if (!profile || !profile.privateKey) {
-      throw new Error("User profile or private key not found");
-    }
-
-    // Get user data for key generation
+    // Get user
     const user = await ctx.db.get(userId);
     if (!user) {
       throw new Error("User not found");
     }
 
+    if (!user.privateKey) {
+      throw new Error("User private key not found");
+    }
+
     // Generate the same user key used for encryption
-    const userKey = generateUserKey(userId, user.email || "", profile.createdAt);
+    const userKey = generateUserKey(userId, user.email || "", user.createdAt || Date.now());
     
     // Decrypt the private key
-    const decryptedPrivateKey = decryptPrivateKey(profile.privateKey, userKey);
+    const decryptedPrivateKey = decryptPrivateKey(user.privateKey, userKey);
     
     return {
       privateKey: Array.from(decryptedPrivateKey), // Convert to regular array for JSON response
-      publicKey: profile.walletAddress
+      publicKey: user.walletAddress
     };
   },
 });
@@ -183,33 +163,30 @@ export const getUserPrivateKey = mutation({
 export const getAllUserWallets = query({
   args: {},
   handler: async (ctx) => {
-    // Get all user profiles first
-    const allProfiles = await ctx.db
-      .query("userProfiles")
+    // Get all users with wallet addresses
+    const allUsers = await ctx.db
+      .query("users")
       .collect();
     
-    console.log('getAllUserWallets: Total profiles found:', allProfiles.length);
+    console.log('getAllUserWallets: Total users found:', allUsers.length);
     
-    // Filter profiles with valid wallet addresses
-    const profiles = allProfiles.filter(profile => 
-      profile.walletAddress && 
-      profile.walletAddress !== null && 
-      profile.walletAddress !== ""
+    // Filter users with valid wallet addresses
+    const profiles = allUsers.filter(user => 
+      user.walletAddress && 
+      user.walletAddress !== null && 
+      user.walletAddress !== ""
     );
     
     console.log('getAllUserWallets: Profiles with wallets:', profiles.length);
     console.log('getAllUserWallets: Wallet addresses:', profiles.map(p => p.walletAddress));
 
-    // Get user data for each profile
+    // Get user data for each user with wallet
     const walletsWithUserData = await Promise.all(
-      profiles.map(async (profile) => {
-        const user = await ctx.db.get(profile.userId);
-        if (!user) return null;
-
+      profiles.map(async (user) => {
         // Get user's franchise shares
         const shares = await ctx.db
           .query("franchiseShares")
-          .filter((q) => q.eq(q.field("investorId"), profile.walletAddress))
+          .filter((q) => q.eq(q.field("investorId"), user.walletAddress))
           .collect();
 
         // Calculate totals
@@ -222,21 +199,21 @@ export const getAllUserWallets = query({
         // Get last activity from shares
         const lastActivity = shares.length > 0 
           ? Math.max(...shares.map(share => share.purchasedAt))
-          : profile.createdAt;
+          : (user.createdAt || Date.now());
 
         return {
-          id: profile._id,
-          address: profile.walletAddress!,
+          id: user._id,
+          address: user.walletAddress!,
           balance: 0, // This would need to be fetched from blockchain or stored separately
           totalInvested,
           totalEarnings,
           transactionCount: shares.length,
           lastActivity: new Date(lastActivity).toISOString(),
-          status: profile.isWalletGenerated ? 'active' : 'inactive' as 'active' | 'inactive' | 'suspended',
+          status: user.isWalletGenerated ? 'active' : 'inactive' as 'active' | 'inactive' | 'suspended',
           user: {
-            name: `${profile.firstName} ${profile.lastName}`,
-            email: profile.email,
-            joinedDate: new Date(profile.createdAt).toISOString()
+            name: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown',
+            email: user.email || '',
+            joinedDate: new Date(user.createdAt || Date.now()).toISOString()
           },
           shares // Include shares for detailed view
         };

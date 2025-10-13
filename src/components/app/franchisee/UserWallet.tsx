@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Button } from '../../ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { useSolPrice } from '@/lib/coingecko';
 import { getSolanaConnection } from '@/lib/solanaConnection';
 import { useNetwork } from '@/contexts/NetworkContext';
@@ -28,7 +27,7 @@ const UserWallet: React.FC<WalletProps> = ({
   const { userProfile } = useAuth();
   const walletAddress = userProfile?.walletAddress;
   const connected = !!walletAddress;
-  const avatarUrl = useConvexImageUrl(userProfile?.avatar);
+  const avatarUrl = userProfile?.avatarUrl || userProfile?.image || null;
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);

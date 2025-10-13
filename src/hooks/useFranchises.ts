@@ -11,11 +11,11 @@ export function useFranchiserBySlug(slug: string) {
 }
 
 export function useFranchiserByUserId(userId: string) {
-  return useQuery(api.franchises.getFranchiserByUserId, userId ? { userId: userId as Id<"userProfiles"> } : "skip");
+  return useQuery(api.franchises.getFranchiserByUserId, userId ? { userId: userId as Id<"users"> } : "skip");
 }
 
 export function useAllFranchisersByUserId(userId: string) {
-  return useQuery(api.franchises.getAllFranchisersByUserId, userId ? { userId: userId as Id<"userProfiles"> } : "skip");
+  return useQuery(api.franchises.getAllFranchisersByUserId, userId ? { userId: userId as Id<"users"> } : "skip");
 }
 
 export function useFranchiserByWallet(walletAddress: string) {

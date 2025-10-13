@@ -5,7 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 export interface FranchiseData {
   franchiser: {
     _id: Id<"franchiser">;
-    ownerUserId: Id<"userProfiles">;
+    ownerUserId: Id<"users">;
     logoUrl?: Id<"_storage">;
     name: string;
     slug: string;

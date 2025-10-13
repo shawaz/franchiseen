@@ -34,6 +34,7 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
+    "@auth/core": "^0.41.0",
     "@convex-dev/auth": "^0.0.90",
     "@convex-dev/resend": "^0.1.13",
     "@hookform/resolvers": "^3.10.0",

@@ -146,7 +146,7 @@ export const getBrandById = query({
 // Create a new brand
 export const createBrand = mutation({
   args: {
-    ownerUserId: v.id("userProfiles"),
+    ownerUserId: v.id("users"),
     brandWalletAddress: v.string(),
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),

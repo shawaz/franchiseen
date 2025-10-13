@@ -90,20 +90,20 @@ export const getFranchiserByWallet = query({
     walletAddress: v.string(),
   },
   handler: async (ctx, args) => {
-    // First get the user profile by wallet address
-    const userProfile = await ctx.db
-      .query("userProfiles")
+    // First get the user by wallet address
+    const user = await ctx.db
+      .query("users")
       .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
       .first();
     
-    if (!userProfile) {
+    if (!user) {
       return null;
     }
     
     // Then get franchiser by user ID
     const franchiser = await ctx.db
       .query("franchiser")
-      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", userProfile._id))
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", user._id))
       .first();
 
     if (!franchiser) {

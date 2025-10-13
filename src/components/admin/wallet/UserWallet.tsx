@@ -21,11 +21,10 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
 import { useAuth } from '@/contexts/AuthContext';
-import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import Image from 'next/image';
 
 interface UserWallet {
-  id?: Id<"userProfiles"> | string;
+  id?: Id<"users"> | string;
   address?: string;
   balance: number;
   totalInvested?: number;
@@ -48,7 +47,7 @@ export default function UserWallet() {
 
   // Get current user data for fallback
   const { userProfile } = useAuth();
-  const avatarUrl = useConvexImageUrl(userProfile?.avatar);
+  const avatarUrl = userProfile?.avatarUrl || userProfile?.image || null;
 
   // Debug: Log user profile data
   console.log('UserWallet: userProfile:', userProfile);
@@ -111,7 +110,7 @@ export default function UserWallet() {
       const currentBalance = currentUserBalance ? parseFloat(currentUserBalance) : 0;
       
       enhancedWallets = [{
-        id: 'current-user' as Id<"userProfiles">,
+        id: 'current-user' as Id<"users">,
         address: currentUserWallet,
         balance: currentBalance,
         totalInvested: 0,
@@ -125,7 +124,8 @@ export default function UserWallet() {
             : userProfile?.email || 'Current User',
           email: userProfile?.email || 'current@user.com',
           joinedDate: userProfile?.createdAt ? new Date(userProfile.createdAt).toISOString() : new Date().toISOString()
-        }
+        },
+        shares: []
       }];
     }
 

@@ -150,9 +150,9 @@ export const getFranchiseInvestorsBySlug = query({
     // Convert map to array and get user profile data for each investor
     const investors = await Promise.all(
       Array.from(investorMap.values()).map(async (investor) => {
-        // Get user profile by wallet address
-        const userProfile = await ctx.db
-          .query("userProfiles")
+        // Get user by wallet address
+        const user = await ctx.db
+          .query("users")
           .withIndex("by_walletAddress", (q) => q.eq("walletAddress", investor.investorId))
           .first();
 
@@ -163,11 +163,11 @@ export const getFranchiseInvestorsBySlug = query({
           // Calculate earned amount (simplified - in real app this would be based on franchise performance)
           totalEarned: investor.totalInvested * 0.1, // 10% return for demo
           // Add user profile data
-          userProfile: userProfile ? {
-            firstName: userProfile.firstName,
-            lastName: userProfile.lastName,
-            avatar: userProfile.avatar,
-            email: userProfile.email
+          userProfile: user ? {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            avatar: user.avatarUrl,
+            email: user.email
           } : null
         };
       })

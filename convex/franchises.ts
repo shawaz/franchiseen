@@ -19,7 +19,7 @@ export const getFranchiserById = query({
 
 // Query to get franchiser by owner user ID
 export const getFranchiserByUserId = query({
-  args: { userId: v.id("userProfiles") },
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("franchiser")
@@ -30,7 +30,7 @@ export const getFranchiserByUserId = query({
 
 // Query to get all franchisers by owner user ID
 export const getAllFranchisersByUserId = query({
-  args: { userId: v.id("userProfiles") },
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("franchiser")
@@ -43,20 +43,20 @@ export const getAllFranchisersByUserId = query({
 export const getFranchiserByWallet = query({
   args: { walletAddress: v.string() },
   handler: async (ctx, args) => {
-    // First get the user profile by wallet address
-    const userProfile = await ctx.db
-      .query("userProfiles")
+    // First get the user by wallet address
+    const user = await ctx.db
+      .query("users")
       .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
       .first();
     
-    if (!userProfile) {
+    if (!user) {
       return null;
     }
     
     // Then get franchiser by user ID
     return await ctx.db
       .query("franchiser")
-      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", userProfile._id))
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", user._id))
       .first();
   },
 });
@@ -65,20 +65,20 @@ export const getFranchiserByWallet = query({
 export const getAllFranchisersByWallet = query({
   args: { walletAddress: v.string() },
   handler: async (ctx, args) => {
-    // First get the user profile by wallet address
-    const userProfile = await ctx.db
-      .query("userProfiles")
+    // First get the user by wallet address
+    const user = await ctx.db
+      .query("users")
       .withIndex("by_walletAddress", (q) => q.eq("walletAddress", args.walletAddress))
       .first();
     
-    if (!userProfile) {
+    if (!user) {
       return [];
     }
     
     // Then get franchisers by user ID
     return await ctx.db
       .query("franchiser")
-      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", userProfile._id))
+      .withIndex("by_ownerUser", (q) => q.eq("ownerUserId", user._id))
       .collect();
   },
 });
@@ -121,7 +121,7 @@ export const getFranchiserProducts = query({
 // Mutation to create a new franchiser
 export const createFranchiser = mutation({
   args: {
-    ownerUserId: v.id("userProfiles"),
+    ownerUserId: v.id("users"),
     brandWalletAddress: v.string(),
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),
@@ -163,7 +163,7 @@ export const createFranchiser = mutation({
 export const createFranchiserWithDetails = mutation({
   args: {
     franchiser: v.object({
-      ownerUserId: v.id("userProfiles"),
+      ownerUserId: v.id("users"),
       brandWalletAddress: v.string(),
       logoUrl: v.optional(v.id("_storage")),
       name: v.string(),

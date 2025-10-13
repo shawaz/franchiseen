@@ -59,7 +59,6 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
-import { UnifiedAuth } from '@/components/auth/UnifiedAuth';
 import { useRouter } from 'next/navigation';
 import { Id } from "../../../../../convex/_generated/dataModel";
 import type { 
@@ -129,7 +128,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // User wallet integration
   const { userProfile, isAuthenticated } = useAuth();
   const { wallet: userWallet, isWalletLoaded, updateWalletBalance } = useUserWallet({ 
-    userId: userProfile?.userId ? userProfile.userId as Id<"users"> : undefined 
+    userId: userProfile?._id ? userProfile._id as Id<"users"> : undefined 
   });
   
   // Load franchise data from Convex
@@ -1921,15 +1920,14 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           <DialogHeader>
             <DialogTitle className="text-xl">Sign Up to Buy Tokens</DialogTitle>
             <DialogDescription>
-              You need to create an account to purchase franchise shares. Complete your registration below.
+              You need to create an account to purchase franchise shares.
             </DialogDescription>
           </DialogHeader>
-          <UnifiedAuth 
-            onSuccess={() => {
-              setIsSignupOpen(false);
-              setIsBuyTokensOpen(true);
-            }}
-          />
+          <div className="p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Authentication system is being configured.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
 

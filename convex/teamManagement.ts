@@ -6,7 +6,7 @@ import { Id } from "./_generated/dataModel";
 export const addTeamMember = mutation({
   args: {
     franchiseId: v.id("franchises"),
-    userId: v.id("userProfiles"),
+    userId: v.id("users"),
     role: v.union(
       v.literal("manager"), 
       v.literal("cashier"), 
@@ -133,7 +133,7 @@ export const getFranchiseTeam = query({
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
-            avatar: user.avatar,
+            avatar: user.avatarUrl,
           } : null,
         };
       })
@@ -147,7 +147,7 @@ export const getFranchiseTeam = query({
 export const getTeamMemberByUser = query({
   args: {
     franchiseId: v.id("franchises"),
-    userId: v.id("userProfiles"),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
     const teamMember = await ctx.db
@@ -168,7 +168,7 @@ export const getTeamMemberByUser = query({
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        avatar: user.avatar,
+        avatar: user.avatarUrl,
       } : null,
     };
   },
@@ -208,7 +208,7 @@ export const getTeamSummary = query({
 export const checkUserPermission = query({
   args: {
     franchiseId: v.id("franchises"),
-    userId: v.id("userProfiles"),
+    userId: v.id("users"),
     permission: v.string(),
   },
   handler: async (ctx, args) => {

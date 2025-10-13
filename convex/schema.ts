@@ -1,58 +1,37 @@
 // In convex/schema.ts
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
-  // Auth tables with custom users table extension
-  ...authTables,
-  
-  // Override users table to include custom fields
+  // Simple users table for Privy and Google authentication
   users: defineTable({
-    // Default auth fields
+    // Privy/Google auth fields
     email: v.optional(v.string()),
-    emailVerificationTime: v.optional(v.number()),
-    phone: v.optional(v.string()),
-    phoneVerificationTime: v.optional(v.number()),
-    image: v.optional(v.string()),
     name: v.optional(v.string()),
-    isAnonymous: v.optional(v.boolean()),
-    // Custom fields
     fullName: v.optional(v.string()),
+    image: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    
+    // Privy specific
     privyUserId: v.optional(v.string()),
+    
+    // Wallet information
     walletAddress: v.optional(v.string()),
+    privateKey: v.optional(v.string()), // Encrypted private key
+    isWalletGenerated: v.optional(v.boolean()),
+    
+    // Profile information
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    dateOfBirth: v.optional(v.number()),
+    country: v.optional(v.string()),
+    
+    // Timestamps
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
   }).index("by_email", ["email"])
     .index("by_walletAddress", ["walletAddress"])
-    .index("by_privyUserId", ["privyUserId"]),
-
-  // OTP codes for email verification
-  otpCodes: defineTable({
-    email: v.string(),
-    code: v.string(),
-    expiresAt: v.number(),
-    createdAt: v.number(),
-  }).index("by_email", ["email"]),
-  
-  // User profile table with additional fields
-  userProfiles: defineTable({
-    userId: v.id("users"),
-        email: v.string(),
-        firstName: v.string(),
-    lastName: v.string(),
-    dateOfBirth: v.optional(v.number()),
-    country: v.optional(v.string()), // User's country
-    avatar: v.optional(v.id("_storage")),
-        walletAddress: v.optional(v.string()),
-        privateKey: v.optional(v.string()), // Encrypted private key
-        isWalletGenerated: v.boolean(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  }).index("by_userId", ["userId"])
-    .index("by_email", ["email"])
-    .index("by_walletAddress", ["walletAddress"])
+    .index("by_privyUserId", ["privyUserId"])
     .index("by_country", ["country"]),
 
   franchiser: defineTable({
@@ -760,7 +739,7 @@ export default defineSchema({
   // Franchise Team Management
   franchiseTeam: defineTable({
     franchiseId: v.id("franchises"),
-    userId: v.id("userProfiles"),
+    userId: v.id("users"),
     role: v.union(
       v.literal("manager"), 
       v.literal("cashier"), 

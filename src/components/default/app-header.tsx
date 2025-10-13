@@ -6,20 +6,17 @@ import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import { ThemeSelect } from '@/components/default/theme-select'
 import { useAuth } from '@/contexts/AuthContext'
-import { UnifiedAuth } from '@/components/auth/UnifiedAuth'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ClusterDropdown } from '@/components/default/cluster-dropdown'
 
 // Simple Auth Component
 const AuthComponent = () => {
   const { isAuthenticated, userProfile, signOut } = useAuth()
-  const [showAuthModal, setShowAuthModal] = useState(false)
 
   if (isAuthenticated && userProfile) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">
-          {userProfile.firstName} {userProfile.lastName}
+          {userProfile.fullName || userProfile.email}
         </span>
         <Button variant="outline" size="sm" onClick={signOut}>
           Sign Out
@@ -29,19 +26,11 @@ const AuthComponent = () => {
   }
 
   return (
-    <>
-      <Button variant="outline" size="sm" onClick={() => setShowAuthModal(true)}>
+    <Link href="/auth">
+      <Button variant="outline" size="sm">
         Sign In
       </Button>
-      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Welcome to Franchiseen</DialogTitle>
-          </DialogHeader>
-          <UnifiedAuth onSuccess={() => setShowAuthModal(false)} />
-        </DialogContent>
-      </Dialog>
-    </>
+    </Link>
   )
 }
 
