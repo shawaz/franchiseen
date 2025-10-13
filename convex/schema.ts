@@ -4,8 +4,29 @@ import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
-  // Auth tables
+  // Auth tables with custom users table extension
   ...authTables,
+  
+  // Override users table to include custom fields
+  users: defineTable({
+    // Default auth fields
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    image: v.optional(v.string()),
+    name: v.optional(v.string()),
+    isAnonymous: v.optional(v.boolean()),
+    // Custom fields
+    fullName: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    privyUserId: v.optional(v.string()),
+    walletAddress: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  }).index("by_email", ["email"])
+    .index("by_walletAddress", ["walletAddress"])
+    .index("by_privyUserId", ["privyUserId"]),
 
   // OTP codes for email verification
   otpCodes: defineTable({
@@ -35,7 +56,7 @@ export default defineSchema({
     .index("by_country", ["country"]),
 
   franchiser: defineTable({
-    ownerUserId: v.id("userProfiles"), // User's ID (who owns/manages the brand)
+    ownerUserId: v.id("users"), // User's ID (who owns/manages the brand)
     brandWalletAddress: v.string(), // Brand's wallet (for operations)
     logoUrl: v.optional(v.id("_storage")),
     name: v.string(),
@@ -187,6 +208,8 @@ export default defineSchema({
       state: v.string(),
       country: v.string(),
       pincode: v.optional(v.string()), // Postal/ZIP code
+      currency: v.optional(v.string()), // Currency code (e.g., "AED")
+      currencySymbol: v.optional(v.string()), // Currency symbol (e.g., "د.إ")
       coordinates: v.object({
         lat: v.number(),
         lng: v.number(),
@@ -505,15 +528,26 @@ export default defineSchema({
     floor: v.optional(v.number()),
     parkingSpaces: v.optional(v.number()),
     amenities: v.array(v.string()), // e.g., ["AC", "Parking", "Security"]
-    images: v.array(v.id("_storage")),
+    images: v.array(v.union(v.id("_storage"), v.string())), // Support both Convex storage IDs and external URLs
     
     // Owner/Landlord Information
+    ownerId: v.optional(v.string()), // Property owner ID
+    listingType: v.optional(v.union(
+      v.literal("individual"),
+      v.literal("agent"),
+      v.literal("company")
+    )),
     landlordContact: v.object({
       name: v.string(),
       phone: v.string(),
       email: v.string(),
       company: v.optional(v.string()),
     }),
+    paymentFrequency: v.optional(v.union(
+      v.literal("monthly"),
+      v.literal("quarterly"),
+      v.literal("yearly")
+    )),
     
     // Property Status and Stages
     stage: v.union(
