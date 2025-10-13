@@ -60,8 +60,9 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
+import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
 import { UnifiedAuth } from '@/components/auth/UnifiedAuth';
-import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 import { Id } from "../../../../../convex/_generated/dataModel";
 import type { 
   Product, 
@@ -104,7 +105,6 @@ const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' 
 };
 
 function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const [franchise, setFranchise] = useState({
     name: "Loading...",
@@ -129,9 +129,27 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // Solana wallet hooks - always call them unconditionally
   // User wallet integration
   const { userProfile, isAuthenticated } = useAuth();
-  const { wallet: userWallet, isWalletLoaded, updateWalletBalance } = useUserWallet({ 
-    userId: userProfile?.userId ? userProfile.userId as Id<"users"> : undefined 
-  });
+  const { login: privyLogin } = usePrivy();
+  
+  // Use unified wallet to detect both user wallet and Privy wallet
+  const { 
+    wallet: unifiedWallet, 
+    isWalletLoaded: isUnifiedWalletLoaded,
+    hasWallet: hasUnifiedWallet,
+    userWallet: originalUserWallet,
+    updateWalletBalance 
+  } = useUnifiedWallet();
+  
+  // For wallet detection - check unified (Privy + DB wallets)
+  const isWalletLoaded = isUnifiedWalletLoaded;
+  const hasAnyWallet = hasUnifiedWallet;
+  
+  // For transaction signing - use original wallet (has keypair)
+  // Privy signing needs separate implementation via Privy SDK
+  const userWallet = originalUserWallet;
+  
+  // For display - show unified wallet info
+  const displayWallet = hasUnifiedWallet ? unifiedWallet : originalUserWallet;
   
   // Load franchise data from Convex
   const franchiseData = useQuery(
@@ -1316,14 +1334,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           franchiseLogo={logoUrl || '/logo/logo-4.svg'}
           onBuyTokens={() => {
             if (!isAuthenticated) {
-              // Redirect to auth page with return URL
-              const currentPath = window.location.pathname;
-              router.push(`/auth?redirect=${encodeURIComponent(currentPath)}`);
+              // Show Privy login modal
+              privyLogin();
             } else {
               setIsBuyTokensOpen(true);
             }
           }}
-          onCheckout={() => setIsCheckoutOpen(true)}
+          onCheckout={() => {
+            if (!isAuthenticated) {
+              // Show Privy login modal
+              privyLogin();
+            } else {
+              setIsCheckoutOpen(true);
+            }
+          }}
           cartItemsCount={cartItemsCount}
           franchiseStatus={franchiseData.status}
           franchiseStage={franchiseData.stage}
