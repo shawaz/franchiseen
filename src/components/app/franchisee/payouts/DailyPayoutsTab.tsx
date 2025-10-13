@@ -1,65 +1,54 @@
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Search, Receipt } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import Image from 'next/image';
-
-interface DailyPayout {
-  id: string;
-  date: string;
-  franchise: {
-    id: string;
-    name: string;
-    brandLogo: string;
-  };
-  totalRevenue: number;
-  userShare: number;
-  userPayout: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-}
+// import { useQuery } from 'convex/react';
+// import { api } from '../../../../../convex/_generated/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DailyPayoutsTab() {
-  // Mock data - in a real app, this would come from an API
-  const dailyPayouts: DailyPayout[] = [
-    {
-      id: '1',
-      date: '2024-09-19',
-      franchise: {
-        id: '1',
-        name: 'Hubcv - 01',
-        brandLogo: '/logo/logo-4.svg',
-      },
-      totalRevenue: 5000,
-      userShare: 0.1, // 10% share
-      userPayout: 500, // 10% of 5000
-      status: 'completed',
-    },
-    {
-      id: '2',
-      date: '2024-09-18',
-      franchise: {
-        id: '1',
-        name: 'Hubcv - 01',
-        brandLogo: '/logo/logo-4.svg',
-      },
-      totalRevenue: 4800,
-      userShare: 0.1,
-      userPayout: 480,
-      status: 'completed',
-    },
-    {
-      id: '3',
-      date: '2024-09-17',
-      franchise: {
-        id: '2',
-        name: 'Hubcv - 02',
-        brandLogo: '/logo/logo-4.svg',
-      },
-      totalRevenue: 7500,
-      userShare: 0.05, // 5% share
-      userPayout: 375,
-      status: 'completed',
-    },
-  ];
+  const { userProfile } = useAuth();
+  const investorId = userProfile?.walletAddress;
+
+  console.log('DailyPayoutsTab - investorId:', investorId);
+  console.log('DailyPayoutsTab - userProfile:', userProfile);
+
+  // Get all payouts for this investor across all franchises
+  // Temporarily set to empty array until Convex deploys the new function
+  // const payouts = useQuery(
+  //   api.payoutManagement.getAllInvestorPayouts,
+  //   investorId ? { investorId } : "skip"
+  // );
+  
+  // Temporary: Return empty array until Convex function is deployed
+  const payouts: Array<{
+    _id: string;
+    payoutId: string;
+    franchiseId: string;
+    investorId: string;
+    shares: number;
+    totalShares: number;
+    sharePercentage: number;
+    payoutAmount: number;
+    period: string;
+    status: string;
+    createdAt: number;
+    franchise: {
+      _id: string;
+      franchiseSlug: string;
+      businessName: string;
+      stage: string;
+      status: string;
+    } | null;
+    franchisePayout: {
+      grossRevenue: number;
+      distributionRule: string;
+      reservePercentage: number;
+    } | null;
+  }> = [];
+
+  console.log('DailyPayoutsTab - payouts:', payouts);
+  console.log('DailyPayoutsTab - Using temporary null payouts until getAllInvestorPayouts is deployed to Convex');
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
@@ -77,8 +66,21 @@ export default function DailyPayoutsTab() {
   };
 
   // Calculate total payouts
-  const totalPayout = dailyPayouts.reduce((sum, payout) => sum + payout.userPayout, 0);
-  const averageDailyPayout = dailyPayouts.length > 0 ? totalPayout / dailyPayouts.length : 0;
+  const totalPayout = payouts?.reduce((sum, payout) => sum + payout.payoutAmount, 0) || 0;
+  const averagePayout = payouts && payouts.length > 0 ? totalPayout / payouts.length : 0;
+  const activeFranchises = payouts ? new Set(payouts.map(p => p.franchiseId)).size : 0;
+
+  if (!investorId) {
+    return (
+      <div className="text-center py-12">
+        <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Wallet Not Connected</h3>
+        <p className="text-gray-600 dark:text-gray-400">
+          Please connect your wallet to view your payouts.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -90,33 +92,33 @@ export default function DailyPayoutsTab() {
             <input
               type="text"
               placeholder="Search payouts..."
-              className="pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-600 text-sm focus:ring-amber-500 focus:border-amber-500 dark:bg-stone-800 dark:text-white"
+              className="pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-600 rounded-md text-sm focus:ring-amber-500 focus:border-amber-500 dark:bg-stone-800 dark:text-white"
             />
           </div>
         </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
-          <p className="text-sm text-stone-600 dark:text-stone-300">Total Payouts</p>
-          <p className="text-2xl font-bold">${totalPayout.toLocaleString()}</p>
+          <p className="text-sm text-stone-600 dark:text-stone-300">Total Earnings</p>
+          <p className="text-2xl font-bold text-green-600">${totalPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
           <p className="text-xs text-stone-500 dark:text-stone-400">All time</p>
         </Card>
         
         <Card className="p-4">
-          <p className="text-sm text-stone-600 dark:text-stone-300">Average Daily</p>
-          <p className="text-2xl font-bold">${averageDailyPayout.toFixed(2)}</p>
-          <p className="text-xs text-stone-500 dark:text-stone-400">Based on {dailyPayouts.length} days</p>
+          <p className="text-sm text-stone-600 dark:text-stone-300">Average Payout</p>
+          <p className="text-2xl font-bold">${averagePayout.toFixed(2)}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">Per distribution</p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-stone-600 dark:text-stone-300">Active Franchises</p>
-          <p className="text-2xl font-bold">
-            {new Set(dailyPayouts.map(p => p.franchise.id)).size}
+          <p className="text-2xl font-bold text-blue-600">
+            {activeFranchises}
           </p>
-          <p className="text-xs text-stone-500 dark:text-stone-400">Generating revenue</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">Generating payouts</p>
         </Card>
       </div>
 
       {/* Payouts Table */}
-      <div className="border border-stone-200 dark:border-stone-700 overflow-hidden ">
+      <div className="border border-stone-200 dark:border-stone-700 overflow-hidden rounded-lg">
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-stone-200 dark:divide-stone-700">
@@ -129,10 +131,13 @@ export default function DailyPayoutsTab() {
                   Franchise
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-stone-500 dark:text-stone-300 uppercase tracking-wider">
-                  Total Revenue
+                  Revenue
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-stone-500 dark:text-stone-300 uppercase tracking-wider">
-                  Your Share
+                  Your Shares
+                </th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-stone-500 dark:text-stone-300 uppercase tracking-wider">
+                  Share %
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-stone-500 dark:text-stone-300 uppercase tracking-wider">
                   Your Payout
@@ -143,10 +148,10 @@ export default function DailyPayoutsTab() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-stone-900 divide-y divide-stone-200 dark:divide-stone-700">
-              {dailyPayouts.map((payout) => (
-                <tr key={payout.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+              {payouts && payouts.length > 0 ? payouts.map((payout) => (
+                <tr key={payout._id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-500 dark:text-stone-400">
-                    {new Date(payout.date).toLocaleDateString('en-US', {
+                    {new Date(payout.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
@@ -154,72 +159,66 @@ export default function DailyPayoutsTab() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <Image className="h-10 w-10" width={100} height={100} src={payout.franchise.brandLogo} alt={payout.franchise.name} />
+                      <div className="flex-shrink-0 h-10 w-10 bg-stone-100 dark:bg-stone-700 rounded-lg flex items-center justify-center overflow-hidden">
+                        <Image 
+                          className="h-10 w-10 object-contain" 
+                          width={40} 
+                          height={40} 
+                          src="/logo/logo-4.svg" 
+                          alt={payout.franchise?.businessName || 'Franchise'} 
+                        />
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-stone-900 dark:text-white">{payout.franchise.name}</div>
-                        <div className="text-sm text-stone-500 dark:text-stone-400">
-                          {(payout.userShare * 100).toFixed(1)}% Share
+                        <div className="text-sm font-medium text-stone-900 dark:text-white">
+                          {payout.franchise?.franchiseSlug || 'Unknown'}
+                        </div>
+                        <div className="text-xs text-stone-500 dark:text-stone-400">
+                          {payout.period}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-stone-900 dark:text-white">
-                    ${payout.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    ${payout.franchisePayout?.grossRevenue?.toLocaleString() || '0'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-stone-500 dark:text-stone-400">
-                    {(payout.userShare * 100).toFixed(1)}%
+                    {payout.shares.toLocaleString()} / {payout.totalShares.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-stone-500 dark:text-stone-400">
+                    {payout.sharePercentage.toFixed(2)}%
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-green-600">
-                    +${payout.userPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    +${payout.payoutAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                     {getStatusBadge(payout.status)}
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <Receipt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      No Payouts Yet
+                    </h4>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      You haven&apos;t received any payouts yet. Payouts will appear here once franchises start generating revenue.
+                    </p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
         
-        {/* Pagination would go here */}
-        <div className="bg-white dark:bg-stone-900 px-4 py-3 flex items-center justify-between border-t border-stone-200 dark:border-stone-700 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button className="relative inline-flex items-center px-4 py-2 border border-stone-300 text-sm font-medium rounded-md text-stone-700 bg-white hover:bg-stone-50">
-              Previous
-            </button>
-            <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-stone-300 text-sm font-medium rounded-md text-stone-700 bg-white hover:bg-stone-50">
-              Next
-            </button>
+        {/* Footer with count */}
+        {payouts && payouts.length > 0 && (
+          <div className="bg-white dark:bg-stone-900 px-6 py-3 border-t border-stone-200 dark:border-stone-700">
+            <p className="text-sm text-stone-700 dark:text-stone-300">
+              Showing <span className="font-medium">{payouts.length}</span> payout{payouts.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-stone-700 dark:text-stone-300">
-                Showing <span className="font-medium">1</span> to <span className="font-medium">{dailyPayouts.length}</span> of{' '}
-                <span className="font-medium">{dailyPayouts.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-stone-300 bg-white text-sm font-medium text-stone-500 hover:bg-stone-50">
-                  <span className="sr-only">Previous</span>
-                  {/* Heroicon name: solid/chevron-left */}
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-stone-300 bg-white text-sm font-medium text-stone-500 hover:bg-stone-50">
-                  <span className="sr-only">Next</span>
-                  {/* Heroicon name: solid/chevron-right */}
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

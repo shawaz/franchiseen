@@ -33,7 +33,8 @@ const FranchiseeAvatar: React.FC<{
 // import { useWallet } from "@solana/wallet-adapter-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,8 +60,9 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
+import { useUnifiedWallet } from '@/hooks/useUnifiedWallet';
 import { UnifiedAuth } from '@/components/auth/UnifiedAuth';
-import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 import { Id } from "../../../../../convex/_generated/dataModel";
 import type { 
   Product, 
@@ -70,7 +72,7 @@ import type {
   FranchiseStoreProps
 } from "@/types/ui"; // Updated TabId type
 
-type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' | 'transactions';
+type TabId = 'products' | 'franchise' | 'franchisee' | 'finances' | 'transactions' | 'payouts';
 
 // Helper function to add income records to the income table
 const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' | 'subscription', amount: number, source: string, description: string, transactionHash?: string) => {
@@ -103,7 +105,6 @@ const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' 
 };
 
 function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const [franchise, setFranchise] = useState({
     name: "Loading...",
@@ -128,13 +129,37 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // Solana wallet hooks - always call them unconditionally
   // User wallet integration
   const { userProfile, isAuthenticated } = useAuth();
-  const { wallet: userWallet, isWalletLoaded, updateWalletBalance } = useUserWallet({ 
-    userId: userProfile?.userId ? userProfile.userId as Id<"users"> : undefined 
-  });
+  const { login: privyLogin } = usePrivy();
+  
+  // Use unified wallet to detect both user wallet and Privy wallet
+  const { 
+    wallet: unifiedWallet, 
+    isWalletLoaded: isUnifiedWalletLoaded,
+    hasWallet: hasUnifiedWallet,
+    userWallet: originalUserWallet,
+    updateWalletBalance 
+  } = useUnifiedWallet();
+  
+  // For wallet detection - check unified (Privy + DB wallets)
+  const isWalletLoaded = isUnifiedWalletLoaded;
+  const hasAnyWallet = hasUnifiedWallet;
+  
+  // For transaction signing - use original wallet (has keypair)
+  // Privy signing needs separate implementation via Privy SDK
+  const userWallet = originalUserWallet;
+  
+  // For display - show unified wallet info
+  const displayWallet = hasUnifiedWallet ? unifiedWallet : originalUserWallet;
   
   // Load franchise data from Convex
   const franchiseData = useQuery(
     api.franchiseManagement.getFranchiseBySlug,
+    franchiseId ? { franchiseSlug: franchiseId } : "skip"
+  );
+  
+  // Get franchise wallet
+  const franchiseWallet = useQuery(
+    api.franchiseManagement.getFranchiseWalletBySlug,
     franchiseId ? { franchiseSlug: franchiseId } : "skip"
   );
   
@@ -230,6 +255,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   // Purchase shares mutation for addInvestment function
   const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
+  const addFranchiseTransaction = useMutation(api.franchiseWallet.addFranchiseWalletTransaction);
   
   const addInvestment = async (sharesPurchased: number, sharePrice: number, totalAmount: number, investorId: string, transactionHash?: string) => {
     if (!franchiseData?._id) {
@@ -299,10 +325,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   
   // Cart functions
   const addToCart = (productId: string) => {
-    setCart(prev => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1
-    }));
+    console.log('Adding product to cart:', productId);
+    setCart(prev => {
+      const newCart = {
+        ...prev,
+        [productId]: (prev[productId] || 0) + 1
+      };
+      console.log('Updated cart:', newCart);
+      return newCart;
+    });
     toast.success('Added to cart');
   };
   
@@ -337,12 +368,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const clearCart = () => {
     setCart({});
   };
-  
-  const cartItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-  const cartTotal = Object.entries(cart).reduce((sum, [productId, qty]) => {
-    const product = products.find(p => p.id === productId);
-    return sum + (product?.price || 0) * qty;
-  }, 0);
+
+  // Debug logging will be added after products are defined
   
   // Get real data from fundraising data
   const totalShares = fundraisingData.totalShares || 100000;
@@ -385,10 +412,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       console.log(`Current balance: ${userWallet.balance.toFixed(4)} SOL`);
       
       // Create a real Solana transaction
-      const { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+      const { Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
       
-      // Connect to Solana network (using devnet for testing)
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      // Use network-aware connection from solanaConnection helper
+      const { getSolanaConnection } = await import('@/lib/solanaConnection');
+      const solanaNetwork = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet-beta' : 'devnet';
+      const robustConnection = getSolanaConnection(solanaNetwork);
+      const connection = robustConnection.getConnection(); // Get the underlying Connection object
+      
+      console.log(`Using ${solanaNetwork} network for payment`);
       
       // Create the transaction
       const transaction = new Transaction();
@@ -408,25 +440,42 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       transaction.feePayer = new PublicKey(userWallet.publicKey);
       
       console.log('Created Solana transaction:', transaction);
+      console.log('Transaction details:', {
+        fromPubkey: userWallet.publicKey,
+        toPubkey: destinationAddress,
+        amount: amountInSOL,
+        lamports: Math.round(amountInSOL * LAMPORTS_PER_SOL),
+        feePayer: userWallet.publicKey,
+        blockhash: blockhash
+      });
       
       // Sign and send the transaction
       console.log('Signing transaction with user keypair...');
       transaction.sign(userWallet.keypair);
       
       console.log('Sending transaction to Solana network...');
-      const signature = await connection.sendRawTransaction(transaction.serialize());
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
       
-      console.log(`Transaction sent! Signature: ${signature}`);
+      console.log(`✅ Transaction sent! Signature: ${signature}`);
+      const networkParam = solanaNetwork === 'mainnet-beta' ? '' : '?cluster=devnet';
+      console.log(`🔍 View on Solana Explorer: https://explorer.solana.com/tx/${signature}${networkParam}`);
       
       // Wait for confirmation
       console.log('Waiting for transaction confirmation...');
-      const confirmation = await connection.confirmTransaction(signature);
+      const confirmation = await connection.confirmTransaction({
+        signature: signature,
+        blockhash: blockhash,
+        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+      });
       
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
       }
       
-      console.log('Transaction confirmed!', confirmation);
+      console.log('✅ Transaction confirmed!', confirmation);
       
       // Now update the local balance after successful transaction
       const newBalance = userWallet.balance - amountInSOL;
@@ -459,10 +508,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       localStorage.setItem(`transaction_${signature}`, JSON.stringify(transactionData));
       
-      console.log(`REAL payment processed successfully!`);
-      console.log(`Transaction signature: ${signature}`);
-      const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
-      console.log(`View on Solscan: https://explorer.solana.com/tx/${signature}${network}`);
+      console.log(`✅ REAL payment processed successfully!`);
+      console.log(`💰 Transaction signature: ${signature}`);
+      console.log(`📊 Final balance: ${newBalance.toFixed(4)} SOL`);
       
       return signature;
     } catch (error) {
@@ -601,11 +649,34 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     };
   }) || [];
 
+  // Cart calculations after products are defined
+  const cartItemsCount = useMemo(() => {
+    return Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+  }, [cart]);
+
+  const cartTotal = useMemo(() => {
+    return Object.entries(cart).reduce((sum, [productId, qty]) => {
+      const product = products.find(p => p.id === productId);
+      return sum + (product?.price || 0) * qty;
+    }, 0);
+  }, [cart, products]);
+
+  // Debug logging after products and cart calculations are defined
+  console.log('FranchiseStore Debug:', {
+    franchiseStage: fundraisingData.stage,
+    isOngoing: fundraisingData.stage === 'ongoing',
+    cart,
+    cartItemsCount,
+    cartTotal,
+    productsCount: products.length
+  });
+
  
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'products', label: 'Products', icon: Box },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'payouts', label: 'Payouts', icon: TrendingUp },
     { id: 'finances', label: 'Finances', icon: DollarSign },
     { id: 'franchisee', label: 'Franchisee', icon: Users },
     { id: 'franchise', label: 'Franchise', icon: Store },
@@ -767,6 +838,140 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
             </Card>
           ))}
         </div>
+      </div>
+    );
+  };
+
+  // Payouts Tab Component
+  const PayoutsTab = ({ franchiseId }: { franchiseId: string }) => {
+    // Get franchise payouts
+    const franchisePayouts = useQuery(
+      api.payoutManagement.getFranchisePayouts,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      franchiseId ? { franchiseId: franchiseId as any } : "skip"
+    );
+
+    // Get payout summary
+    const payoutSummary = useQuery(
+      api.payoutManagement.getPayoutSummary,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      franchiseId ? { franchiseId: franchiseId as any } : "skip"
+    );
+
+    if (!franchisePayouts || franchisePayouts.length === 0) {
+      return (
+        <div className="space-y-6 py-12">
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <TrendingUp className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-stone-800 dark:text-white mb-2">No Payouts Yet</h3>
+              <p className="text-stone-600 dark:text-stone-400">
+                This franchise hasn&apos;t distributed any payouts to token holders yet.
+              </p>
+              <p className="text-sm text-stone-500 dark:text-stone-500 mt-2">
+                Payouts will appear here once the franchise processes revenue distributions.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Total Distributed</p>
+            <p className="text-2xl font-bold text-green-600">
+              ${payoutSummary?.totalToTokenHolders?.toLocaleString() || '0'}
+            </p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">To investors</p>
+          </Card>
+          
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Total Revenue</p>
+            <p className="text-2xl font-bold">${payoutSummary?.totalGrossRevenue?.toLocaleString() || '0'}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Gross revenue</p>
+          </Card>
+
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Reserve Fund</p>
+            <p className="text-2xl font-bold text-blue-600">
+              ${payoutSummary?.currentReserveBalance?.toLocaleString() || '0'}
+            </p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              {payoutSummary?.currentReservePercentage?.toFixed(1)}% of target
+            </p>
+          </Card>
+          
+          <Card className="p-4">
+            <p className="text-sm text-stone-600 dark:text-stone-300">Total Payouts</p>
+            <p className="text-2xl font-bold text-purple-600">{payoutSummary?.totalPayouts || 0}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Distributions</p>
+          </Card>
+        </div>
+
+        {/* Payouts Table */}
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-stone-50 dark:bg-stone-800">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Period</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Revenue</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">To Holders</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">To Reserve</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Royalty</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Platform Fee</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Rule</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
+                {franchisePayouts.map((payout) => (
+                  <tr key={payout._id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="text-sm font-medium">{payout.period}</div>
+                      <div className="text-xs text-stone-500">
+                        {new Date(payout.createdAt).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
+                      ${payout.grossRevenue.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-green-600">
+                      ${payout.toTokenHolders.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-blue-600">
+                      ${payout.toReserve.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-purple-600">
+                      ${payout.royaltyAmount.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-orange-600">
+                      ${payout.platformFeeAmount.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="text-xs text-stone-600 dark:text-stone-400">{payout.distributionRule}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-right">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        payout.status === 'completed'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                          : payout.status === 'processing'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                      }`}>
+                        {payout.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
     );
   };
@@ -1129,14 +1334,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           franchiseLogo={logoUrl || '/logo/logo-4.svg'}
           onBuyTokens={() => {
             if (!isAuthenticated) {
-              // Redirect to auth page with return URL
-              const currentPath = window.location.pathname;
-              router.push(`/auth?redirect=${encodeURIComponent(currentPath)}`);
+              // Show Privy login modal
+              privyLogin();
             } else {
               setIsBuyTokensOpen(true);
             }
           }}
-          onCheckout={cartItemsCount > 0 ? () => setIsCheckoutOpen(true) : undefined}
+          onCheckout={() => {
+            if (!isAuthenticated) {
+              // Show Privy login modal
+              privyLogin();
+            } else {
+              setIsCheckoutOpen(true);
+            }
+          }}
           cartItemsCount={cartItemsCount}
           franchiseStatus={franchiseData.status}
           franchiseStage={franchiseData.stage}
@@ -1171,6 +1382,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </div>
 
         <div className="px-6 pb-6">
+          
+          {/* Debug Info */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">Debug Info</h3>
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <p><strong>Franchise Stage:</strong> {fundraisingData.stage}</p>
+                <p><strong>Is Ongoing:</strong> {fundraisingData.stage === 'ongoing' ? 'Yes' : 'No'}</p>
+                <p><strong>Cart Items:</strong> {cartItemsCount}</p>
+                <p><strong>Products Count:</strong> {products.length}</p>
+                <p><strong>Cart State:</strong> {JSON.stringify(cart)}</p>
+              </div>
+            </div>
+          )}
           
           {activeTab === 'finances' && (
         <div className="space-y-6">
@@ -1323,6 +1548,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       {activeTab === 'transactions' && <TransactionsTab />}
       
+      {activeTab === 'payouts' && franchiseData && (
+        <PayoutsTab franchiseId={franchiseData._id} />
+      )}
+      
       {activeTab === 'products' && (
             <div className="space-y-6">
             {/* Categories and Search */}
@@ -1379,7 +1608,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 )
                 .map((product) => {
                   const quantityInCart = cart[product.id] || 0;
+                  // Only show cart controls when franchise is in ongoing stage
                   const isOngoing = fundraisingData.stage === 'ongoing';
+                  
+                  console.log('Product:', product.name, 'Stage:', fundraisingData.stage, 'isOngoing:', isOngoing, 'quantityInCart:', quantityInCart);
                   
                   return (
                     <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200 dark:border-stone-700 gap-0">
@@ -1460,23 +1692,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       </Card>
 
      
-      {/* Buy Tokens Modal */}
-      <Dialog open={isBuyTokensOpen} onOpenChange={setIsBuyTokensOpen}>
-        <DialogTrigger asChild>
+      {/* Buy Tokens Sheet */}
+      <Sheet open={isBuyTokensOpen} onOpenChange={setIsBuyTokensOpen}>
+        <SheetTrigger asChild>
           <div className="hidden"></div>
-        </DialogTrigger>
-        <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[500px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
+        </SheetTrigger>
+        <SheetContent className="w-full sm:w-[500px] p-0 gap-0 flex flex-col max-h-screen">
           {/* Fixed Header */}
-          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+          <SheetHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <DialogTitle className="text-lg sm:text-xl font-bold">Buy Franchise Tokens</DialogTitle>
+                <SheetTitle className="text-lg sm:text-xl font-bold">Buy Franchise Tokens</SheetTitle>
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
                   Each token = 1 share in this franchise
                 </p>
               </div>
             </div>
-          </DialogHeader>
+          </SheetHeader>
           
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -1912,8 +2144,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Signup Form Modal */}
       <Dialog open={isSignupOpen} onOpenChange={setIsSignupOpen}>
@@ -1933,20 +2165,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </DialogContent>
       </Dialog>
 
-      {/* Checkout Modal */}
-      <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
-        <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[600px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
+      {/* Checkout Sheet */}
+      <Sheet open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+        <SheetContent className="w-full sm:w-[600px] p-0 gap-0 flex flex-col max-h-screen">
           {/* Fixed Header */}
-          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+          <SheetHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <DialogTitle className="text-lg sm:text-xl font-bold">Checkout</DialogTitle>
+                <SheetTitle className="text-lg sm:text-xl font-bold">Checkout</SheetTitle>
                 <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
                   Review your order and complete purchase
                 </p>
               </div>
             </div>
-          </DialogHeader>
+          </SheetHeader>
           
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -2098,13 +2330,25 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     // Calculate SOL amount
                     const totalInSOL = cartTotal / solToUsdRate;
                     
-                    // For now, we'll use a placeholder destination (franchise wallet)
-                    const destinationAddress = franchise.brandWalletAddress || '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+                    // Get franchise wallet address
+                    // This is the FRANCHISE's wallet where product sales go, not the brand's wallet
+                    const franchiseWalletAddress = franchiseWallet?.walletAddress;
+                    
+                    if (!franchiseWalletAddress) {
+                      toast.error('Franchise wallet not found. Please contact support.');
+                      console.error('Franchise wallet address is missing. Franchise:', franchiseData?.franchiseSlug, 'Wallet:', franchiseWallet);
+                      throw new Error('Franchise wallet address not found');
+                    }
+                    
+                    const destinationAddress = franchiseWalletAddress;
                     
                     console.log('Payment details:', {
                       totalUSD: cartTotal,
                       totalSOL: totalInSOL,
-                      destination: destinationAddress
+                      destination: destinationAddress,
+                      franchiseWallet: franchiseWalletAddress,
+                      brandWallet: franchise.brandWalletAddress,
+                      franchiseId: franchiseData?._id
                     });
 
                     // Process Solana payment
@@ -2113,7 +2357,44 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                       destinationAddress
                     );
 
-                    // Record transaction
+                    console.log(`✅ Blockchain transaction successful: ${transactionHash}`);
+                    console.log(`🔗 View on Solana Explorer: https://explorer.solana.com/tx/${transactionHash}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet'}`);
+
+                    // Prepare transaction items description
+                    const itemsList = Object.entries(cart).map(([productId, quantity]) => {
+                      const product = products.find(p => p.id === productId);
+                      return `${product?.name || 'Product'} (x${quantity})`;
+                    }).join(', ');
+
+                    // Record transaction in database with REAL Solana transaction hash
+                    if (franchiseData?._id) {
+                      try {
+                        const dbResult = await addFranchiseTransaction({
+                          franchiseId: franchiseData._id,
+                          transactionType: "income" as const,
+                          amount: totalInSOL,
+                          usdAmount: cartTotal,
+                          description: `Product purchase: ${itemsList}`,
+                          category: "product_sales",
+                          solanaTransactionHash: transactionHash, // REAL blockchain transaction hash
+                          fromAddress: userWallet.publicKey,
+                          toAddress: destinationAddress,
+                          status: "confirmed" as const,
+                          metadata: {
+                            notes: `Customer purchased ${cartItemsCount} items`,
+                            tags: ["product_purchase", "customer_order"],
+                          }
+                        });
+                        console.log('✅ Transaction recorded in database:', dbResult);
+                        console.log(`📊 Transaction ID: ${dbResult.transactionId}`);
+                      } catch (dbError) {
+                        console.error('Failed to record transaction in database:', dbError);
+                        // Don't throw - transaction was successful even if DB recording failed
+                        toast.error('Transaction succeeded but failed to record in database. Contact support with transaction hash: ' + transactionHash);
+                      }
+                    }
+
+                    // Record transaction (for backwards compatibility with localStorage tracking)
                     const transaction = {
                       id: `product_purchase_${Date.now()}`,
                       type: 'product_purchase',
@@ -2197,8 +2478,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

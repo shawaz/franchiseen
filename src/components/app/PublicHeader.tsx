@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePrivy } from '@privy-io/react-auth'
 
 const publicNavigationLinks = [
   { label: 'Home', path: '/' },
@@ -10,6 +11,8 @@ const publicNavigationLinks = [
 ]
 
 export function PublicHeader() {
+  const { login } = usePrivy()
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b border-stone-200 dark:border-stone-800 bg-white/95 dark:bg-stone-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-stone-900/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,18 +42,18 @@ export function PublicHeader() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link
-              href="/login"
+            <button
+              onClick={login}
               className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             >
               Sign In
-            </Link>
-            <Link
-              href="/login"
+            </button>
+            <button
+              onClick={login}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               Get Started
-            </Link>
+            </button>
           </div>
 
           {/* Mobile menu button */}

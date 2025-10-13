@@ -21,7 +21,6 @@ export function AppLayout({
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <div className="flex flex-col min-h-screen">
-        <NetworkBanner />
         {/* <AppHeader links={links} /> */}
         <main className="min-h-screen bg-stone-100 dark:bg-stone-900">
           <ClusterUiChecker>

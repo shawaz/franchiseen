@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery } from 'convex/react';
+import { usePrivy } from '@privy-io/react-auth';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 
@@ -32,6 +33,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Check Privy auth state
+  const { authenticated: privyAuthenticated, user: privyUser, ready: privyReady } = usePrivy();
 
   // Get user profile using the email
   const userProfile = useQuery(
@@ -39,16 +43,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userEmail ? { email: userEmail } : "skip"
   );
 
-  // Check authentication state on mount and when userProfile changes
+  // Check authentication state - either from localStorage OR from Privy
   useEffect(() => {
     const checkAuth = () => {
-      const hasSession = localStorage.getItem("isAuthenticated") === "true";
-      // User is authenticated if they have a session, even without a complete profile
-      setIsAuthenticated(hasSession);
+      const hasLocalSession = localStorage.getItem("isAuthenticated") === "true";
+      const hasPrivySession = privyReady && privyAuthenticated;
+      
+      // User is authenticated if they have EITHER a local session OR Privy session
+      setIsAuthenticated(hasLocalSession || hasPrivySession);
+      
+      // If authenticated via Privy but no email set, set it
+      if (hasPrivySession && !userEmail && privyUser) {
+        const email = privyUser.email?.address || privyUser.google?.email || null;
+        if (email) {
+          setUserEmail(email);
+          localStorage.setItem('userEmail', email);
+          localStorage.setItem('isAuthenticated', 'true');
+        }
+      }
     };
     
     checkAuth();
-  }, [userProfile]);
+  }, [userProfile, privyAuthenticated, privyUser, privyReady, userEmail]);
 
   // Load user email from localStorage on mount
   useEffect(() => {
@@ -59,10 +75,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = () => {
+    // Clear local storage
     localStorage.removeItem("userEmail");
     localStorage.removeItem("isAuthenticated");
     setUserEmail(null);
     setIsAuthenticated(false);
+    
+    // Note: Privy logout should be handled separately via Privy UI
+    if (privyAuthenticated && privyReady) {
+      console.log('Note: To fully logout from Privy, use the Privy logout option');
+    }
+    
     window.location.href = "/";
   };
 

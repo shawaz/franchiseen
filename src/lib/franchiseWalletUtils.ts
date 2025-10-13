@@ -60,35 +60,37 @@ export async function getWalletBalance(walletAddress: string): Promise<number> {
 /**
  * Get Solana Explorer URL for a wallet address
  * @param walletAddress - The wallet address
- * @param cluster - The Solana cluster (mainnet-beta, devnet, testnet)
+ * @param cluster - The Solana cluster (mainnet-beta, devnet, testnet) - auto-detects from env if not provided
  * @returns Explorer URL
  */
 export function getSolanaExplorerUrl(
   walletAddress: string, 
-  cluster: 'mainnet-beta' | 'devnet' | 'testnet' = 'mainnet-beta'
+  cluster?: 'mainnet-beta' | 'devnet' | 'testnet'
 ): string {
-  const baseUrl = cluster === 'mainnet-beta' 
-    ? 'https://explorer.solana.com'
-    : `https://explorer.solana.com/?cluster=${cluster}`;
+  // Auto-detect network from environment if not provided
+  const network = cluster || (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SOLANA_NETWORK) || 'devnet';
   
-  return `${baseUrl}/address/${walletAddress}`;
+  const clusterParam = network === 'mainnet-beta' ? '' : `?cluster=${network}`;
+  
+  return `https://explorer.solana.com/address/${walletAddress}${clusterParam}`;
 }
 
 /**
  * Get Solana Explorer URL for a transaction hash
  * @param transactionHash - The transaction hash
- * @param cluster - The Solana cluster (mainnet-beta, devnet, testnet)
+ * @param cluster - The Solana cluster (mainnet-beta, devnet, testnet) - auto-detects from env if not provided
  * @returns Explorer URL
  */
 export function getSolanaExplorerTransactionUrl(
   transactionHash: string,
-  cluster: 'mainnet-beta' | 'devnet' | 'testnet' = 'mainnet-beta'
+  cluster?: 'mainnet-beta' | 'devnet' | 'testnet'
 ): string {
-  const baseUrl = cluster === 'mainnet-beta'
-    ? 'https://explorer.solana.com'
-    : `https://explorer.solana.com/?cluster=${cluster}`;
+  // Auto-detect network from environment if not provided
+  const network = cluster || (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_SOLANA_NETWORK) || 'devnet';
   
-  return `${baseUrl}/tx/${transactionHash}`;
+  const clusterParam = network === 'mainnet-beta' ? '' : `?cluster=${network}`;
+  
+  return `https://explorer.solana.com/tx/${transactionHash}${clusterParam}`;
 }
 
 /**

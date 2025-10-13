@@ -5,15 +5,27 @@ import {
   UserCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React from "react";
 import { Button } from "../ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePrivy } from "@privy-io/react-auth";
 
 function FooterMobile() {
   const pathname = usePathname();
-  const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { login, ready } = usePrivy();
+
+  const handleLogin = () => {
+    console.log('🔘 FooterMobile: GET STARTED clicked');
+    console.log('📊 Privy ready:', ready);
+    console.log('🔑 Login function:', typeof login);
+    if (typeof login === 'function') {
+      login();
+    } else {
+      console.error('❌ login is not a function!', login);
+    }
+  };
 
   // Function to check if a path is active
   const isActive = (path: string) => {
@@ -53,11 +65,11 @@ function FooterMobile() {
             </Link>
           </div>
         ) : (
-          <div className="p-6">
+          <div className="p-4">
             <Button 
               variant="default" 
-              className="w-full"
-              onClick={() => router.push('/auth')}
+              className="w-full h-10"
+              onClick={handleLogin}
             >
               GET STARTED
             </Button>
