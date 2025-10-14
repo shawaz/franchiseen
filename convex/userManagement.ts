@@ -39,8 +39,9 @@ export const syncPrivyUser = mutation({
     email: v.optional(v.string()),
     fullName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    walletAddress: v.optional(v.string()),
   },
-  handler: async (ctx, { privyUserId, email, fullName, avatarUrl }) => {
+  handler: async (ctx, { privyUserId, email, fullName, avatarUrl, walletAddress }) => {
     // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
@@ -55,6 +56,7 @@ export const syncPrivyUser = mutation({
         email: email || existingUser.email,
         fullName: fullName || existingUser.fullName,
         avatarUrl: avatarUrl || existingUser.avatarUrl,
+        walletAddress: walletAddress || existingUser.walletAddress,
         updatedAt: now,
       });
       return existingUser._id;
@@ -65,6 +67,7 @@ export const syncPrivyUser = mutation({
         email,
         fullName,
         avatarUrl,
+        walletAddress,
         createdAt: now,
         updatedAt: now,
       });

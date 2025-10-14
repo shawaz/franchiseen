@@ -27,6 +27,11 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
             logo: '/logo.svg',
           },
           loginMethods: ['google'],
+          embeddedWallets: {
+            solana: {
+              createOnLogin: 'all-users',
+            },
+          },
         }}
       >
         <PrivyAuthProvider>

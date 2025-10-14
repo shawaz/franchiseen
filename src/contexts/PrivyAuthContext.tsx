@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect } from 'react';
-import { usePrivy, User } from '@privy-io/react-auth';
+import { usePrivy, useWallets, User } from '@privy-io/react-auth';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
@@ -37,6 +37,9 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
     login: privyLogin,
   } = usePrivy();
 
+  // Get Privy wallets (embedded + connected)
+  const { wallets } = useWallets();
+
   // Get user profile from Convex using Privy user ID
   const userProfile = useQuery(
     api.userManagement.getUserByPrivyId,
@@ -65,25 +68,45 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
         avatarUrl = (privyUser.discord as unknown as { avatarUrl?: string }).avatarUrl;
       }
 
+      // Get embedded wallet address from Privy wallets
+      let walletAddress: string | undefined;
+      
+      // Privy creates an embedded Solana wallet by default
+      // Find the Solana wallet (Privy embedded wallets)
+      const solanaWallet = wallets.find(
+        (wallet) => wallet.walletClientType === 'privy'
+      );
+      
+      if (solanaWallet) {
+        walletAddress = solanaWallet.address;
+        console.log('✅ Privy Solana wallet found:', walletAddress);
+      } else {
+        console.log('⚠️ No Privy Solana wallet found yet. Wallets:', wallets);
+      }
+
+      console.log('Syncing user to Convex with wallet:', walletAddress);
+
       await syncUser({
         privyUserId: privyUser.id,
         email: email || undefined,
         fullName: fullName || undefined,
         avatarUrl: avatarUrl || undefined,
+        walletAddress: walletAddress || undefined,
       });
     } catch (error) {
       console.error('Error syncing user to Convex:', error);
     }
   };
 
-  // Sync user data whenever Privy user changes
+  // Sync user data whenever Privy user or wallets change
   useEffect(() => {
     if (user && authenticated) {
       console.log('User authenticated, syncing to Convex:', user);
+      console.log('Available wallets:', wallets);
       syncUserToConvex(user);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authenticated]);
+  }, [user?.id, authenticated, wallets.length]);
 
   // Handle login
   const handleLogin = () => {
