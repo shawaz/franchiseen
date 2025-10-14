@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { usePrivy, User } from '@privy-io/react-auth';
+import { usePrivy, useWallets, User } from '@privy-io/react-auth';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
@@ -39,6 +39,9 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
 
   // Track if we're on client side to avoid SSR issues
   const [isClient, setIsClient] = useState(false);
+  
+  // Get wallets from Privy (only runs on client)
+  const { wallets, ready: walletsReady } = useWallets();
 
   useEffect(() => {
     setIsClient(true);
@@ -72,15 +75,30 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
         avatarUrl = (privyUser.discord as unknown as { avatarUrl?: string }).avatarUrl;
       }
 
-      // Get embedded wallet address from Privy user object
+      // Get embedded wallet address from Privy wallets
       let walletAddress: string | undefined;
       
-      // Check for embedded wallet in the user object
-      if (privyUser.wallet) {
+      // Only access wallets on client side when ready
+      if (isClient && walletsReady && wallets.length > 0) {
+        // Find the Solana wallet created by Privy
+        const solanaWallet = wallets.find(
+          (w) => w.walletClientType === 'privy'
+        );
+        
+        if (solanaWallet) {
+          walletAddress = solanaWallet.address;
+          console.log('✅ Privy Solana wallet found from wallets array:', walletAddress);
+        }
+      }
+      
+      // Fallback: Check for embedded wallet in the user object
+      if (!walletAddress && privyUser.wallet) {
         walletAddress = privyUser.wallet.address;
-        console.log('✅ Privy embedded wallet found:', walletAddress);
-      } else if (privyUser.linkedAccounts && privyUser.linkedAccounts.length > 0) {
-        // Check linked accounts for any wallet
+        console.log('✅ Privy embedded wallet found from user object:', walletAddress);
+      } 
+      
+      // Fallback: Check linked accounts
+      if (!walletAddress && privyUser.linkedAccounts && privyUser.linkedAccounts.length > 0) {
         const linkedWallet = privyUser.linkedAccounts.find(
           (account) => account.type === 'wallet'
         );
@@ -91,7 +109,7 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!walletAddress) {
-        console.log('⚠️ No wallet found on Privy user object yet');
+        console.log('⚠️ No wallet found yet. Wallets ready:', walletsReady, 'Wallets count:', wallets.length);
       }
 
       console.log('Syncing user to Convex with wallet:', walletAddress);
@@ -108,14 +126,15 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sync user data whenever Privy user changes
+  // Sync user data whenever Privy user changes or wallets become ready
   useEffect(() => {
     if (user && authenticated && isClient) {
       console.log('User authenticated, syncing to Convex:', user);
+      console.log('Wallets ready:', walletsReady, 'Wallets:', wallets);
       syncUserToConvex(user);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, authenticated, isClient]);
+  }, [user?.id, authenticated, isClient, walletsReady, wallets.length]);
 
   // Handle login
   const handleLogin = () => {

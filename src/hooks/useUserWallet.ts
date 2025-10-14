@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getWalletBalance } from '@/lib/solanaWalletUtils';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWallets } from '@privy-io/react-auth';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 
 interface UserWallet {
   publicKey: string;
@@ -10,7 +11,8 @@ interface UserWallet {
 }
 
 export function useUserWallet() {
-  const { user, ready } = usePrivy();
+  const { userProfile } = useAuth();
+  const { wallets, ready: walletsReady } = useWallets();
   const [wallet, setWallet] = useState<UserWallet>({
     publicKey: '',
     balance: 0,
@@ -18,23 +20,32 @@ export function useUserWallet() {
     error: null
   });
 
-  // Load wallet from Privy embedded wallet or connected wallet
+  // Load wallet from Privy embedded wallet or Convex userProfile
   const loadWallet = useCallback(async () => {
-    if (!ready) {
+    if (!walletsReady) {
       return;
     }
 
     setWallet(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      // Get Solana wallet from Privy
-      const solanaWallet = user?.linkedAccounts?.find(
-        account => account.type === 'wallet' && account.chainType === 'solana'
-      );
+      let address: string | undefined;
 
-      if (solanaWallet && 'address' in solanaWallet) {
-        const address = solanaWallet.address;
-        
+      // Priority 1: Get from Convex userProfile (already synced)
+      if (userProfile?.walletAddress) {
+        address = userProfile.walletAddress;
+        console.log('✅ Using wallet from Convex userProfile:', address);
+      } 
+      // Priority 2: Get from Privy wallets hook
+      else if (wallets.length > 0) {
+        const solanaWallet = wallets.find(w => w.walletClientType === 'privy');
+        if (solanaWallet) {
+          address = solanaWallet.address;
+          console.log('✅ Using wallet from Privy wallets:', address);
+        }
+      }
+
+      if (address) {
         // Get wallet balance
         const balance = await getWalletBalance(address);
         
@@ -49,9 +60,10 @@ export function useUserWallet() {
         localStorage.setItem('userWalletAddress', address);
         localStorage.setItem('userWalletBalance', balance.toString());
         
-        console.log(`Loaded Privy wallet: ${address} with balance: ${balance} SOL`);
+        console.log(`✅ Loaded wallet: ${address} with balance: ${balance} SOL`);
       } else {
-        // No wallet connected yet
+        // No wallet available yet
+        console.log('⚠️ No wallet found in userProfile or Privy wallets');
         setWallet({
           publicKey: '',
           balance: 0,
@@ -60,14 +72,14 @@ export function useUserWallet() {
         });
       }
     } catch (error) {
-      console.error('Error loading wallet:', error);
+      console.error('❌ Error loading wallet:', error);
       setWallet(prev => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to load wallet'
       }));
     }
-  }, [user, ready]);
+  }, [userProfile?.walletAddress, wallets, walletsReady]);
 
   // Initialize wallet on mount and when user changes
   useEffect(() => {
