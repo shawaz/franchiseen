@@ -6,7 +6,7 @@ import { ArrowUpDown, Copy, ArrowDownLeft, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Button } from '../../ui/button';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import { useSolPrice } from '@/lib/coingecko';
 import { getSolanaConnection } from '@/lib/solanaConnection';
 import { useNetwork } from '@/contexts/NetworkContext';
@@ -27,7 +27,7 @@ const UserWallet: React.FC<WalletProps> = ({
   const { userProfile } = useAuth();
   const walletAddress = userProfile?.walletAddress;
   const connected = !!walletAddress;
-  const avatarUrl = userProfile?.avatarUrl || userProfile?.image || null;
+  const avatarUrl = userProfile?.avatarUrl || null;
   const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -243,16 +243,13 @@ const UserWallet: React.FC<WalletProps> = ({
               />
             ) : (
               <div className="text-gray-700 dark:text-white font-semibold text-sm">
-                {userProfile?.firstName?.[0] || userProfile?.lastName?.[0] || 'U'}
+                {userProfile?.fullName?.[0] || userProfile?.email?.[0] || 'U'}
               </div>
             )}
           </div>
           <div>
             <h3 className="font-semibold text-md text-gray-900 dark:text-white">
-              {userProfile?.firstName && userProfile?.lastName 
-                ? `${userProfile.firstName} ${userProfile.lastName}`
-                : userProfile?.email || 'User'
-              }
+              {userProfile?.fullName || userProfile?.email || 'User'}
             </h3>
             <div className="flex items-center gap-2">
               {walletAddress ? (

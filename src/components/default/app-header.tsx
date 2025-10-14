@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import { ThemeSelect } from '@/components/default/theme-select'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/PrivyAuthContext'
 import { ClusterDropdown } from '@/components/default/cluster-dropdown'
 
 // Simple Auth Component

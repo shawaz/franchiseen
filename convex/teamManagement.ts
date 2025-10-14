@@ -130,8 +130,7 @@ export const getFranchiseTeam = query({
           ...member,
           user: user ? {
             _id: user._id,
-            firstName: user.firstName,
-            lastName: user.lastName,
+            fullName: user.fullName,
             email: user.email,
             avatar: user.avatarUrl,
           } : null,
@@ -165,8 +164,7 @@ export const getTeamMemberByUser = query({
       ...teamMember,
       user: user ? {
         _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        fullName: user.fullName,
         email: user.email,
         avatar: user.avatarUrl,
       } : null,

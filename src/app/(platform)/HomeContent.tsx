@@ -6,7 +6,7 @@ import FranchiseCardWithData from "@/components/app/franchise/FranchiseCardWithD
 import { useFranchises, useFranchisersByStatus, useFranchisesWithStages } from "@/hooks/useFranchises";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/PrivyAuthContext";
 import Link from "next/link";
 
 function HomeContent() {

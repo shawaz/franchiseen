@@ -1650,12 +1650,12 @@ export default function FranchiseDashboard() {
                       <div className="flex items-center space-x-4">
                         <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
                           <span className="text-white font-semibold text-sm">
-                            {member.user ? `${member.user.firstName?.[0] || ''}${member.user.lastName?.[0] || ''}` : 'U'}
+                            {member.user?.fullName?.[0] || 'U'}
                           </span>
                         </div>
                         <div>
                           <h5 className="font-medium">
-                            {member.user ? `${member.user.firstName || ''} ${member.user.lastName || ''}` : 'Unknown User'}
+                            {member.user?.fullName || member.user?.email || 'Unknown User'}
                           </h5>
                           <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-600 capitalize">{member.role}</span>

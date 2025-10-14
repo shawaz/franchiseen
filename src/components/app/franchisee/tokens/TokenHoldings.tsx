@@ -5,7 +5,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 
 export default function TokenHoldings() {
   const { userProfile } = useAuth();

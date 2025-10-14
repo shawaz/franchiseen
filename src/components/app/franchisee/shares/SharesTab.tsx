@@ -6,7 +6,7 @@ import { api } from '../../../../../convex/_generated/api';
 import { useRouter } from 'next/navigation';
 import { useSolana } from '@/components/solana/use-solana';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
 interface FranchiseShare {

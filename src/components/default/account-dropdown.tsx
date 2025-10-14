@@ -15,7 +15,7 @@ import { useAllFranchisersByUserId } from '@/hooks/useFranchises';
 import { useConvexImageUrl } from '@/hooks/useConvexImageUrl';
 import { useUserWallet } from '@/hooks/useUserWallet';
 import { Id } from '../../../convex/_generated/dataModel';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import { useNetwork } from '@/contexts/NetworkContext';
 import { getSolanaConnection } from '@/lib/solanaConnection';
 
@@ -77,7 +77,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   const { isDevnet } = useNetwork();
   
   // Get user's wallet balance
-  const { wallet, updateWalletBalance } = useUserWallet({ userId: userProfile?._id as Id<"users"> });
+  const { wallet, updateWalletBalance } = useUserWallet();
   const walletBalance = wallet.balance;
   const balanceLoading = wallet.isLoading;
   
@@ -162,7 +162,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
   const isCompanyUser = userProfile?.email?.endsWith('@franchiseen.com') || false;
   
   // Get user avatar URL
-  const avatarUrl = userProfile?.avatarUrl || userProfile?.image || null;
+  const avatarUrl = userProfile?.avatarUrl || null;
   
   // Debug logging
   console.log('Account dropdown - userProfile:', userProfile);
@@ -179,6 +179,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
 
   const handleSignOut = async () => {
     try {
+      // signOut from Privy is already async
       await signOut();
       // Optional: Redirect to home page after sign out
       router.push('/');
@@ -222,10 +223,7 @@ const AccountDropdown = ({}: AccountDropdownProps) => {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-medium truncate">
-                  {userProfile?.firstName && userProfile?.lastName 
-                    ? `${userProfile.firstName} ${userProfile.lastName}`
-                    : userProfile?.email || 'User'
-                  }
+                  {userProfile?.fullName || userProfile?.email || 'User'}
                 </h3>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-gray-500 truncate">

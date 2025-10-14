@@ -17,7 +17,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useSolana } from '@/components/solana/use-solana';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../../convex/_generated/api';
 

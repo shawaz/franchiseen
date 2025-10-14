@@ -20,7 +20,7 @@ import { DropdownMenuContent, DropdownMenu, DropdownMenuTrigger, DropdownMenuIte
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { Id } from '../../../../convex/_generated/dataModel';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import Image from 'next/image';
 
 interface UserWallet {
@@ -47,7 +47,7 @@ export default function UserWallet() {
 
   // Get current user data for fallback
   const { userProfile } = useAuth();
-  const avatarUrl = userProfile?.avatarUrl || userProfile?.image || null;
+  const avatarUrl = userProfile?.avatarUrl || null;
 
   // Debug: Log user profile data
   console.log('UserWallet: userProfile:', userProfile);
@@ -89,9 +89,7 @@ export default function UserWallet() {
           ...wallet,
           balance,
           user: {
-            name: userProfile.firstName && userProfile.lastName 
-              ? `${userProfile.firstName} ${userProfile.lastName}`
-              : userProfile.email || wallet?.user?.name || 'Unknown',
+            name: userProfile.fullName || userProfile.email || wallet?.user?.name || 'Unknown',
             email: userProfile.email || wallet?.user?.email || 'Unknown',
             joinedDate: userProfile.createdAt ? new Date(userProfile.createdAt).toISOString() : wallet?.user?.joinedDate || new Date().toISOString()
           }
@@ -119,9 +117,7 @@ export default function UserWallet() {
         lastActivity: new Date().toISOString(),
         status: 'active' as 'active' | 'inactive' | 'suspended',
         user: {
-          name: userProfile?.firstName && userProfile?.lastName 
-            ? `${userProfile.firstName} ${userProfile.lastName}`
-            : userProfile?.email || 'Current User',
+          name: userProfile?.fullName || userProfile?.email || 'Current User',
           email: userProfile?.email || 'current@user.com',
           joinedDate: userProfile?.createdAt ? new Date(userProfile.createdAt).toISOString() : new Date().toISOString()
         },

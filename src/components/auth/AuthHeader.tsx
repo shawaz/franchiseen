@@ -1,20 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/PrivyAuthContext";
 import { AccountDropdown } from "../default/account-dropdown";
 import Link from "next/link";
 
 export function AuthHeader() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
 
   if (!isAuthenticated) {
     return (
-      <Link href="/auth">
-        <Button variant="outline">
-          Get Started
-        </Button>
-      </Link>
+      <Button variant="outline" onClick={login}>
+        Get Started
+      </Button>
     );
   }
 

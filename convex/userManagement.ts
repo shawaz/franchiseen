@@ -1,13 +1,5 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Keypair } from "@solana/web3.js";
-import bs58 from "bs58";
-import { 
-  generateWalletWithEncryptedPrivateKey, 
-  generateUserKey,
-  decryptPrivateKey,
-  recreateKeypairFromEncryptedPrivateKey
-} from "../src/lib/crypto";
 
 // Get current user profile
 export const getCurrentUserProfile = query({
@@ -27,93 +19,76 @@ export const getCurrentUserProfile = query({
   },
 });
 
-// Create user profile after signup
-export const createUserProfile = mutation({
-  args: {
-    userId: v.id("users"),
-    firstName: v.string(),
-    lastName: v.string(),
-    dateOfBirth: v.optional(v.number()),
-    country: v.optional(v.string()),
-    avatar: v.optional(v.id("_storage")),
-  },
-  handler: async (ctx, { userId, firstName, lastName, dateOfBirth, country, avatar }) => {
+// Get user by Privy ID
+export const getUserByPrivyId = query({
+  args: { privyUserId: v.string() },
+  handler: async (ctx, { privyUserId }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_privyUserId", (q) => q.eq("privyUserId", privyUserId))
+      .first();
 
-    // Get user
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Check if profile data already exists
-    if (user.walletAddress) {
-      throw new Error("Profile already exists");
-    }
-
-    // Generate user-specific key for encryption
-    const userKey = generateUserKey(userId, user.email || "", Date.now());
-    
-    // Generate Solana wallet with encrypted private key
-    const walletData = generateWalletWithEncryptedPrivateKey(userKey);
-    const walletAddress = walletData.publicKey;
-
-    // Update user record with profile data
-    await ctx.db.patch(userId, {
-      firstName,
-      lastName,
-      fullName: `${firstName} ${lastName}`,
-      dateOfBirth,
-      country,
-      walletAddress,
-      privateKey: walletData.encryptedPrivateKey,
-      isWalletGenerated: true,
-      updatedAt: Date.now(),
-    });
-
-    // Convert private key bytes to base58 for display
-    const privateKeyBase58 = bs58.encode(walletData.privateKeyBytes);
-    
-    return { 
-      profileId: userId, 
-      walletAddress: walletData.publicKey,
-      privateKey: privateKeyBase58 // Return base58-encoded private key for display
-    };
+    return user;
   },
 });
 
-// Update user profile
-export const updateUserProfile = mutation({
+// Sync Privy user to database (creates or updates)
+export const syncPrivyUser = mutation({
+  args: {
+    privyUserId: v.string(),
+    email: v.optional(v.string()),
+    fullName: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, { privyUserId, email, fullName, avatarUrl }) => {
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_privyUserId", (q) => q.eq("privyUserId", privyUserId))
+      .first();
+
+    const now = Date.now();
+
+    if (existingUser) {
+      // Update existing user
+      await ctx.db.patch(existingUser._id, {
+        email: email || existingUser.email,
+        fullName: fullName || existingUser.fullName,
+        avatarUrl: avatarUrl || existingUser.avatarUrl,
+        updatedAt: now,
+      });
+      return existingUser._id;
+    } else {
+      // Create new user with Privy data
+      const userId = await ctx.db.insert("users", {
+        privyUserId,
+        email,
+        fullName,
+        avatarUrl,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return userId;
+    }
+  },
+});
+
+// Update user fullName
+export const updateUserFullName = mutation({
   args: {
     userId: v.id("users"),
-    firstName: v.optional(v.string()),
-    lastName: v.optional(v.string()),
-    dateOfBirth: v.optional(v.number()),
-    country: v.optional(v.string()),
-    avatar: v.optional(v.id("_storage")),
+    fullName: v.string(),
   },
-  handler: async (ctx, { userId, firstName, lastName, dateOfBirth, country, avatar }) => {
-
+  handler: async (ctx, { userId, fullName }) => {
     const user = await ctx.db.get(userId);
-
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Update user with profile data
-    const updates: any = {
+    await ctx.db.patch(userId, {
+      fullName,
       updatedAt: Date.now(),
-    };
-    
-    if (firstName) updates.firstName = firstName;
-    if (lastName) updates.lastName = lastName;
-    if (firstName || lastName) {
-      updates.fullName = `${firstName || user.firstName || ''} ${lastName || user.lastName || ''}`.trim();
-    }
-    if (dateOfBirth !== undefined) updates.dateOfBirth = dateOfBirth;
-    if (country) updates.country = country;
-    if (avatar) updates.avatarUrl = avatar;
-
-    await ctx.db.patch(userId, updates);
+    });
 
     return userId;
   },
@@ -132,32 +107,6 @@ export const getUserByWalletAddress = query({
   },
 });
 
-// Get user's private key (decrypted)
-export const getUserPrivateKey = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    // Get user
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    if (!user.privateKey) {
-      throw new Error("User private key not found");
-    }
-
-    // Generate the same user key used for encryption
-    const userKey = generateUserKey(userId, user.email || "", user.createdAt || Date.now());
-    
-    // Decrypt the private key
-    const decryptedPrivateKey = decryptPrivateKey(user.privateKey, userKey);
-    
-    return {
-      privateKey: Array.from(decryptedPrivateKey), // Convert to regular array for JSON response
-      publicKey: user.walletAddress
-    };
-  },
-});
 
 // Get all user wallets with their transaction data (for admin view)
 export const getAllUserWallets = query({
@@ -209,9 +158,9 @@ export const getAllUserWallets = query({
           totalEarnings,
           transactionCount: shares.length,
           lastActivity: new Date(lastActivity).toISOString(),
-          status: user.isWalletGenerated ? 'active' : 'inactive' as 'active' | 'inactive' | 'suspended',
+          status: user.walletAddress ? 'active' : 'inactive' as 'active' | 'inactive' | 'suspended',
           user: {
-            name: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unknown',
+            name: user.fullName || user.email || 'Unknown',
             email: user.email || '',
             joinedDate: new Date(user.createdAt || Date.now()).toISOString()
           },

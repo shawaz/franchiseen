@@ -57,10 +57,9 @@ import Image from 'next/image';
 import GoogleMapsLoader from '@/components/maps/GoogleMapsLoader';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
-import { useRouter } from 'next/navigation';
-import { Id } from "../../../../../convex/_generated/dataModel";
+import { useRouter } from 'next/navigation';  
 import type { 
   Product, 
   Franchisee, 
@@ -126,10 +125,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // Solana wallet hooks with error handling
   // Solana wallet hooks - always call them unconditionally
   // User wallet integration
-  const { userProfile, isAuthenticated } = useAuth();
-  const { wallet: userWallet, isWalletLoaded, updateWalletBalance } = useUserWallet({ 
-    userId: userProfile?._id ? userProfile._id as Id<"users"> : undefined 
-  });
+  const { isAuthenticated } = useAuth();
+  const { wallet: userWallet, updateWalletBalance } = useUserWallet();
+  const isWalletLoaded = !userWallet.isLoading;
   
   // Load franchise data from Convex
   const franchiseData = useQuery(
@@ -408,9 +406,11 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       console.log('Created Solana transaction:', transaction);
       
-      // Sign and send the transaction
+      // TODO: Implement transaction signing using Privy wallet
+      // Since we no longer store keypairs, we need to use Privy's wallet signing
       console.log('Signing transaction with user keypair...');
-      transaction.sign(userWallet.keypair);
+      // transaction.sign(userWallet.keypair); // Removed - need Privy signing
+      throw new Error('Transaction signing not yet implemented with Privy. Please update to use Privy wallet signing.');
       
       console.log('Sending transaction to Solana network...');
       const signature = await connection.sendRawTransaction(transaction.serialize());

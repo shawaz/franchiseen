@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Menu, X, Store, Building2, User, Power, Plus, Settings, Sun, Moon, Monitor, Banknote, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/PrivyAuthContext";
 import { ThemeSwitcher } from "../default/theme-switcher";
 import { useTheme } from "next-themes";
 import { useNetwork } from "@/contexts/NetworkContext";
@@ -103,7 +103,7 @@ const HamburgerThemeSwitcher = () => {
 
 export function HamburgerMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isAuthenticated, userProfile, signOut } = useAuth();
+  const { isAuthenticated, userProfile, signOut, login } = useAuth();
   const router = useRouter();
   
   
@@ -174,7 +174,7 @@ export function HamburgerMenu() {
           <Button 
             onClick={() => {
               setIsMenuOpen(false);
-              router.push('/auth');
+              login();
             }}
             className="w-full"
           >

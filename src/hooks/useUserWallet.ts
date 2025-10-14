@@ -1,148 +1,83 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Keypair } from '@solana/web3.js';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 import { getWalletBalance } from '@/lib/solanaWalletUtils';
+import { usePrivy } from '@privy-io/react-auth';
 
 interface UserWallet {
   publicKey: string;
-  privateKey: Uint8Array;
-  keypair: Keypair;
   balance: number;
   isLoading: boolean;
   error: string | null;
 }
 
-interface UseUserWalletProps {
-  userId?: Id<"users">;
-}
-
-export function useUserWallet({ userId }: UseUserWalletProps = {}) {
+export function useUserWallet() {
+  const { user, ready } = usePrivy();
   const [wallet, setWallet] = useState<UserWallet>({
     publicKey: '',
-    privateKey: new Uint8Array(),
-    keypair: new Keypair(),
     balance: 0,
-    isLoading: false,
+    isLoading: true,
     error: null
   });
 
-  const getUserPrivateKey = useMutation(api.userManagement.getUserPrivateKey);
+  // Load wallet from Privy embedded wallet or connected wallet
+  const loadWallet = useCallback(async () => {
+    if (!ready) {
+      return;
+    }
 
-  // Load wallet from localStorage first (for immediate access)
-  const loadLocalWallet = useCallback(async () => {
+    setWallet(prev => ({ ...prev, isLoading: true, error: null }));
+    
     try {
-      const storedWalletAddress = localStorage.getItem('userWalletAddress');
-      const storedPrivateKey = localStorage.getItem('userPrivateKey');
-      const storedBalance = localStorage.getItem('userWalletBalance');
-      
-      if (storedWalletAddress && storedPrivateKey) {
-        const privateKeyArray = new Uint8Array(JSON.parse(storedPrivateKey));
-        const keypair = Keypair.fromSecretKey(privateKeyArray);
+      // Get Solana wallet from Privy
+      const solanaWallet = user?.linkedAccounts?.find(
+        account => account.type === 'wallet' && account.chainType === 'solana'
+      );
+
+      if (solanaWallet && 'address' in solanaWallet) {
+        const address = solanaWallet.address;
         
-        // Always fetch real balance from blockchain for accuracy
-        let balance = 0;
-        try {
-          balance = await getWalletBalance(storedWalletAddress);
-          // Update localStorage with real balance
-          localStorage.setItem('userWalletBalance', balance.toString());
-          console.log(`Fetched real balance from blockchain: ${balance} SOL for wallet ${storedWalletAddress}`);
-        } catch (error) {
-          console.error('Error fetching wallet balance from blockchain:', error);
-          // Fallback to stored balance if blockchain fetch fails
-          if (storedBalance) {
-            balance = parseFloat(storedBalance);
-            console.log(`Using stored balance as fallback: ${balance} SOL`);
-          }
-        }
+        // Get wallet balance
+        const balance = await getWalletBalance(address);
         
         setWallet({
-          publicKey: storedWalletAddress,
-          privateKey: privateKeyArray,
-          keypair,
+          publicKey: address,
           balance,
           isLoading: false,
           error: null
         });
         
-        return true;
+        // Store in localStorage for quick access
+        localStorage.setItem('userWalletAddress', address);
+        localStorage.setItem('userWalletBalance', balance.toString());
+        
+        console.log(`Loaded Privy wallet: ${address} with balance: ${balance} SOL`);
+      } else {
+        // No wallet connected yet
+        setWallet({
+          publicKey: '',
+          balance: 0,
+          isLoading: false,
+          error: null
+        });
       }
     } catch (error) {
-      console.error('Error loading local wallet:', error);
-    }
-    
-    return false;
-  }, []);
-
-  // Load wallet from server (when userId is provided and local storage is empty)
-  const loadServerWallet = useCallback(async () => {
-    if (!userId) return;
-    
-    setWallet(prev => ({ ...prev, isLoading: true, error: null }));
-    
-    try {
-      const result = await getUserPrivateKey({ userId });
-      
-      const keypair = Keypair.fromSecretKey(new Uint8Array(result.privateKey));
-      
-      // Get wallet balance
-      const balance = await getWalletBalance(result.publicKey || '');
-      
-      // Check if server wallet is different from localStorage wallet
-      const storedWalletAddress = localStorage.getItem('userWalletAddress');
-      if (storedWalletAddress && storedWalletAddress !== result.publicKey) {
-        console.log(`Wallet address changed from ${storedWalletAddress} to ${result.publicKey}. Clearing localStorage.`);
-        // Clear old wallet data from localStorage
-        localStorage.removeItem('userWalletAddress');
-        localStorage.removeItem('userPrivateKey');
-        localStorage.removeItem('userWalletBalance');
-      }
-      
-      setWallet({
-        publicKey: result.publicKey || '',
-        privateKey: new Uint8Array(result.privateKey),
-        keypair,
-        balance,
-        isLoading: false,
-        error: null
-      });
-      
-      // Store in localStorage for future use
-      localStorage.setItem('userWalletAddress', result.publicKey || '');
-      localStorage.setItem('userPrivateKey', JSON.stringify(result.privateKey));
-      
-    } catch (error) {
-      console.error('Error loading server wallet:', error);
+      console.error('Error loading wallet:', error);
       setWallet(prev => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to load wallet'
       }));
     }
-  }, [userId, getUserPrivateKey]);
+  }, [user, ready]);
 
-  // Initialize wallet on mount
+  // Initialize wallet on mount and when user changes
   useEffect(() => {
-    const initializeWallet = async () => {
-      // Always try to load from server first if userId is provided
-      if (userId) {
-        await loadServerWallet();
-      } else {
-        // Only use localStorage if no userId is provided
-        await loadLocalWallet();
-      }
-    };
-    
-    initializeWallet();
-  }, [loadLocalWallet, loadServerWallet, userId]);
+    loadWallet();
+  }, [loadWallet]);
 
-  // Refresh wallet from server
+  // Refresh wallet 
   const refreshWallet = useCallback(async () => {
-    if (userId) {
-      await loadServerWallet();
-    }
-  }, [userId, loadServerWallet]);
+    await loadWallet();
+  }, [loadWallet]);
 
   // Update wallet balance after transaction
   const updateWalletBalance = useCallback(async (newBalance: number) => {
@@ -157,9 +92,8 @@ export function useUserWallet({ userId }: UseUserWalletProps = {}) {
     
     // Then fetch the real balance from blockchain to ensure accuracy
     try {
-      const currentWallet = localStorage.getItem('userWalletAddress');
-      if (currentWallet) {
-        const realBalance = await getWalletBalance(currentWallet);
+      if (wallet.publicKey) {
+        const realBalance = await getWalletBalance(wallet.publicKey);
         console.log(`Updated balance after transaction - Expected: ${newBalance}, Actual from blockchain: ${realBalance}`);
         
         // Update with real balance if it differs significantly
@@ -173,31 +107,13 @@ export function useUserWallet({ userId }: UseUserWalletProps = {}) {
         }
       }
     } catch (error) {
-      console.error('Error fetching updated balance from blockchain:', error);
+      console.error('Error fetching updated balance:', error);
     }
-  }, []);
-
-  // Clear wallet (for logout)
-  const clearWallet = useCallback(() => {
-    setWallet({
-      publicKey: '',
-      privateKey: new Uint8Array(),
-      keypair: new Keypair(),
-      balance: 0,
-      isLoading: false,
-      error: null
-    });
-    
-    localStorage.removeItem('userWalletAddress');
-    localStorage.removeItem('userPrivateKey');
-    localStorage.removeItem('userWalletBalance');
-  }, []);
+  }, [wallet.publicKey]);
 
   return {
     wallet,
     refreshWallet,
-    clearWallet,
     updateWalletBalance,
-    isWalletLoaded: !!wallet.publicKey
   };
 }

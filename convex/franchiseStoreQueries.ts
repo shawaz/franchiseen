@@ -164,8 +164,7 @@ export const getFranchiseInvestorsBySlug = query({
           totalEarned: investor.totalInvested * 0.1, // 10% return for demo
           // Add user profile data
           userProfile: user ? {
-            firstName: user.firstName,
-            lastName: user.lastName,
+            fullName: user.fullName,
             avatar: user.avatarUrl,
             email: user.email
           } : null

@@ -17,7 +17,7 @@ import { useCreateFranchiserWithDetails } from '@/hooks/useFranchises';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { PlacesAutocomplete } from '@/components/ui/places-autocomplete';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import GoogleMapsLoader from '@/components/maps/GoogleMapsLoader';
 
 // Reserved words that cannot be used as brand URLs

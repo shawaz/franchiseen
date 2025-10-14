@@ -17,7 +17,7 @@ import {
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useSolana } from '@/components/solana/use-solana';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/PrivyAuthContext';
 import UserWallet from './UserWallet';
 import TransactionsTab from './transactions/TransactionsTab';
 import SharesTab from './shares/SharesTab';

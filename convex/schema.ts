@@ -3,13 +3,11 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Simple users table for Privy and Google authentication
+  // Simple users table for Privy authentication
   users: defineTable({
     // Privy/Google auth fields
     email: v.optional(v.string()),
-    name: v.optional(v.string()),
     fullName: v.optional(v.string()),
-    image: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     
     // Privy specific
@@ -17,22 +15,13 @@ export default defineSchema({
     
     // Wallet information
     walletAddress: v.optional(v.string()),
-    privateKey: v.optional(v.string()), // Encrypted private key
-    isWalletGenerated: v.optional(v.boolean()),
-    
-    // Profile information
-    firstName: v.optional(v.string()),
-    lastName: v.optional(v.string()),
-    dateOfBirth: v.optional(v.number()),
-    country: v.optional(v.string()),
     
     // Timestamps
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
   }).index("by_email", ["email"])
     .index("by_walletAddress", ["walletAddress"])
-    .index("by_privyUserId", ["privyUserId"])
-    .index("by_country", ["country"]),
+    .index("by_privyUserId", ["privyUserId"]),
 
   franchiser: defineTable({
     ownerUserId: v.id("users"), // User's ID (who owns/manages the brand)

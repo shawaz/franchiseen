@@ -5,15 +5,14 @@ import {
   UserCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React from "react";
 import { Button } from "../ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/PrivyAuthContext";
 
 function FooterMobile() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
 
   // Function to check if a path is active
   const isActive = (path: string) => {
@@ -53,11 +52,11 @@ function FooterMobile() {
             </Link>
           </div>
         ) : (
-          <div className="p-6">
+          <div className="p-3">
             <Button 
               variant="default" 
-              className="w-full"
-              onClick={() => router.push('/auth')}
+              className="w-full h-11 font-bold text-sm"
+              onClick={login}
             >
               GET STARTED
             </Button>
