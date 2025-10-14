@@ -7,7 +7,7 @@ import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
 import { useConvexImageUrl, useConvexImageUrls } from '@/hooks/useConvexImageUrl';
 import FranchiseWallet from '../FranchiseWallet';
-import { useWallets } from '@privy-io/react-auth';
+// Privy wallets are accessed via useUserWallet hook (from Convex sync)
 
 // Component to handle franchisee avatar with Convex storage ID support
 const FranchiseeAvatar: React.FC<{
@@ -130,15 +130,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const { wallet: userWallet, updateWalletBalance } = useUserWallet();
   const isWalletLoaded = !userWallet.isLoading;
   
-  // Get Privy wallets for transaction signing
-  const { wallets, ready: walletsReady } = useWallets();
-  
-  // Log wallet status for debugging
-  useEffect(() => {
-    console.log('FranchiseStore - Wallets ready:', walletsReady);
-    console.log('FranchiseStore - Wallets count:', wallets.length);
-    console.log('FranchiseStore - Wallets:', wallets);
-  }, [walletsReady, wallets]);
+  // We don't need useWallets at component level since we're using mock transactions
+  // The wallet address comes from Convex userProfile via useUserWallet
   
   // Load franchise data from Convex
   const franchiseData = useQuery(
@@ -417,41 +410,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       
       console.log('Created Solana transaction:', transaction);
       
-      // Sign transaction using Privy wallet (or mock for demo)
-      console.log('Signing transaction...');
-      console.log('Wallets available:', wallets);
-      console.log('Wallets ready:', walletsReady);
-      console.log('User wallet publicKey:', userWallet.publicKey);
-      
-      // Wait for wallets if not ready yet
-      if (!walletsReady) {
-        console.log('Waiting for wallets to be ready...');
-        // Give it a moment to load
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      // Find the Privy Solana wallet - try multiple approaches
-      let privyWallet = wallets.find(w => w.walletClientType === 'privy');
-      
-      // If not found, try finding by address
-      if (!privyWallet && userWallet.publicKey) {
-        privyWallet = wallets.find(w => w.address === userWallet.publicKey);
-        console.log('Found wallet by address match:', !!privyWallet);
-      }
-      
-      // If still not found, just use the first wallet if available
-      if (!privyWallet && wallets.length > 0) {
-        privyWallet = wallets[0];
-        console.log('Using first available wallet:', privyWallet);
-      }
-      
-      if (privyWallet) {
-        console.log('✅ Using Privy wallet:', privyWallet.address);
-      } else {
-        console.log('⚠️ No Privy wallet found, using mock signature (demo mode)');
-        console.log('Wallets array:', wallets);
-        console.log('Wallets ready:', walletsReady);
-      }
+      // Sign transaction using mock signature (demo mode)
+      // For production, implement Privy's server-side signing API
+      console.log('Signing transaction with user wallet:', userWallet.publicKey);
       
       // For now, we'll use a mock signature approach for Privy embedded wallets
       // In production, you would integrate with Privy's proper signing flow
@@ -1046,17 +1007,16 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       totalEarned?: number; 
       firstPurchaseDate: number;
       userProfile?: {
-        firstName: string;
-        lastName: string;
+        fullName?: string;
         avatar?: string;
         email: string;
       } | null;
     }, index: number) => {
       
       // Use user profile data if available, otherwise fallback
-      const fullName = investor.userProfile 
-        ? `${investor.userProfile.firstName} ${investor.userProfile.lastName}`
-        : `Investor ${index + 1}`;
+      const fullName = investor.userProfile?.fullName 
+        || investor.userProfile?.email 
+        || `Investor ${index + 1}`;
       
       // Use fallback avatar for now - we'll handle Convex storage IDs in the component
       const avatar = `/avatar/avatar-${index % 2 === 0 ? 'm' : 'f'}-${(index % 6) + 1}.png`;
@@ -1198,7 +1158,6 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           franchiseStage={franchiseData.stage}
         />
       )}
-
 
       {/* Navigation Tabs */}
       <Card className="">
