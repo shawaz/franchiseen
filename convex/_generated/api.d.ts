@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as adminManagement from "../adminManagement.js";
 import type * as aiChat from "../aiChat.js";
+import type * as applications from "../applications.js";
 import type * as brandManagement from "../brandManagement.js";
 import type * as brandWallet from "../brandWallet.js";
 import type * as budgetManagement from "../budgetManagement.js";
@@ -61,6 +62,7 @@ import type * as walletKeypairs from "../walletKeypairs.js";
 declare const fullApi: ApiFromModules<{
   adminManagement: typeof adminManagement;
   aiChat: typeof aiChat;
+  applications: typeof applications;
   brandManagement: typeof brandManagement;
   brandWallet: typeof brandWallet;
   budgetManagement: typeof budgetManagement;

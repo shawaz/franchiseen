@@ -16,7 +16,8 @@ export const getBrands = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, { limit = 50, status, category, industry, search }) => {
-    let query = ctx.db.query("franchiser");
+    const baseQuery = ctx.db.query("franchiser").order("desc");
+    let query = baseQuery;
 
     // Apply filters
     if (status) {
@@ -42,9 +43,7 @@ export const getBrands = query({
       );
     }
 
-    const brands = await query
-      .order("desc")
-      .take(limit);
+    const brands = await query.take(limit);
 
     // Get all categories and industries for lookup
     const [allCategories, allIndustries] = await Promise.all([

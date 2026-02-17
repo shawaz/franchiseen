@@ -647,3 +647,101 @@ export const deleteFranchiser = mutation({
     return args.id;
   },
 });
+
+// Advanced marketplace search
+export const searchMarketplace = query({
+  args: {
+    searchTerm: v.optional(v.string()),
+    minPrice: v.optional(v.number()),
+    maxPrice: v.optional(v.number()),
+    country: v.optional(v.string()),
+    category: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // 1. Get all active franchisers first
+    let franchisers = await ctx.db
+      .query("franchiser")
+      .filter((q) => q.eq(q.field("status"), "approved"))
+      .collect();
+
+    // 2. Filter by search term
+    if (args.searchTerm) {
+      const term = args.searchTerm.toLowerCase();
+      franchisers = franchisers.filter(f => 
+        f.name.toLowerCase().includes(term) || 
+        f.description.toLowerCase().includes(term) ||
+        f.industry.toLowerCase().includes(term)
+      );
+    }
+
+    // 3. Filter by category
+    if (args.category) {
+      franchisers = franchisers.filter(f => f.category === args.category);
+    }
+
+    // 4. Filter by location (country)
+    // We need to check if ANY of the franchiser's locations match the country
+    // Since this is expensive to join, we'll fetch relevant locations first if country is provided
+    let allowedFranchiserIds: Set<string> | null = null;
+    
+    if (args.country) {
+      const locations = await ctx.db
+        .query("franchiserLocations")
+        .withIndex("by_country", (q) => q.eq("country", args.country!))
+        .collect();
+      
+      allowedFranchiserIds = new Set(locations.map(l => l.franchiserId));
+      
+      // Also check for "First get all locations" if we want to support "isNationwide" logic, 
+      // but "by_country" is specific. 
+      // If we want to support regex or loose matching, it's harder.
+      // For now, strict match or the "isNationwide" field (which implies availability everywhere in that country?? Or generic?)
+      // Let's assume by_country index is good for now.
+    }
+
+    if (allowedFranchiserIds !== null) {
+      franchisers = franchisers.filter(f => allowedFranchiserIds!.has(f._id));
+    }
+
+    // 5. Filter by Price (Investment Range)
+    // Price usually depends on the location's setup cost + franchise fee.
+    // We'll need to fetch locations for the remaining franchisers to check their costs.
+    // This could be N+1, but dataset is likely small for MVP.
+    
+    const results = [];
+    
+    for (const franchiser of franchisers) {
+      // Get locations to calculate price range
+      const locations = await ctx.db
+        .query("franchiserLocations")
+        .withIndex("by_franchiser", (q) => q.eq("franchiserId", franchiser._id))
+        .collect();
+      
+      if (locations.length === 0) continue; // No locations defined, skip?
+
+      // Calculate min/max investment for this franchiser
+      let minInv = Infinity;
+      let maxInv = 0;
+
+      for (const loc of locations) {
+        const total = loc.franchiseFee + loc.setupCost + loc.workingCapital;
+        if (total < minInv) minInv = total;
+        if (total > maxInv) maxInv = total;
+      }
+
+      if (minInv === Infinity) minInv = 0;
+
+      // Filter by price args
+      if (args.minPrice && maxInv < args.minPrice) continue;
+      if (args.maxPrice && minInv > args.maxPrice) continue;
+
+      results.push({
+        ...franchiser,
+        investmentRange: { min: minInv, max: maxInv },
+        locations: locations // Return locations too
+      });
+    }
+
+    return results;
+  },
+});
