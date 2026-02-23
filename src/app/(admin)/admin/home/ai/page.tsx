@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMutation, useQuery } from 'convex/react';
+import { useAction, useQuery } from 'convex/react';
 import { api } from '../../../../../../convex/_generated/api';
 import { Send, Bot, User, Loader2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,13 +26,12 @@ const AI_PAGE = () => {
   const { account } = useWalletUi();
 
   // Get chat history
-  const chatHistoryQuery = useQuery(api.aiChat.getChatHistory, 
-    account?.address ? { userId: account.address } : "skip"
-  );
+  const userId = account?.address || 'anonymous_admin';
+  const chatHistoryQuery = useQuery(api.aiChat.getChatHistory, { userId });
   const chatHistory = useMemo(() => chatHistoryQuery || [], [chatHistoryQuery]);
 
   // Mutations
-  const sendMessage = useMutation(api.aiChat.sendMessage);
+  const sendMessage = useAction(api.aiChat.sendMessage);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -42,16 +41,18 @@ const AI_PAGE = () => {
   }, [chatHistory]);
 
   const handleSendMessage = async () => {
-    if (!message.trim() || !account?.address) {
-      toast.error('Please enter a message and ensure you are connected');
+    if (!message.trim()) {
+      toast.error('Please enter a message');
       return;
     }
+
+    const userId = account?.address || "anonymous_admin";
 
     setIsLoading(true);
     try {
       await sendMessage({
         content: message.trim(),
-        userId: account.address,
+        userId: userId,
       });
       setMessage('');
     } catch (error) {
@@ -85,7 +86,7 @@ const AI_PAGE = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea 
+        <ScrollArea
           ref={scrollAreaRef}
           className="h-[600px] p-4"
         >
@@ -122,9 +123,8 @@ const AI_PAGE = () => {
               {chatHistory.map((msg: ChatMessage) => (
                 <div
                   key={msg._id}
-                  className={`flex gap-3 ${
-                    msg.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
+                  className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
                 >
                   {msg.role === 'assistant' && (
                     <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -132,19 +132,17 @@ const AI_PAGE = () => {
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      msg.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                    }`}
+                    className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                      }`}
                   >
                     <div className="whitespace-pre-wrap">{msg.content}</div>
                     <div
-                      className={`text-xs mt-1 ${
-                        msg.role === 'user'
-                          ? 'text-blue-100'
-                          : 'text-gray-500 dark:text-gray-400'
-                      }`}
+                      className={`text-xs mt-1 ${msg.role === 'user'
+                        ? 'text-blue-100'
+                        : 'text-gray-500 dark:text-gray-400'
+                        }`}
                     >
                       {formatTime(msg.timestamp)}
                     </div>
@@ -176,27 +174,27 @@ const AI_PAGE = () => {
         </ScrollArea>
       </CardContent>
       <CardFooter className="px-6">
-      <div className="flex gap-3 w-full">
-        <Input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Ask me anything about franchise management..."
-          disabled={isLoading}
-          className="flex-1"
-        />
-        <Button
-          onClick={handleSendMessage}
-          disabled={!message.trim() || isLoading}
-          className="px-6"
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
+        <div className="flex gap-3 w-full">
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask me anything about franchise management..."
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={!message.trim() || isLoading}
+            className="px-6"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

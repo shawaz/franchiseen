@@ -17,10 +17,10 @@ const FranchiseeAvatar: React.FC<{
 }> = ({ avatar, avatarStorageId, alt }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const convexAvatarUrl = useConvexImageUrl(avatarStorageId as any);
-  
+
   // Use Convex URL if available, otherwise fallback to the provided avatar
   const imageSrc = convexAvatarUrl || avatar;
-  
+
   return (
     <Image
       src={imageSrc}
@@ -39,12 +39,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { 
-  DollarSign, 
-  Box, 
-  Users, 
-  Store, 
-  Globe, 
+import {
+  DollarSign,
+  Box,
+  Users,
+  Store,
+  Globe,
   MapPin,
   Search,
   Receipt,
@@ -60,12 +60,13 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import WalletErrorBoundary from '@/components/solana/WalletErrorBoundary';
 import { useAuth } from '@/contexts/PrivyAuthContext';
 import { useUserWallet } from '@/hooks/useUserWallet';
-import { useRouter } from 'next/navigation';  
-import type { 
-  Product, 
-  Franchisee, 
-  BudgetItem, 
-  MonthlyRevenue, 
+import { useRouter } from 'next/navigation';
+import { CrossmintEmbeddedCheckout } from "@crossmint/client-sdk-react-ui";
+import type {
+  Product,
+  Franchisee,
+  BudgetItem,
+  MonthlyRevenue,
   FranchiseStoreProps
 } from "@/types/ui"; // Updated TabId type
 
@@ -88,13 +89,13 @@ const addToIncomeTable = (type: 'platform_fee' | 'setup_contract' | 'marketing' 
     // Get existing income records
     const existingRecords = localStorage.getItem('company_income_records');
     const records = existingRecords ? JSON.parse(existingRecords) : [];
-    
+
     // Add new record
     records.unshift(incomeRecord);
-    
+
     // Save back to localStorage
     localStorage.setItem('company_income_records', JSON.stringify(records));
-    
+
     console.log('✅ Added income record:', incomeRecord);
   } catch (error) {
     console.error('Error adding income record:', error);
@@ -129,34 +130,34 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const { isAuthenticated } = useAuth();
   const { wallet: userWallet, updateWalletBalance } = useUserWallet();
   const isWalletLoaded = !userWallet.isLoading;
-  
+
   // We don't need useWallets at component level since we're using mock transactions
   // The wallet address comes from Convex userProfile via useUserWallet
-  
+
   // Load franchise data from Convex
   const franchiseData = useQuery(
     api.franchiseManagement.getFranchiseBySlug,
     franchiseId ? { franchiseSlug: franchiseId } : "skip"
   );
-  
+
   // Get franchiser products
   const franchiserProducts = useQuery(
     api.franchiseStoreQueries.getFranchiserProductsByFranchiseSlug,
     franchiseId ? { franchiseSlug: franchiseId } : "skip"
   );
-  
+
   // Get franchiser details with locations
   const franchiserDetails = useQuery(
     api.franchiseStoreQueries.getFranchiserDetailsByFranchiseSlug,
     franchiseId ? { franchiseSlug: franchiseId } : "skip"
   );
-  
+
   // Get franchise investors
   const franchiseInvestors = useQuery(
     api.franchiseStoreQueries.getFranchiseInvestorsBySlug,
     franchiseId ? { franchiseSlug: franchiseId } : "skip"
   );
-  
+
   // Get proper image URL using Convex hook
   const logoUrl = useConvexImageUrl(franchiseData?.franchiser?.logoUrl);
 
@@ -168,7 +169,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       console.log('FranchiseStore - brandWalletAddress:', franchiseData.franchiser?.brandWalletAddress);
       console.log('FranchiseStore - investment data:', franchiseData.investment);
       console.log('FranchiseStore - franchise ID:', franchiseData._id);
-      
+
       setFranchise({
         name: franchiseData.franchiseSlug || "Unknown Franchise",
         brandLogo: logoUrl || "/logo/logo-4.svg",
@@ -231,7 +232,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   // Purchase shares mutation for addInvestment function
   const purchaseShares = useMutation(api.franchiseManagement.purchaseShares);
-  
+
   const addInvestment = async (sharesPurchased: number, sharePrice: number, totalAmount: number, investorId: string, transactionHash?: string) => {
     if (!franchiseData?._id) {
       throw new Error('Franchise ID is required');
@@ -274,9 +275,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   // Wallet integration - Real implementation
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   // Real wallet functions
-  
+
   // const signTransaction = async (transaction: Transaction) => {
   //   if (!signer) {
   //     throw new Error('Wallet not connected');
@@ -284,7 +285,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   //   // Use the real wallet signer
   //   return signer.signTransaction(transaction);
   // };
-  
+
   // Shares slider state
   const [tokensToBuy, setTokensToBuy] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<string>('All Items');
@@ -294,10 +295,11 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const platformFeePercentage = 2; // 2% platform fee
   const solToUsdRate = 150; // Current SOL to USD rate (example)
-  
+
   // Shopping cart state
   const [cart, setCart] = useState<Record<string, number>>({});
-  
+  const [showCrossmintCheckout, setShowCrossmintCheckout] = useState(false);
+
   // Cart functions
   const addToCart = (productId: string) => {
     setCart(prev => ({
@@ -306,7 +308,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     }));
     toast.success('Added to cart');
   };
-  
+
   const removeFromCart = (productId: string) => {
     setCart(prev => {
       const newCart = { ...prev };
@@ -318,7 +320,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       return newCart;
     });
   };
-  
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateCartQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
@@ -334,22 +336,22 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
       }));
     }
   };
-  
+
   const clearCart = () => {
     setCart({});
   };
-  
+
   const cartItemsCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const cartTotal = Object.entries(cart).reduce((sum, [productId, qty]) => {
     const product = products.find(p => p.id === productId);
     return sum + (product?.price || 0) * qty;
   }, 0);
-  
+
   // Get real data from fundraising data
   const totalShares = fundraisingData.totalShares || 100000;
   const sharePrice = fundraisingData.pricePerShare || 1;
   const maxTokensToBuy = Math.min(fundraisingData.sharesRemaining || totalShares, totalShares);
-  
+
   // Reset tokens to buy when modal opens or when max tokens change
   useEffect(() => {
     if (isBuyTokensOpen) {
@@ -384,52 +386,52 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     try {
       console.log(`Processing REAL payment: ${amountInSOL} SOL from ${userWallet.publicKey} to ${destinationAddress}`);
       console.log(`Current balance: ${userWallet.balance.toFixed(4)} SOL`);
-      
+
       // Create a real Solana transaction
       const { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-      
+
       // Connect to Solana network (using devnet for testing)
       const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-      
+
       // Create the transaction
       const transaction = new Transaction();
-      
+
       // Add transfer instruction
       const transferInstruction = SystemProgram.transfer({
         fromPubkey: new PublicKey(userWallet.publicKey),
         toPubkey: new PublicKey(destinationAddress),
         lamports: Math.round(amountInSOL * LAMPORTS_PER_SOL), // Convert SOL to lamports
       });
-      
+
       transaction.add(transferInstruction);
-      
+
       // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = new PublicKey(userWallet.publicKey);
-      
+
       console.log('Created Solana transaction:', transaction);
-      
+
       // Sign transaction using mock signature (demo mode)
       // For production, implement Privy's server-side signing API
       console.log('Signing transaction with user wallet:', userWallet.publicKey);
-      
+
       // For now, we'll use a mock signature approach for Privy embedded wallets
       // In production, you would integrate with Privy's proper signing flow
       // This requires Privy's embedded wallet API which may need server-side implementation
-      
+
       console.log('⚠️ Note: Using simplified transaction flow for Privy embedded wallets');
       console.log('⚠️ For production, implement proper Privy embedded wallet signing');
-      
+
       // Mock the transaction for now (simulate successful payment)
       // In a real implementation, this would be handled by Privy's signing service
       const mockSignature = `mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
+
       console.log('Mock transaction signature generated:', mockSignature);
       const signature = mockSignature;
-      
+
       console.log(`Transaction sent! Signature: ${signature}`);
-      
+
       // Skip confirmation for mock transactions
       if (signature.startsWith('mock_')) {
         console.log('Mock transaction - skipping blockchain confirmation');
@@ -437,32 +439,32 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         // Wait for confirmation (only for real transactions)
         console.log('Waiting for transaction confirmation...');
         const confirmation = await connection.confirmTransaction(signature);
-        
+
         if (confirmation.value.err) {
           throw new Error(`Transaction failed: ${confirmation.value.err}`);
         }
-        
+
         console.log('Transaction confirmed!', confirmation);
       }
-      
+
       // Now update the local balance after successful transaction
       const newBalance = userWallet.balance - amountInSOL;
-      
+
       console.log(`New balance after deduction: ${newBalance.toFixed(4)} SOL`);
-      
+
       // Update the wallet balance using the hook function
       updateWalletBalance(newBalance);
-      
+
       // Also update the balance for admin view (using wallet address as key)
       localStorage.setItem(`wallet_balance_${userWallet.publicKey}`, newBalance.toString());
       console.log(`Updated localStorage with key: wallet_balance_${userWallet.publicKey} = ${newBalance}`);
-      
+
       // Dispatch custom event to notify admin components of balance update
-      window.dispatchEvent(new CustomEvent('walletBalanceUpdated', { 
-        detail: { walletAddress: userWallet.publicKey, newBalance } 
+      window.dispatchEvent(new CustomEvent('walletBalanceUpdated', {
+        detail: { walletAddress: userWallet.publicKey, newBalance }
       }));
       console.log(`Dispatched walletBalanceUpdated event for wallet: ${userWallet.publicKey}`);
-      
+
       // Store transaction details
       const transactionData = {
         from: userWallet.publicKey,
@@ -473,14 +475,14 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         signature: signature,
         confirmed: true
       };
-      
+
       localStorage.setItem(`transaction_${signature}`, JSON.stringify(transactionData));
-      
+
       console.log(`REAL payment processed successfully!`);
       console.log(`Transaction signature: ${signature}`);
       const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
       console.log(`View on Solscan: https://explorer.solana.com/tx/${signature}${network}`);
-      
+
       return signature;
     } catch (error) {
       console.error('Error processing payment:', error);
@@ -490,14 +492,14 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   // Handle Solana payment with split transfers (real blockchain transaction)
   const handleSolanaPaymentSplit = async (
-    subtotalInSOL: number, 
-    platformFeeInSOL: number, 
-    franchisePDAAddress: string, 
+    subtotalInSOL: number,
+    platformFeeInSOL: number,
+    franchisePDAAddress: string,
     companyWalletAddress: string
   ) => {
     try {
       const totalAmountInSOL = subtotalInSOL + platformFeeInSOL;
-      
+
       console.log('Real blockchain payment:', {
         subtotalSOL: subtotalInSOL,
         platformFeeSOL: platformFeeInSOL,
@@ -506,19 +508,19 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         companyWallet: companyWalletAddress,
         fromWallet: userWallet.publicKey
       });
-      
+
       // Use real blockchain payment (will deduct from user wallet)
       const signature = await handleSolanaPayment(totalAmountInSOL, franchisePDAAddress);
-      
+
       console.log(`Real blockchain payment completed: ${signature}`);
-      
+
       return signature;
     } catch (error) {
       console.error('Error processing real blockchain payment:', error);
       throw error;
     }
   };
-  
+
   // Calculate actual financial metrics from real data
   const actualFinancialMetrics = useMemo(() => {
     const totalInvestment = fundraisingData.totalInvestment;
@@ -526,20 +528,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     const franchiseFee = fundraisingData.franchiseFee || 0;
     const setupCost = fundraisingData.setupCost || 0;
     const workingCapital = fundraisingData.workingCapital || 0;
-    
+
     // Use the actual estimated monthly revenue from franchiser details
     const estimatedMonthlyRevenue = franchiserDetails?.estimatedMonthlyRevenue || 50000; // Fallback to default
-    
+
     // Calculate actual vs planned
     const franchiseFeeActual = fundraisingData.stage === 'launching' || fundraisingData.stage === 'ongoing' ? franchiseFee : 0;
     const setupCostActual = fundraisingData.stage === 'launching' || fundraisingData.stage === 'ongoing' ? setupCost : 0;
     const workingCapitalActual = fundraisingData.stage === 'ongoing' ? workingCapital : 0;
-    
+
     // Calculate monthly revenue based on stage
-    const monthlyRevenueActual = fundraisingData.stage === 'ongoing' 
+    const monthlyRevenueActual = fundraisingData.stage === 'ongoing'
       ? Math.floor(estimatedMonthlyRevenue * (0.8 + Math.random() * 0.4)) // Simulate actual revenue
       : 0;
-    
+
     return {
       franchiseFee: { planned: franchiseFee, actual: franchiseFeeActual },
       setupCost: { planned: setupCost, actual: setupCostActual },
@@ -581,14 +583,14 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const monthlyRevenue: MonthlyRevenue[] = useMemo(() => {
     const baseRevenue = actualFinancialMetrics.monthlyRevenue.estimated;
     const months = ['Jan 2024', 'Feb 2024', 'Mar 2024', 'Apr 2024', 'May 2024', 'Jun 2024'];
-    
+
     return months.map((month, index) => ({
       month,
       estimated: baseRevenue + (index * 2000), // Gradual increase
-      actual: actualFinancialMetrics.monthlyRevenue.actual > 0 ? 
+      actual: actualFinancialMetrics.monthlyRevenue.actual > 0 ?
         Math.floor(actualFinancialMetrics.monthlyRevenue.actual * (0.9 + Math.random() * 0.2)) : 0,
-      status: actualFinancialMetrics.monthlyRevenue.actual > 0 ? 
-        (Math.random() > 0.3 ? 'on-track' : Math.random() > 0.5 ? 'above-target' : 'below-target') : 
+      status: actualFinancialMetrics.monthlyRevenue.actual > 0 ?
+        (Math.random() > 0.3 ? 'on-track' : Math.random() > 0.5 ? 'above-target' : 'below-target') :
         'below-target'
     }));
   }, [actualFinancialMetrics.monthlyRevenue]);
@@ -618,7 +620,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
     };
   }) || [];
 
- 
+
 
   const tabs: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'products', label: 'Products', icon: Box },
@@ -633,17 +635,17 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   const TransactionsTab = () => {
     // Get user wallet to fetch transactions
     const userWalletAddress = userWallet?.publicKey;
-    
+
     // Get transactions from localStorage (similar to how it's stored in the buy tokens function)
     const getTransactions = () => {
       if (!userWalletAddress) return [];
-      
+
       try {
         const transactionsData = localStorage.getItem(`transactions_${userWalletAddress}`);
         const allTransactions = transactionsData ? JSON.parse(transactionsData) : [];
-        
+
         // Filter transactions to only show those for the current franchise
-        return allTransactions.filter((tx: { franchiseSlug?: string }) => 
+        return allTransactions.filter((tx: { franchiseSlug?: string }) =>
           tx.franchiseSlug === franchiseId
         );
       } catch (error) {
@@ -707,7 +709,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
             </p>
           </div>
         </div>
-        
+
         <div className="space-y-4">
           {transactions.map((transaction: {
             id?: string;
@@ -768,7 +770,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     -${transaction.amount?.toLocaleString() || '0'}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge 
+                    <Badge
                       variant={transaction.status === 'confirmed' ? 'default' : 'secondary'}
                     >
                       {transaction.status || 'pending'}
@@ -811,19 +813,19 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         email: franchiseData?.franchiseeContact?.email || 'contact@franchise.com',
         website: franchiserDetails?.website || 'www.franchise.com'
       },
-      images: interiorImageUrls && interiorImageUrls.length > 0 
+      images: interiorImageUrls && interiorImageUrls.length > 0
         ? interiorImageUrls.filter((img: string | null) => img !== null) as string[]
         : [
-        '/franchise/retail-1.png',
-        '/franchise/retail-2.png',
-        '/franchise/retail-3.png',
-      ]
+          '/franchise/retail-1.png',
+          '/franchise/retail-2.png',
+          '/franchise/retail-3.png',
+        ]
     };
 
     return (
       <div className="space-y-6">
 
-        
+
 
         {/* Store Images */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -857,43 +859,43 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           </div>
         </div>
 
-        
+
 
         {/* Franchise Location Map and Store Information */}
         <div className="space-y-4">
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {/* Store Information - Right Side */}
-             <div className="space-y-6">
-        <Card className="py-6">
-              <CardHeader   >
-                <CardTitle className="text-lg">About Us</CardTitle>
-              </CardHeader>
-              <CardContent className="py-2">
-                <p className="text-stone-700 dark:text-stone-300">
-                  { franchise.description}
-                </p>
-              </CardContent>
-            </Card>
-        {/* Store Details */}
+            {/* Store Information - Right Side */}
+            <div className="space-y-6">
+              <Card className="py-6">
+                <CardHeader   >
+                  <CardTitle className="text-lg">About Us</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2">
+                  <p className="text-stone-700 dark:text-stone-300">
+                    {franchise.description}
+                  </p>
+                </CardContent>
+              </Card>
+              {/* Store Details */}
               <Card className="p-6">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Store className="h-5 w-5 text-stone-600 dark:text-stone-400" />
                     <h4 className="text-lg font-semibold text-stone-800 dark:text-stone-200">Store Information</h4>
-                </div>
-                  
+                  </div>
+
                   <div className="space-y-3">
-                <div>
+                    <div>
                       <p className="text-sm font-medium text-stone-600 dark:text-stone-400">Address</p>
-                  <p className="text-stone-800 dark:text-stone-200">{franchise.location}</p>
-                </div>
-                
-                <div>
+                      <p className="text-stone-800 dark:text-stone-200">{franchise.location}</p>
+                    </div>
+
+                    <div>
                       <p className="text-sm font-medium text-stone-600 dark:text-stone-400">Website</p>
-                      <a 
+                      <a
                         href={franchise.contact.website.startsWith('http') ? franchise.contact.website : `https://${franchise.contact.website}`}
-                        target="_blank" 
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                       >
@@ -902,7 +904,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     </div>
                   </div>
                 </div>
-            </Card>
+              </Card>
 
               {/* Opening Hours */}
               <Card className="p-6">
@@ -911,7 +913,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     <Globe className="h-5 w-5 text-stone-600 dark:text-stone-400" />
                     <h4 className="text-lg font-semibold text-stone-800 dark:text-stone-200">Opening Hours</h4>
                   </div>
-                  
+
                   <div className="space-y-2">
                     {franchise.openingHours.map((schedule: { day: string; hours: string }, index: number) => (
                       <div key={index} className="flex justify-between items-center">
@@ -973,9 +975,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 >
                   {/* Show only the current franchise location */}
                   <Marker
-                    position={{ 
+                    position={{
                       lat: 25.2048, // Current franchise location coordinates
-                      lng: 55.2708 
+                      lng: 55.2708
                     }}
                     title={franchise.name || 'Franchise Location'}
                     icon={{
@@ -988,8 +990,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 </GoogleMap>
               </GoogleMapsLoader>
             </div>
-            
-           
+
+
           </div>
         </div>
       </div>
@@ -999,12 +1001,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // Convert franchise investors to Franchisee format with user profile data
   const franchisees: Franchisee[] = useMemo(() => {
     if (!franchiseInvestors) return [];
-    
-    return franchiseInvestors.map((investor: { 
-      investorId: string; 
-      totalShares: number; 
-      totalInvested: number; 
-      totalEarned?: number; 
+
+    return franchiseInvestors.map((investor: {
+      investorId: string;
+      totalShares: number;
+      totalInvested: number;
+      totalEarned?: number;
       firstPurchaseDate: number;
       userProfile?: {
         fullName?: string;
@@ -1012,15 +1014,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         email: string;
       } | null;
     }, index: number) => {
-      
+
       // Use user profile data if available, otherwise fallback
-      const fullName = investor.userProfile?.fullName 
-        || investor.userProfile?.email 
+      const fullName = investor.userProfile?.fullName
+        || investor.userProfile?.email
         || `Investor ${index + 1}`;
-      
+
       // Use fallback avatar for now - we'll handle Convex storage IDs in the component
       const avatar = `/avatar/avatar-${index % 2 === 0 ? 'm' : 'f'}-${(index % 6) + 1}.png`;
-      
+
       return {
         id: investor.investorId,
         fullName,
@@ -1032,9 +1034,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         isOfferActive: true, // All investors are active
         joinDate: new Date(investor.firstPurchaseDate).toLocaleDateString(),
         // Show total earned for all stages, but calculate based on stage
-        totalEarned: fundraisingData.stage === 'ongoing' ? (investor.totalEarned || 0) : 
-                     fundraisingData.stage === 'launching' ? 0 : 
-                     fundraisingData.stage === 'closed' ? (investor.totalEarned || 0) : 0,
+        totalEarned: fundraisingData.stage === 'ongoing' ? (investor.totalEarned || 0) :
+          fundraisingData.stage === 'launching' ? 0 :
+            fundraisingData.stage === 'closed' ? (investor.totalEarned || 0) : 0,
       };
     });
   }, [franchiseInvestors, fundraisingData.stage]);
@@ -1072,25 +1074,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
                       ${item.actual.toLocaleString()}
                     </td>
-                    <td className={`whitespace-nowrap px-6 py-4 text-right font-medium ${
-                      (item.actual - item.planned) >= 0 ? 'text-red-500' : 'text-green-500'
-                    }`}>
+                    <td className={`whitespace-nowrap px-6 py-4 text-right font-medium ${(item.actual - item.planned) >= 0 ? 'text-red-500' : 'text-green-500'
+                      }`}>
                       {(item.actual - item.planned) >= 0 ? '+' : ''}{(item.actual - item.planned).toLocaleString()}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.status === 'on-track' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'on-track'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : item.status === 'over-budget'
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                          : item.status === 'under-budget'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                        }`}>
+                        {item.status === 'on-track'
+                          ? 'On Track'
                           : item.status === 'over-budget'
-                            ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                            : item.status === 'under-budget'
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                      }`}>
-                        {item.status === 'on-track' 
-                          ? 'On Track' 
-                          : item.status === 'over-budget' 
-                            ? 'Over Budget' 
+                            ? 'Over Budget'
                             : item.status === 'under-budget'
                               ? 'Under Budget'
                               : 'Not Started'}
@@ -1108,8 +1108,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   // Show loading state
   if (isLoading) {
-  return (
-    <div className="space-y-6 py-12">
+    return (
+      <div className="space-y-6 py-12">
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-4"></div>
@@ -1136,7 +1136,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
   return (
     <div className="space-y-6 py-12">
-      
+
       {/* Franchise Wallet */}
       {franchiseData && (
         <FranchiseWallet
@@ -1170,11 +1170,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300'
-                    }`}
+                    className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300'
+                      }`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{tab.label}</span>
@@ -1182,288 +1181,285 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 );
               })}
             </nav>
-            
+
           </div>
         </div>
 
         <div className="px-6 pb-6">
-          
+
           {activeTab === 'finances' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Finances</h2>
-        <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 ">
-          <DollarSign className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-stone-500 dark:text-stone-400">Est. Monthly:</span>
-          <span className="font-semibold text-green-600">
-            ${actualFinancialMetrics.monthlyRevenue.estimated.toLocaleString()}
-          </span>
-        </div>
-          </div>
-          
-          
-          <BudgetTable />
-          
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-stone-50 dark:bg-stone-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Month</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Estimated</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Actual</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Payout</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Reserve Fund</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
-                  {monthlyRevenue.map((revenue) => {
-                    return (
-                      <tr key={revenue.month} className="hover:bg-stone-50 dark:hover:bg-stone-800">
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <div className="font-medium">{revenue.month}</div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
-                          ${revenue.estimated.toLocaleString()}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
-                          ${revenue.actual.toLocaleString()}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-blue-600">
-                          ${(revenue.actual * 0.7).toLocaleString(undefined, {maximumFractionDigits: 0})}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-purple-600">
-                          ${(revenue.actual * 0.3).toLocaleString(undefined, {maximumFractionDigits: 0})}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            revenue.status === 'on-track'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                              : revenue.status === 'above-target'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                          }`}>
-                            {revenue.status === 'on-track' 
-                              ? 'On Track' 
-                              : revenue.status === 'above-target'
-                                ? 'Above Target'
-                                : 'Below Target'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-      
-      {activeTab === 'franchisee' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Franchisee</h2>
-              {fundraisingData.stage !== 'ongoing' && (
-                <p className="text-sm text-stone-500 mt-1">
-                  Earnings will be shown once the franchise is operational
-                </p>
-              )}
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
-                <input
-                  type="text"
-                  placeholder="Search investors..."
-                  className="w-64 rounded-md border border-stone-200 py-2 pl-10 pr-4 text-sm focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-500"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-stone-50 dark:bg-stone-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Investor</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Shares</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Invested</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Earned</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Join Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
-                  {franchisees.map((franchisee: Franchisee) => (
-                    <tr key={franchisee.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 flex-shrink-0">
-                            <FranchiseeAvatar 
-                              avatar={franchisee.avatar} 
-                              avatarStorageId={franchisee.avatarStorageId}
-                              alt={franchisee.fullName}
-                            />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-stone-900 dark:text-white">{franchisee.fullName}</div>
-                            <div className="text-xs text-stone-500">Joined {franchisee.joinDate}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        {franchisee.totalShares.toLocaleString()}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        ${franchisee.totalInvested.toLocaleString()}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-green-600">
-                        ${franchisee.totalEarned?.toLocaleString() || '0'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-stone-500">
-                        {franchisee.joinDate}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-      
-      {activeTab === 'franchise' && <FranchiseTab />}
-      
-      {activeTab === 'transactions' && <TransactionsTab />}
-      
-      {activeTab === 'products' && (
             <div className="space-y-6">
-            {/* Categories and Search */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex space-x-2 overflow-x-auto pb-1">
-              <button 
-                onClick={() => setSelectedCategory('All Items')}
-                className={`px-4 py-2  text-sm font-medium transition-colors ${
-                  selectedCategory === 'All Items'
-                    ? 'bg-neutral-500 dark:bg-neutral-800 text-white hover:bg-neutral-600'
-                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200'
-                }`}
-              >
-                All Items
-              </button>
-              {Array.from(new Set(products.map(p => p.category))).map(category => (
-                <button 
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2  text-sm font-medium transition-colors ${
-                    selectedCategory === category
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Finances</h2>
+                <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 ">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-stone-500 dark:text-stone-400">Est. Monthly:</span>
+                  <span className="font-semibold text-green-600">
+                    ${actualFinancialMetrics.monthlyRevenue.estimated.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+
+              <BudgetTable />
+
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-stone-50 dark:bg-stone-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Month</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Estimated</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Actual</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Payout</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Reserve Fund</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
+                      {monthlyRevenue.map((revenue) => {
+                        return (
+                          <tr key={revenue.month} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                            <td className="whitespace-nowrap px-6 py-4">
+                              <div className="font-medium">{revenue.month}</div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
+                              ${revenue.estimated.toLocaleString()}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-right font-medium">
+                              ${revenue.actual.toLocaleString()}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-blue-600">
+                              ${(revenue.actual * 0.7).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-right font-medium text-purple-600">
+                              ${(revenue.actual * 0.3).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-right">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${revenue.status === 'on-track'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                : revenue.status === 'above-target'
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                }`}>
+                                {revenue.status === 'on-track'
+                                  ? 'On Track'
+                                  : revenue.status === 'above-target'
+                                    ? 'Above Target'
+                                    : 'Below Target'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === 'franchisee' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Franchisee</h2>
+                  {fundraisingData.stage !== 'ongoing' && (
+                    <p className="text-sm text-stone-500 mt-1">
+                      Earnings will be shown once the franchise is operational
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+                    <input
+                      type="text"
+                      placeholder="Search investors..."
+                      className="w-64 rounded-md border border-stone-200 py-2 pl-10 pr-4 text-sm focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-stone-50 dark:bg-stone-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-stone-500">Investor</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Shares</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Invested</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Total Earned</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-stone-500">Join Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
+                      {franchisees.map((franchisee: Franchisee) => (
+                        <tr key={franchisee.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                          <td className="whitespace-nowrap px-6 py-4">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 flex-shrink-0">
+                                <FranchiseeAvatar
+                                  avatar={franchisee.avatar}
+                                  avatarStorageId={franchisee.avatarStorageId}
+                                  alt={franchisee.fullName}
+                                />
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-stone-900 dark:text-white">{franchisee.fullName}</div>
+                                <div className="text-xs text-stone-500">Joined {franchisee.joinDate}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            {franchisee.totalShares.toLocaleString()}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            ${franchisee.totalInvested.toLocaleString()}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-green-600">
+                            ${franchisee.totalEarned?.toLocaleString() || '0'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-stone-500">
+                            {franchisee.joinDate}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === 'franchise' && <FranchiseTab />}
+
+          {activeTab === 'transactions' && <TransactionsTab />}
+
+          {activeTab === 'products' && (
+            <div className="space-y-6">
+              {/* Categories and Search */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex space-x-2 overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setSelectedCategory('All Items')}
+                    className={`px-4 py-2  text-sm font-medium transition-colors ${selectedCategory === 'All Items'
                       ? 'bg-neutral-500 dark:bg-neutral-800 text-white hover:bg-neutral-600'
                       : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-              </div>
-              
-              {/* Search Bar */}
-              <div className="relative w-full sm:w-auto">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-stone-500" />
+                      }`}
+                  >
+                    All Items
+                  </button>
+                  {Array.from(new Set(products.map(p => p.category))).map(category => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-4 py-2  text-sm font-medium transition-colors ${selectedCategory === category
+                        ? 'bg-neutral-500 dark:bg-neutral-800 text-white hover:bg-neutral-600'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-200'
+                        }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-500 focus:border-stone-500 text-sm h-9"
-                />
-              </div>
-            </div>
 
-            {/* Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products
-                .filter(product => 
-                  (selectedCategory === 'All Items' || product.category === selectedCategory) &&
-                  (searchQuery === '' || 
-                    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    product.description.toLowerCase().includes(searchQuery.toLowerCase()))
-                )
-                .map((product) => {
-                  const quantityInCart = cart[product.id] || 0;
-                  const isOngoing = fundraisingData.stage === 'ongoing';
-                  
-                  return (
-                    <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200 dark:border-stone-700 gap-0">
-                      <div className="relative h-64 aspect-square bg-stone-100 dark:bg-stone-700">
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="p-4 space-y-3">
-                        <div>
-                          <h3 className="font-semibold text-lg text-stone-800 dark:text-stone-200">{product.name}</h3>
-                          <p className="text-sm text-stone-600 line-clamp-2 mt-1 dark:text-stone-400">
-                            {product.description}
-                          </p>
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-auto">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-stone-500" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-500 focus:border-stone-500 text-sm h-9"
+                  />
+                </div>
+              </div>
+
+              {/* Product Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {products
+                  .filter(product =>
+                    (selectedCategory === 'All Items' || product.category === selectedCategory) &&
+                    (searchQuery === '' ||
+                      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      product.description.toLowerCase().includes(searchQuery.toLowerCase()))
+                  )
+                  .map((product) => {
+                    const quantityInCart = cart[product.id] || 0;
+                    const isOngoing = fundraisingData.stage === 'ongoing';
+
+                    return (
+                      <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow border border-stone-200 dark:border-stone-700 gap-0">
+                        <div className="relative h-64 aspect-square bg-stone-100 dark:bg-stone-700">
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                          />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-stone-600 dark:text-stone-400 font-bold text-lg">${product.price.toFixed(2)}</span>
-                        </div>
-                        
-                        {/* Cart Controls - Only show if franchise is ongoing */}
-                        {isOngoing && (
-                          <div className="pt-2">
-                            {quantityInCart === 0 ? (
-                              <Button
-                                onClick={() => addToCart(product.id)}
-                                className="w-full bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700"
-                                size="sm"
-                              >
-                                Add to Cart
-                              </Button>
-                            ) : (
-                              <div className="flex items-center justify-between gap-2">
-                                <Button
-                                  onClick={() => removeFromCart(product.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-1"
-                                >
-                                  −
-                                </Button>
-                                <div className="px-4 py-2 bg-stone-100 dark:bg-stone-800 rounded font-semibold min-w-[60px] text-center">
-                                  {quantityInCart}
-                                </div>
+                        <div className="p-4 space-y-3">
+                          <div>
+                            <h3 className="font-semibold text-lg text-stone-800 dark:text-stone-200">{product.name}</h3>
+                            <p className="text-sm text-stone-600 line-clamp-2 mt-1 dark:text-stone-400">
+                              {product.description}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-stone-600 dark:text-stone-400 font-bold text-lg">${product.price.toFixed(2)}</span>
+                          </div>
+
+                          {/* Cart Controls - Only show if franchise is ongoing */}
+                          {isOngoing && (
+                            <div className="pt-2">
+                              {quantityInCart === 0 ? (
                                 <Button
                                   onClick={() => addToCart(product.id)}
-                                  variant="outline"
+                                  className="w-full bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700"
                                   size="sm"
-                                  className="flex-1"
                                 >
-                                  +
+                                  Add to Cart
                                 </Button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  );
-                })}
+                              ) : (
+                                <div className="flex items-center justify-between gap-2">
+                                  <Button
+                                    onClick={() => removeFromCart(product.id)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                  >
+                                    −
+                                  </Button>
+                                  <div className="px-4 py-2 bg-stone-100 dark:bg-stone-800 rounded font-semibold min-w-[60px] text-center">
+                                    {quantityInCart}
+                                  </div>
+                                  <Button
+                                    onClick={() => addToCart(product.id)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                  >
+                                    +
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+              </div>
             </div>
-          </div> 
           )}
 
 
-        
+
           {/* {activeTab === 'reviews' && (
             <ReviewsTab 
               reviews={reviews}
@@ -1475,7 +1471,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </div>
       </Card>
 
-     
+
       {/* Buy Tokens Modal */}
       <Dialog open={isBuyTokensOpen} onOpenChange={setIsBuyTokensOpen}>
         <DialogTrigger asChild>
@@ -1493,7 +1489,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </div>
             </div>
           </DialogHeader>
-          
+
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
             {/* Franchise Details */}
@@ -1502,9 +1498,9 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 {/* Brand Logo */}
                 <div className="flex-shrink-0">
                   <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white dark:bg-stone-700 flex items-center justify-center overflow-hidden border-2 border-white dark:border-stone-600 shadow-md">
-                    <Image 
-                      src={franchise.brandLogo} 
-                      alt={`${franchise.name} logo`} 
+                    <Image
+                      src={franchise.brandLogo}
+                      alt={`${franchise.name} logo`}
                       width={64}
                       height={64}
                       className="object-contain"
@@ -1516,10 +1512,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-base sm:text-lg text-stone-900 dark:text-white truncate">{franchise.name}</h4>
-                  
+
                   <div className="mt-1.5 space-y-0.5">
                     <div className="flex items-center text-xs sm:text-sm text-stone-600 dark:text-stone-400">
                       <span className="truncate">
@@ -1542,7 +1538,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   <span className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-300 ml-1">tokens</span>
                 </div>
               </div>
-              
+
               {/* Slider */}
               <div className="px-1">
                 <Slider
@@ -1554,11 +1550,11 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   className="py-2"
                 />
               </div>
-              
+
               {/* Plus/Minus Controls */}
               <div className="flex items-center gap-3 sm:gap-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
                   className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
                   onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 10))}
@@ -1566,8 +1562,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 >
                   -10
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
                   className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
                   onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 1))}
@@ -1584,8 +1580,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   onChange={(e) => setTokensToBuy(Math.min(maxTokensToBuy, Math.max(1, parseInt(e.target.value) || 1)))}
                   className="text-center h-12 sm:h-14 text-base sm:text-lg font-semibold flex-[1.5]"
                 />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
                   className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
                   onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 1))}
@@ -1593,8 +1589,8 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 >
                   +1
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="lg"
                   className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
                   onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 10))}
@@ -1603,13 +1599,13 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   +10
                 </Button>
               </div>
-              
+
               <div className="flex justify-between text-xs sm:text-sm text-stone-500 dark:text-stone-400">
                 <span>Min: 1 token</span>
                 <span>Max: {maxTokensToBuy} tokens</span>
               </div>
             </div>
-            
+
             {/* Price Breakdown */}
             <div className="space-y-3 mb-4 p-3 sm:p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
               <Label className="text-sm sm:text-base font-semibold">Price Breakdown</Label>
@@ -1700,233 +1696,273 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
           {/* Fixed Footer with Actions */}
           <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 sticky bottom-0">
-            <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => setIsBuyTokensOpen(false)}
-                className="flex-1 h-12 sm:h-14 text-sm sm:text-base"
-              >
-                Cancel
-              </Button>
-              <Button 
-                size="lg"
-                className="flex-[2] h-12 sm:h-14 text-sm sm:text-base bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 font-semibold shadow-lg"
-                disabled={isProcessing || maxTokensToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
-              onClick={async () => {
-                if (!isWalletLoaded || !userWallet.publicKey) {
-                  toast.error('User wallet not found. Please complete your profile setup first.');
-                  return;
-                }
+            {showCrossmintCheckout ? (
+              <div className="w-full flex-col items-center justify-center space-y-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCrossmintCheckout(false)}
+                  className="w-full mb-2"
+                >
+                  Back to Solana Payment
+                </Button>
+                <div className="w-full min-h-[400px]">
+                  <CrossmintEmbeddedCheckout
+                    lineItems={{
+                      collectionLocator: `crossmint:YOUR_COLLECTION_ID`, // Replace with actual crossmint collection ID
+                      callData: {
+                        totalPrice: ((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4),
+                        quantity: tokensToBuy
+                      }
+                    }}
+                    payment={{
+                      receiptEmail: userProfile?.email,
+                      crypto: { enabled: true },
+                      fiat: { enabled: true }
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3 flex-col sm:flex-row">
+                <div className="flex gap-3 w-full sm:w-auto flex-1">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setIsBuyTokensOpen(false)}
+                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <div className="flex gap-3 w-full sm:w-auto flex-[2]">
+                  <Button
+                    size="lg"
+                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 font-semibold shadow-lg text-white"
+                    onClick={() => setShowCrossmintCheckout(true)}
+                  >
+                    Buy with Fiat/Crypto (Crossmint)
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 font-semibold shadow-lg text-white"
+                    disabled={isProcessing || maxTokensToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
+                    onClick={async () => {
+                      if (!isWalletLoaded || !userWallet.publicKey) {
+                        toast.error('User wallet not found. Please complete your profile setup first.');
+                        return;
+                      }
 
-                console.log('Buy tokens clicked! Starting transaction...');
-                console.log('User wallet:', userWallet);
-                console.log('Tokens to buy:', tokensToBuy);
-                console.log('Share price:', sharePrice);
+                      console.log('Buy tokens clicked! Starting transaction...');
+                      console.log('User wallet:', userWallet);
+                      console.log('Tokens to buy:', tokensToBuy);
+                      console.log('Share price:', sharePrice);
 
-                // Calculate payment breakdown
-                const subtotalAmount = tokensToBuy * sharePrice;
-                const platformFeeAmount = subtotalAmount * (platformFeePercentage / 100);
-                const totalCost = subtotalAmount + platformFeeAmount;
-                
-                const subtotalInSOL = subtotalAmount / solToUsdRate;
-                const platformFeeInSOL = platformFeeAmount / solToUsdRate;
-                const totalCostInSOL = totalCost / solToUsdRate;
-                
-                console.log('Payment breakdown:', {
-                  subtotal: subtotalAmount,
-                  platformFee: platformFeeAmount,
-                  total: totalCost,
-                  subtotalSOL: subtotalInSOL,
-                  platformFeeSOL: platformFeeInSOL,
-                  totalSOL: totalCostInSOL
-                });
-                
-                setIsProcessing(true);
-                
-                try {
-                  if (!franchiseId) {
-                    toast.error('Franchise ID not found');
-                    return;
-                  }
+                      // Calculate payment breakdown
+                      const subtotalAmount = tokensToBuy * sharePrice;
+                      const platformFeeAmount = subtotalAmount * (platformFeePercentage / 100);
+                      const totalCost = subtotalAmount + platformFeeAmount;
 
-                  // Get franchise PDA address (funding escrow account)
-                  const { getFranchisePDA, createFranchisePDA, storeFranchisePDA } = await import('@/lib/franchisePDA');
-                  let franchisePDA = getFranchisePDA(franchiseId);
-                  
-                  // Create PDA if it doesn't exist
-                  if (!franchisePDA?.pda) {
-                    console.log('Creating franchise PDA for franchise:', franchiseId);
-                    try {
-                      const { pda, bump } = await createFranchisePDA(franchiseId);
-                      const newPDA = {
-                        franchiseId,
-                        pda: pda.toString(),
-                        bump,
-                        totalShares: franchiseData?.investment?.sharesIssued || 1000,
-                        sharesIssued: 0,
-                        sharePrice: sharePrice,
-                        totalRaised: 0,
-                        isActive: true,
-                        createdAt: Date.now()
-                      };
-                      storeFranchisePDA(newPDA);
-                      franchisePDA = newPDA;
-                      console.log('Created new franchise PDA:', newPDA);
-                    } catch (error) {
-                      console.error('Failed to create franchise PDA:', error);
-                      toast.error('Failed to create franchise funding account. Please try again.');
-                      return;
-                    }
-                  }
+                      const subtotalInSOL = subtotalAmount / solToUsdRate;
+                      const platformFeeInSOL = platformFeeAmount / solToUsdRate;
+                      const totalCostInSOL = totalCost / solToUsdRate;
 
-                  // Company wallet address for platform fees
-                  const companyWalletAddress = '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
+                      console.log('Payment breakdown:', {
+                        subtotal: subtotalAmount,
+                        platformFee: platformFeeAmount,
+                        total: totalCost,
+                        subtotalSOL: subtotalInSOL,
+                        platformFeeSOL: platformFeeInSOL,
+                        totalSOL: totalCostInSOL
+                      });
 
-                  console.log('Payment destinations:', {
-                    franchisePDA: franchisePDA.pda,
-                    companyWallet: companyWalletAddress,
-                    subtotalSOL: subtotalInSOL,
-                    platformFeeSOL: platformFeeInSOL
-                  });
+                      setIsProcessing(true);
 
-                  // Process Solana payment with split transfers
-                  const transactionHash = await handleSolanaPaymentSplit(
-                    subtotalInSOL, 
-                    platformFeeInSOL, 
-                    franchisePDA.pda, // Use franchise PDA instead of brand wallet
-                    companyWalletAddress
-                  );
+                      try {
+                        if (!franchiseId) {
+                          toast.error('Franchise ID not found');
+                          return;
+                        }
 
-                  // Store platform fee transaction for company wallet tracking
-                  const platformFeeTransaction = {
-                    amount: platformFeeAmount,
-                    from: franchise.name,
-                    timestamp: new Date().toISOString(),
-                    description: `Platform fee from ${franchise.name} share purchase`,
-                    transactionHash: transactionHash,
-                    franchiseId: franchiseId,
-                    sharesPurchased: tokensToBuy
-                  };
-                  
-                  const platformFeeKey = `platform_fee_${Date.now()}_${franchiseId}`;
-                  localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeTransaction));
-                  console.log('✅ Stored platform fee transaction in FranchiseStore:', {
-                    key: platformFeeKey,
-                    transaction: platformFeeTransaction,
-                    platformFeeAmount: platformFeeAmount,
-                    sharesPurchased: tokensToBuy
-                  });
+                        // Get franchise PDA address (funding escrow account)
+                        const { getFranchisePDA, createFranchisePDA, storeFranchisePDA } = await import('@/lib/franchisePDA');
+                        let franchisePDA = getFranchisePDA(franchiseId);
 
-                  // Also add to income table
-                  addToIncomeTable('platform_fee', platformFeeAmount, franchise.name, `Platform fee from ${franchise.name} share purchase`, transactionHash);
-                  
-                  // Record the purchase in Convex using the real mutation
-                  await addInvestment(
-                    tokensToBuy, 
-                    sharePrice, 
-                    subtotalAmount, // Use subtotal without platform fee for consistency
-                    userWallet.publicKey, 
-                    transactionHash
-                  );
+                        // Create PDA if it doesn't exist
+                        if (!franchisePDA?.pda) {
+                          console.log('Creating franchise PDA for franchise:', franchiseId);
+                          try {
+                            const { pda, bump } = await createFranchisePDA(franchiseId);
+                            const newPDA = {
+                              franchiseId,
+                              pda: pda.toString(),
+                              bump,
+                              totalShares: franchiseData?.investment?.sharesIssued || 1000,
+                              sharesIssued: 0,
+                              sharePrice: sharePrice,
+                              totalRaised: 0,
+                              isActive: true,
+                              createdAt: Date.now()
+                            };
+                            storeFranchisePDA(newPDA);
+                            franchisePDA = newPDA;
+                            console.log('Created new franchise PDA:', newPDA);
+                          } catch (error) {
+                            console.error('Failed to create franchise PDA:', error);
+                            toast.error('Failed to create franchise funding account. Please try again.');
+                            return;
+                          }
+                        }
 
-                  // Record transaction in localStorage for the transactions tab
-                  const transaction = {
-                    id: `share_purchase_${Date.now()}`,
-                    type: 'share_purchase',
-                    amount: totalCost, // Total amount including platform fee
-                    amountSOL: totalCostInSOL,
-                    description: `Purchased ${tokensToBuy} tokens in ${franchise.name}`,
-                    franchiseSlug: franchiseId,
-                    status: 'confirmed',
-                    transactionHash: transactionHash,
-                    timestamp: Date.now(),
-                    fromAddress: userWallet.publicKey,
-                    toAddress: franchisePDA.pda,
-                    sharesPurchased: tokensToBuy,
-                    sharePrice: sharePrice
-                  };
+                        // Company wallet address for platform fees
+                        const companyWalletAddress = '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
 
-                  // Save transaction to localStorage
-                  const existingTransactions = localStorage.getItem(`transactions_${userWallet.publicKey}`);
-                  const transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
-                  transactions.unshift(transaction); // Add to beginning
-                  localStorage.setItem(`transactions_${userWallet.publicKey}`, JSON.stringify(transactions));
-                  
-                  console.log('✅ Transaction recorded:', transaction);
-                  
-                  // Update PDA with new shares (optional - for local state)
-                  if (franchiseData?._id) {
-                    const { updatePDASharesIssued } = await import('@/lib/franchisePDA');
-                    const currentPDA = await getFranchisePDA(franchiseData._id);
-                    if (currentPDA) {
-                      const newSharesIssued = currentPDA.sharesIssued + tokensToBuy;
-                      const newTotalRaised = currentPDA.totalRaised + totalCost;
-                      updatePDASharesIssued(franchiseData._id, newSharesIssued, newTotalRaised);
-                    }
-                  }
-                  
-                  // Reset form
-                  setTokensToBuy(1);
-                  setIsBuyTokensOpen(false);
-                  
-                  // Show success message with explorer link
-                  const networkParam = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
-                  const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}${networkParam}`;
-                  toast.success(
-                    <div className="flex flex-col gap-2">
-                      <div>Successfully purchased {tokensToBuy} tokens for ${totalCost.toFixed(2)}!</div>
-                      <a 
-                        href={explorerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"
-                      >
-                        View on Solana Explorer
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>,
-                    { duration: 10000 }
-                  );
-                  
-                  // Check if funding is complete
-                  if (franchiseData?._id) {
-                    const { isFundingComplete } = await import('@/lib/franchisePDA');
-                    if (isFundingComplete(franchiseData._id as string)) {
-                      toast.success('🎉 Funding target reached! Franchise will transition to launching stage.');
-                    }
-                  }
-                  
-                } catch (error) {
-                  console.error('Error purchasing shares:', error);
-                  toast.error(`Failed to purchase shares: ${(error as Error).message || 'Please try again.'}`);
-                } finally {
-                  setIsProcessing(false);
-                }
-              }}
-            >
-                {isProcessing ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing...
-                  </span>
-                ) : !isWalletLoaded || !userWallet.publicKey ? (
-                  'Connect Wallet'
-                ) : userWallet.balance < (tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)) / solToUsdRate ? (
-                  'Insufficient Balance'
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-                    </svg>
-                    Buy {tokensToBuy} Token{tokensToBuy > 1 ? 's' : ''}
-                  </span>
-                )}
-              </Button>
-            </div>
+                        console.log('Payment destinations:', {
+                          franchisePDA: franchisePDA.pda,
+                          companyWallet: companyWalletAddress,
+                          subtotalSOL: subtotalInSOL,
+                          platformFeeSOL: platformFeeInSOL
+                        });
+
+                        // Process Solana payment with split transfers
+                        const transactionHash = await handleSolanaPaymentSplit(
+                          subtotalInSOL,
+                          platformFeeInSOL,
+                          franchisePDA.pda, // Use franchise PDA instead of brand wallet
+                          companyWalletAddress
+                        );
+
+                        // Store platform fee transaction for company wallet tracking
+                        const platformFeeTransaction = {
+                          amount: platformFeeAmount,
+                          from: franchise.name,
+                          timestamp: new Date().toISOString(),
+                          description: `Platform fee from ${franchise.name} share purchase`,
+                          transactionHash: transactionHash,
+                          franchiseId: franchiseId,
+                          sharesPurchased: tokensToBuy
+                        };
+
+                        const platformFeeKey = `platform_fee_${Date.now()}_${franchiseId}`;
+                        localStorage.setItem(platformFeeKey, JSON.stringify(platformFeeTransaction));
+                        console.log('✅ Stored platform fee transaction in FranchiseStore:', {
+                          key: platformFeeKey,
+                          transaction: platformFeeTransaction,
+                          platformFeeAmount: platformFeeAmount,
+                          sharesPurchased: tokensToBuy
+                        });
+
+                        // Also add to income table
+                        addToIncomeTable('platform_fee', platformFeeAmount, franchise.name, `Platform fee from ${franchise.name} share purchase`, transactionHash);
+
+                        // Record the purchase in Convex using the real mutation
+                        await addInvestment(
+                          tokensToBuy,
+                          sharePrice,
+                          subtotalAmount, // Use subtotal without platform fee for consistency
+                          userWallet.publicKey,
+                          transactionHash
+                        );
+
+                        // Record transaction in localStorage for the transactions tab
+                        const transaction = {
+                          id: `share_purchase_${Date.now()}`,
+                          type: 'share_purchase',
+                          amount: totalCost, // Total amount including platform fee
+                          amountSOL: totalCostInSOL,
+                          description: `Purchased ${tokensToBuy} tokens in ${franchise.name}`,
+                          franchiseSlug: franchiseId,
+                          status: 'confirmed',
+                          transactionHash: transactionHash,
+                          timestamp: Date.now(),
+                          fromAddress: userWallet.publicKey,
+                          toAddress: franchisePDA.pda,
+                          sharesPurchased: tokensToBuy,
+                          sharePrice: sharePrice
+                        };
+
+                        // Save transaction to localStorage
+                        const existingTransactions = localStorage.getItem(`transactions_${userWallet.publicKey}`);
+                        const transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
+                        transactions.unshift(transaction); // Add to beginning
+                        localStorage.setItem(`transactions_${userWallet.publicKey}`, JSON.stringify(transactions));
+
+                        console.log('✅ Transaction recorded:', transaction);
+
+                        // Update PDA with new shares (optional - for local state)
+                        if (franchiseData?._id) {
+                          const { updatePDASharesIssued } = await import('@/lib/franchisePDA');
+                          const currentPDA = await getFranchisePDA(franchiseData._id);
+                          if (currentPDA) {
+                            const newSharesIssued = currentPDA.sharesIssued + tokensToBuy;
+                            const newTotalRaised = currentPDA.totalRaised + totalCost;
+                            updatePDASharesIssued(franchiseData._id, newSharesIssued, newTotalRaised);
+                          }
+                        }
+
+                        // Reset form
+                        setTokensToBuy(1);
+                        setIsBuyTokensOpen(false);
+
+                        // Show success message with explorer link
+                        const networkParam = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
+                        const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}${networkParam}`;
+                        toast.success(
+                          <div className="flex flex-col gap-2">
+                            <div>Successfully purchased {tokensToBuy} tokens for ${totalCost.toFixed(2)}!</div>
+                            <a
+                              href={explorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-1"
+                            >
+                              View on Solana Explorer
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>,
+                          { duration: 10000 }
+                        );
+
+                        // Check if funding is complete
+                        if (franchiseData?._id) {
+                          const { isFundingComplete } = await import('@/lib/franchisePDA');
+                          if (isFundingComplete(franchiseData._id as string)) {
+                            toast.success('🎉 Funding target reached! Franchise will transition to launching stage.');
+                          }
+                        }
+
+                      } catch (error) {
+                        console.error('Error purchasing shares:', error);
+                        toast.error(`Failed to purchase shares: ${(error as Error).message || 'Please try again.'}`);
+                      } finally {
+                        setIsProcessing(false);
+                      }
+                    }}
+                  >
+                    {isProcessing ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : !isWalletLoaded || !userWallet.publicKey ? (
+                      'Connect Wallet'
+                    ) : userWallet.balance < (tokensToBuy * 1.00 * (1 + platformFeePercentage / 100)) / solToUsdRate ? (
+                      'Insufficient Balance'
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                        </svg>
+                        Buy {tokensToBuy} Token{tokensToBuy > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1962,7 +1998,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </div>
             </div>
           </DialogHeader>
-          
+
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
             {/* Cart Items */}
@@ -1971,7 +2007,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               {Object.entries(cart).map(([productId, quantity]) => {
                 const product = products.find(p => p.id === productId);
                 if (!product) return null;
-                
+
                 return (
                   <div key={productId} className="flex items-center gap-4 p-4 bg-stone-50 dark:bg-stone-800/50 rounded-lg border border-stone-200 dark:border-stone-700">
                     <div className="relative w-20 h-20 flex-shrink-0 bg-stone-200 dark:bg-stone-700 rounded">
@@ -2085,15 +2121,15 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           {/* Fixed Footer with Actions */}
           <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 sticky bottom-0">
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 onClick={() => setIsCheckoutOpen(false)}
                 className="flex-1 h-12 sm:h-14"
               >
                 Continue Shopping
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 className="flex-[2] h-12 sm:h-14 bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 font-semibold shadow-lg"
                 disabled={isProcessing || cartItemsCount === 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (cartTotal / solToUsdRate)}
@@ -2108,14 +2144,14 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   console.log('Total:', cartTotal);
 
                   setIsProcessing(true);
-                  
+
                   try {
                     // Calculate SOL amount
                     const totalInSOL = cartTotal / solToUsdRate;
-                    
+
                     // For now, we'll use a placeholder destination (franchise wallet)
                     const destinationAddress = franchise.brandWalletAddress || '3M4FinDzudgSTLXPP1TAoB4yE2Y2jrKXQ4rZwbfizNpm';
-                    
+
                     console.log('Payment details:', {
                       totalUSD: cartTotal,
                       totalSOL: totalInSOL,
@@ -2157,20 +2193,20 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                     const transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
                     transactions.unshift(transaction);
                     localStorage.setItem(`transactions_${userWallet.publicKey}`, JSON.stringify(transactions));
-                    
+
                     console.log('✅ Order completed:', transaction);
-                    
+
                     // Clear cart and close modal
                     clearCart();
                     setIsCheckoutOpen(false);
-                    
+
                     // Show success message
                     const networkParam = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=devnet';
                     const explorerUrl = `https://explorer.solana.com/tx/${transactionHash}${networkParam}`;
                     toast.success(
                       <div className="flex flex-col gap-2">
                         <div>Order completed successfully! Total: ${cartTotal.toFixed(2)}</div>
-                        <a 
+                        <a
                           href={explorerUrl}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2182,7 +2218,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                       </div>,
                       { duration: 10000 }
                     );
-                    
+
                   } catch (error) {
                     console.error('Error processing order:', error);
                     toast.error(`Failed to process order: ${(error as Error).message || 'Please try again.'}`);

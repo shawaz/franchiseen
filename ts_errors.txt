@@ -1,0 +1,19 @@
+convex/aiChat.ts(82,14): error TS7022: 'sendMessage' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+convex/aiChat.ts(87,3): error TS7023: 'handler' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+convex/aiChat.ts(89,11): error TS7022: 'userMessageId' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+convex/aiChat.ts(135,11): error TS7022: 'aiMessageId' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+convex/tasks.ts(28,66): error TS7006: Parameter 't' implicitly has an 'any' type.
+convex/tasks.ts(29,70): error TS7006: Parameter 't' implicitly has an 'any' type.
+convex/tasks.ts(30,68): error TS7006: Parameter 't' implicitly has an 'any' type.
+convex/tasks.ts(32,86): error TS7006: Parameter 't' implicitly has an 'any' type.
+convex/tasks.ts(33,88): error TS7006: Parameter 't' implicitly has an 'any' type.
+convex/tasks.ts(35,104): error TS7006: Parameter 't' implicitly has an 'any' type.
+convex/tasks.ts(39,30): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/app/(admin)/admin/home/tasks/page.tsx(277,26): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(286,27): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(296,26): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(305,27): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(315,26): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(324,27): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(334,26): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?
+src/app/(admin)/admin/home/tasks/page.tsx(343,27): error TS2552: Cannot find name 'ScrollArea'. Did you mean 'scrollbars'?

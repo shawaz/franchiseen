@@ -484,6 +484,44 @@ export default defineSchema({
     timestamp: v.number(),
   }).index('by_userId', ['userId']),
 
+  // Admin Tasks Management
+  tasks: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+    assigneeId: v.optional(v.id('adminUsers')),
+    assignedBy: v.id('adminUsers'),
+    department: v.union(
+      v.literal('management'),
+      v.literal('operations'),
+      v.literal('finance'),
+      v.literal('people'),
+      v.literal('marketing'),
+      v.literal('sales'),
+      v.literal('support'),
+      v.literal('software'),
+    ),
+    status: v.union(
+      v.literal('todo'),
+      v.literal('in_progress'),
+      v.literal('review'),
+      v.literal('completed')
+    ),
+    priority: v.union(
+      v.literal('low'),
+      v.literal('medium'),
+      v.literal('high'),
+      v.literal('urgent')
+    ),
+    dueDate: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_assignee', ['assigneeId'])
+    .index('by_department', ['department'])
+    .index('by_status', ['status'])
+    .index('by_priority', ['priority']),
+
   // Property Management
   properties: defineTable({
     // Basic Property Information

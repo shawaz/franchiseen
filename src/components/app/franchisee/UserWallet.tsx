@@ -35,10 +35,10 @@ const UserWallet: React.FC<WalletProps> = ({
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState<boolean>(false);
   const [lastAirdropTime, setLastAirdropTime] = useState<number | null>(null);
   const [nextAirdropIn, setNextAirdropIn] = useState<number | null>(null);
-  
+
   // Get network state from context
   const { isDevnet } = useNetwork();
-  
+
   // Get SOL to USD price from CoinGecko
   const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
 
@@ -64,7 +64,7 @@ const UserWallet: React.FC<WalletProps> = ({
       const now = Date.now();
       const cooldownPeriod = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
       const timeSinceLastAirdrop = now - lastAirdropTime;
-      
+
       if (timeSinceLastAirdrop < cooldownPeriod) {
         const timeRemaining = cooldownPeriod - timeSinceLastAirdrop;
         setNextAirdropIn(Math.ceil(timeRemaining / 1000)); // Convert to seconds
@@ -81,11 +81,11 @@ const UserWallet: React.FC<WalletProps> = ({
   // Format time remaining as HH:MM:SS
   const formatTimeRemaining = (seconds: number): string => {
     if (seconds <= 0) return '00:00:00';
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     return [
       hours.toString().padStart(2, '0'),
       minutes.toString().padStart(2, '0'),
@@ -102,21 +102,21 @@ const UserWallet: React.FC<WalletProps> = ({
     }
 
     setLoading(true);
-    
+
     try {
       // Use robust connection with Helius + fallbacks
       const network = isDevnet ? 'devnet' : 'mainnet-beta';
       const connection = getSolanaConnection(network);
-      
+
       // Fetch balance with automatic retry and fallback
       const balanceInSol = await connection.getBalance(walletAddress);
-      
+
       setBalance(balanceInSol);
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching balance:', error);
       toast.error('Failed to fetch balance. Please try again later.');
-      
+
       // If we have a cached balance, show warning but keep it
       if (balance > 0) {
         toast.info('Showing cached balance. Some features may be limited.');
@@ -132,28 +132,28 @@ const UserWallet: React.FC<WalletProps> = ({
     fetchBalance();
     // Set up interval to refresh balance every 30 seconds
     const intervalId = setInterval(fetchBalance, 30000);
-    
+
     return () => clearInterval(intervalId);
   }, [connected, walletAddress, isDevnet, fetchBalance]);
 
   const requestAirdrop = async () => {
     if (!walletAddress || (nextAirdropIn !== null && nextAirdropIn > 0)) return;
-    
+
     setIsRequestingAirdrop(true);
     try {
       // Use a more reliable devnet RPC endpoint
       const connection = new Connection(
-        'https://api.devnet.solana.com', 
+        'https://api.devnet.solana.com',
         { commitment: 'confirmed', confirmTransactionInitialTimeout: 60000 }
       );
       const publicKey = new PublicKey(walletAddress);
-      
+
       console.log('Requesting airdrop to:', walletAddress);
-      
+
       // Add retry logic for airdrop requests
       let signature;
       let retries = 3;
-      
+
       while (retries > 0) {
         try {
           signature = await connection.requestAirdrop(
@@ -164,23 +164,23 @@ const UserWallet: React.FC<WalletProps> = ({
         } catch (retryError) {
           retries--;
           if (retries === 0) throw retryError;
-          
+
           console.log(`Airdrop failed, retrying... (${retries} attempts left)`);
           await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
         }
       }
-      
+
       if (signature) {
         console.log('Airdrop signature:', signature);
-        
+
         // Wait for confirmation with timeout
         const confirmation = await Promise.race([
           connection.confirmTransaction(signature, 'confirmed'),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
           )
         ]);
-        
+
         if (confirmation) {
           const now = Date.now();
           setLastAirdropTime(now);
@@ -191,7 +191,7 @@ const UserWallet: React.FC<WalletProps> = ({
       }
     } catch (error) {
       console.error('Error requesting airdrop:', error);
-      
+
       // More specific error messages
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage?.includes('Internal error')) {
@@ -207,7 +207,7 @@ const UserWallet: React.FC<WalletProps> = ({
       setIsRequestingAirdrop(false);
     }
   };
-  
+
   const formatSol = (value: number) => {
     return value.toFixed(4) + ' SOL';
   };
@@ -315,11 +315,10 @@ const UserWallet: React.FC<WalletProps> = ({
               <div className="text-right">
                 <div className="flex items-center justify-end gap-2">
                   <span className="text-yellow-100 text-xs">SOL Balance</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                    isDevnet 
-                      ? 'bg-yellow-500 text-yellow-900' 
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isDevnet
+                      ? 'bg-yellow-500 text-yellow-900'
                       : 'bg-green-500 text-green-900'
-                  }`}>
+                    }`}>
                     {isDevnet ? 'DEVNET' : 'MAINNET'}
                   </span>
                 </div>
@@ -339,11 +338,10 @@ const UserWallet: React.FC<WalletProps> = ({
               <button
                 onClick={requestAirdrop}
                 disabled={isRequestingAirdrop || (nextAirdropIn !== null && nextAirdropIn > 0)}
-                className={`font-bold p-2 transition flex items-center justify-center gap-2 text-xs ${
-                  isRequestingAirdrop || (nextAirdropIn !== null && nextAirdropIn > 0)
+                className={`font-bold p-2 transition flex items-center justify-center gap-2 text-xs ${isRequestingAirdrop || (nextAirdropIn !== null && nextAirdropIn > 0)
                     ? 'bg-gray-500 text-gray-200 cursor-not-allowed'
                     : 'bg-yellow-500 text-yellow-900 hover:bg-yellow-400'
-                }`}
+                  }`}
                 title={nextAirdropIn !== null && nextAirdropIn > 0 ? `Next airdrop available in ${formatTimeRemaining(nextAirdropIn)}` : ''}
               >
                 {isRequestingAirdrop ? (
@@ -369,11 +367,23 @@ const UserWallet: React.FC<WalletProps> = ({
             )}
 
             <button
-              onClick={onAddMoney}
+              onClick={() => {
+                if (!walletAddress) {
+                  toast.error('Wallet address not found');
+                  return;
+                }
+                const clientId = process.env.NEXT_PUBLIC_CROSSMINT_CLIENT_ID;
+                if (!clientId) {
+                  toast.error('Crossmint Client ID is not configured');
+                  return;
+                }
+                const onrampUrl = `https://staging.crossmint.com/api/2022-06-09/wallets/${walletAddress}/onramp?clientId=${clientId}`;
+                window.open(onrampUrl, '_blank');
+              }}
               className="bg-white/20 border border-white/30 p-2 hover:bg-white/30 transition flex  items-center justify-center gap-4 "
             >
               <ArrowUpDown className="h-4 w-4" />
-              <span className="text-xs font-medium">TRANSFER</span>
+              <span className="text-xs font-medium">FIAT ONRAMP (CROSSMINT)</span>
             </button>
 
             {/* <button

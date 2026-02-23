@@ -14,8 +14,8 @@ export default function AuthPage() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/';
 
-  // Check if Privy is configured
-  const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  // Check if Crossmint is configured
+  const crossmintClientId = process.env.NEXT_PUBLIC_CROSSMINT_CLIENT_ID;
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -24,12 +24,12 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, isLoading, router, redirectTo]);
 
-  // Debug: Log Privy configuration
+  // Debug: Log Crossmint configuration
   useEffect(() => {
-    console.log('Privy App ID configured:', !!privyAppId);
+    console.log('Crossmint Client ID configured:', !!crossmintClientId);
     console.log('Is loading:', isLoading);
     console.log('Is authenticated:', isAuthenticated);
-  }, [privyAppId, isLoading, isAuthenticated]);
+  }, [crossmintClientId, isLoading, isAuthenticated]);
 
   if (isLoading) {
     return (
@@ -39,20 +39,20 @@ export default function AuthPage() {
     );
   }
 
-  // Show error if Privy not configured
-  if (!privyAppId) {
+  // Show error if Crossmint not configured
+  if (!crossmintClientId) {
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-900 flex items-center justify-center py-12 px-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-red-600">Configuration Error</CardTitle>
             <CardDescription>
-              Privy authentication is not configured
+              Crossmint authentication is not configured
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Please add <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">NEXT_PUBLIC_PRIVY_APP_ID</code> to your environment variables.
+              Please add <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">NEXT_PUBLIC_CROSSMINT_CLIENT_ID</code> to your environment variables.
             </p>
           </CardContent>
         </Card>
@@ -64,15 +64,15 @@ export default function AuthPage() {
     <div className="min-h-screen bg-stone-50 dark:bg-stone-900 flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Image 
-            src="/logo.svg" 
-            alt="Franchiseen" 
-            width={180} 
+          <Image
+            src="/logo.svg"
+            alt="Franchiseen"
+            width={180}
             height={60}
             className="dark:invert"
           />
         </div>
-        
+
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
@@ -81,7 +81,7 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
+            <Button
               onClick={login}
               className="w-full h-11 text-base"
               size="lg"
@@ -101,7 +101,7 @@ export default function AuthPage() {
               </div>
             </div>
 
-            <Button 
+            <Button
               onClick={login}
               variant="outline"
               className="w-full h-11 text-base"
@@ -128,7 +128,7 @@ export default function AuthPage() {
               Google
             </Button>
 
-            <Button 
+            <Button
               onClick={login}
               variant="outline"
               className="w-full h-11 text-base"
