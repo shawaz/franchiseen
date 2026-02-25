@@ -127,7 +127,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
   // Solana wallet hooks with error handling
   // Solana wallet hooks - always call them unconditionally
   // User wallet integration
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userProfile } = useAuth();
   const { wallet: userWallet, updateWalletBalance } = useUserWallet();
   const isWalletLoaded = !userWallet.isLoading;
 
