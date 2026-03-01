@@ -16,7 +16,7 @@ export function AccountUiModalSend(props: { address: Address }) {
 
   return (
     <AppModal
-      title="Send"
+      title="Transfer / Send Money"
       submitDisabled={!destination || !amount || mutation.isPending}
       submitLabel="Send"
       submit={async () => {

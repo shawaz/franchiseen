@@ -10,6 +10,8 @@ import { AppExplorerLink } from '@/components/default/app-explorer-link'
 import { AccountUiButtons } from '@/features/account/ui/account-ui-buttons'
 import { AccountUiTokens } from '@/features/account/ui/account-ui-tokens'
 
+import { AccountUiUpdateWallet } from './ui/account-ui-update-wallet'
+
 export default function AccountFeatureDetail() {
   const params = useParams()
   const address = useMemo(() => {
@@ -28,8 +30,9 @@ export default function AccountFeatureDetail() {
       <AppHero
         title={<AccountUiBalance address={address} />}
         subtitle={
-          <div className="my-4">
+          <div className="my-4 flex items-center justify-center gap-4">
             <AppExplorerLink address={address.toString()} label={ellipsify(address.toString())} />
+            <AccountUiUpdateWallet address={address} />
           </div>
         }
       >

@@ -14,8 +14,8 @@ export function AccountUiModalReceive({ address }: { address: Address }) {
     })
   }
   return (
-    <AppModal title="Receive" submitLabel="Copy Address" submit={handleCopy}>
-      <p>Receive assets by sending them to your public key:</p>
+    <AppModal title="Deposit" submitLabel="Copy Address" submit={handleCopy}>
+      <p>Deposit assets by sending them to your wallet address:</p>
       <div className="flex items-center gap-2">
         <AppExplorerLink address={address.toString()} label={address.toString()} />
       </div>

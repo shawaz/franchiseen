@@ -12,10 +12,20 @@ export function AccountUiTokens({ address }: { address: Address }) {
   const [showAll, setShowAll] = useState(false)
   const query = useGetTokenAccountsQuery({ address })
   const client = useQueryClient()
+  const filteredData = useMemo(() => {
+    if (!query.data) return undefined;
+    const usdcMintAddresses = [
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Mainnet
+      '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // Devnet
+    ];
+    return query.data.filter((item) => usdcMintAddresses.includes(item.account.data.parsed.info.mint.toString()));
+  }, [query.data]);
+
   const items = useMemo(() => {
-    if (showAll) return query.data
-    return query.data?.slice(0, 5)
-  }, [query.data, showAll])
+    if (!filteredData) return undefined;
+    if (showAll) return filteredData;
+    return filteredData.slice(0, 5);
+  }, [filteredData, showAll])
 
   return (
     <div className="space-y-2">
@@ -44,8 +54,8 @@ export function AccountUiTokens({ address }: { address: Address }) {
       {query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
       {query.isSuccess && (
         <div>
-          {query.data.length === 0 ? (
-            <div>No token accounts found.</div>
+          {(!filteredData || filteredData.length === 0) ? (
+            <div>No USDC token accounts found.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -81,7 +91,7 @@ export function AccountUiTokens({ address }: { address: Address }) {
                   </TableRow>
                 ))}
 
-                {(query.data?.length ?? 0) > 5 && (
+                {(filteredData?.length ?? 0) > 5 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center">
                       <Button variant="outline" onClick={() => setShowAll(!showAll)}>

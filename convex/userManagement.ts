@@ -97,6 +97,27 @@ export const updateUserFullName = mutation({
   },
 });
 
+// Update user wallet address
+export const updateUserWalletAddress = mutation({
+  args: {
+    userId: v.id("users"),
+    walletAddress: v.string(),
+  },
+  handler: async (ctx, { userId, walletAddress }) => {
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(userId, {
+      walletAddress,
+      updatedAt: Date.now(),
+    });
+
+    return userId;
+  },
+});
+
 // Get user by wallet address (for existing functionality)
 export const getUserByWalletAddress = query({
   args: { walletAddress: v.string() },
@@ -119,16 +140,16 @@ export const getAllUserWallets = query({
     const allUsers = await ctx.db
       .query("users")
       .collect();
-    
+
     console.log('getAllUserWallets: Total users found:', allUsers.length);
-    
+
     // Filter users with valid wallet addresses
-    const profiles = allUsers.filter(user => 
-      user.walletAddress && 
-      user.walletAddress !== null && 
+    const profiles = allUsers.filter(user =>
+      user.walletAddress &&
+      user.walletAddress !== null &&
       user.walletAddress !== ""
     );
-    
+
     console.log('getAllUserWallets: Profiles with wallets:', profiles.length);
     console.log('getAllUserWallets: Wallet addresses:', profiles.map(p => p.walletAddress));
 
@@ -144,12 +165,12 @@ export const getAllUserWallets = query({
         // Calculate totals
         const totalInvested = shares.reduce((sum, share) => sum + share.totalAmount, 0);
         const totalShares = shares.reduce((sum, share) => sum + share.sharesPurchased, 0);
-        
+
         // Get franchise data for earnings calculation (simplified)
         const totalEarnings = 0; // This would need to be calculated from actual earnings data
 
         // Get last activity from shares
-        const lastActivity = shares.length > 0 
+        const lastActivity = shares.length > 0
           ? Math.max(...shares.map(share => share.purchasedAt))
           : (user.createdAt || Date.now());
 
