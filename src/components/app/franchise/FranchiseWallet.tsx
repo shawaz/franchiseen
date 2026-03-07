@@ -49,7 +49,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [, setIsDemoBalance] = useState<boolean>(false);
   const [connection] = useState<Connection>(new Connection(SOLANA_RPC_URL));
-  
+
   // Get SOL to USD price from CoinGecko
   const { price: solToUsdPrice, loading: priceLoading, error: priceError } = useSolPrice();
 
@@ -82,14 +82,14 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
   // Helper function to validate Solana address format
   const isValidSolanaAddress = (address: string): boolean => {
     if (!address || typeof address !== 'string') return false;
-    
+
     // Check length (Solana addresses are typically 32-44 characters)
     if (address.length < 32 || address.length > 44) return false;
-    
+
     // Check for base58 characters only
     const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
     if (!base58Regex.test(address)) return false;
-    
+
     return true;
   };
 
@@ -105,7 +105,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
 
     try {
       const publicKey = new PublicKey(address);
-      
+
       // Try primary RPC first
       try {
         const balanceInLamports = await connection.getBalance(publicKey);
@@ -115,7 +115,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
         return;
       } catch (error) {
         console.warn('Primary RPC failed:', error);
-        
+
         // Try fallback RPCs
         for (const rpcUrl of FALLBACK_RPC_URLS) {
           try {
@@ -131,12 +131,12 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             console.warn(`Fallback RPC ${rpcUrl} also failed:`, fallbackError);
           }
         }
-        
+
         // All RPCs failed, use demo balance
         console.error('All RPC endpoints failed, using demo balance');
         console.warn('Wallet address:', address);
         console.warn('Primary RPC URL:', SOLANA_RPC_URL);
-        
+
         if (error instanceof Error && error.message.includes('403')) {
           console.warn('RPC access forbidden - this might be a mainnet address on devnet or RPC restrictions');
         } else if (error instanceof Error && error.message.includes('Invalid public key')) {
@@ -145,7 +145,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
           setIsDemoBalance(false);
           return;
         }
-        
+
         setBalance(0); // No balance initially
         setIsDemoBalance(true);
       }
@@ -161,7 +161,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
   useEffect(() => {
     if (walletAddress) {
       setLoading(true);
-      
+
       // If franchise is in launching/ongoing stage, use database balance
       if (franchiseWallet?.franchise?.stage === 'launching' || franchiseWallet?.franchise?.stage === 'ongoing') {
         // Use database balance for launched franchises
@@ -179,7 +179,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
       setIsDemoBalance(franchiseStatus === 'approved' ? false : true);
     }
   }, [walletAddress, fetchBalance, franchiseWallet, franchiseStatus]);
-  
+
   const formatSol = (value: number) => {
     return value.toFixed(4) + ' SOL';
   };
@@ -195,8 +195,8 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
 
   const copyWalletAddress = () => {
     if (walletAddress) {
-    navigator.clipboard.writeText(walletAddress);
-    toast.success('Wallet address copied to clipboard!');
+      navigator.clipboard.writeText(walletAddress);
+      toast.success('Wallet address copied to clipboard!');
     }
   };
 
@@ -232,10 +232,10 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Wallet Connection Status */}
             <div className="flex items-center gap-2">
-              <Badge 
+              <Badge
                 variant="default"
                 className="bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
               >
@@ -250,26 +250,23 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
         <div className="bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 text-white overflow-hidden">
           <div className="p-4 sm:p-6">
             <div className="grid grid-cols-2 gap-4">
-              {/* USD Balance */}
+              {/* Balance (Raised) */}
               <div>
                 <div className="text-gray-100 text-xs mb-1">
-                  USD Balance
+                  Balance
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold">
                   Loading...
-                </div>
-                <div className="text-gray-200 text-xs mt-1">
-                  Loading wallet data
                 </div>
               </div>
-              {/* SOL Balance */}
+              {/* Investment (Goal) & Status */}
               <div className="text-right">
-                <div className="text-gray-100 text-xs mb-1">SOL Balance</div>
+                <div className="text-gray-100 text-xs mb-1">Investment</div>
                 <div className="text-2xl sm:text-3xl font-bold">
                   Loading...
                 </div>
-                <div className="text-gray-200 text-xs mt-1">
-                  Updated: Loading...
+                <div className="text-gray-200 text-xs mt-1 uppercase tracking-wider font-semibold">
+                  Status: Loading...
                 </div>
               </div>
             </div>
@@ -337,10 +334,10 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Status Badge */}
             <div className="flex items-center gap-2">
-              <Badge 
+              <Badge
                 variant="default"
                 className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
               >
@@ -365,7 +362,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               <div className="text-xs text-yellow-200 mb-4">
                 Approval typically takes 1-3 business days.
               </div>
-              
+
             </div>
           </div>
         </div>
@@ -446,7 +443,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
       {/* Franchise Header */}
       <div className="p-3 sm:p-4 bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700">
         <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             {/* Franchise Logo */}
             <div className="w-10 h-10 overflow-hidden bg-white/20 flex items-center justify-center">
               <Image
@@ -457,23 +454,23 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
                 className="w-full h-full object-cover"
                 unoptimized
               />
-          </div>
-          <div>
-            <h3 className="font-semibold text-md text-gray-900 dark:text-white">
+            </div>
+            <div>
+              <h3 className="font-semibold text-md text-gray-900 dark:text-white">
                 {franchiseToken?.tokenSymbol || franchiseWallet?.walletName || franchiseName}
-            </h3>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
+              </h3>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
                   {walletAddress ? formatWalletAddress(walletAddress) : 'Wallet pending creation'}
-              </p>
+                </p>
                 {walletAddress && (
                   <>
-              <button
-                onClick={copyWalletAddress}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
+                    <button
+                      onClick={copyWalletAddress}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
                     <button
                       onClick={() => window.open(getSolanaExplorerUrl(walletAddress), '_blank')}
                       className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -485,40 +482,17 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               </div>
             </div>
           </div>
-          
-          {/* Right side - Buy Tokens button for funding stage and Checkout for ongoing */}
-          <div className="flex items-center gap-2">
-            {stageContent.showBuyShares && (
-              <Button
-                variant="outline"
-              onClick={() => {
-                if (onBuyTokens) {
-                  onBuyTokens();
-                } else {
-                  toast.info('Buy tokens functionality will be implemented');
-                }
-              }}
-              >
-                Buy Tokens
-              </Button>
-            )}
-            
-            {/* Checkout button for ongoing stage */}
-            {franchiseStage === 'ongoing' && onCheckout && (
-              <Button
-                onClick={onCheckout}
-                className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 relative"
-                disabled={cartItemsCount === 0}
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Checkout
-                {cartItemsCount > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-white text-yellow-700 rounded-full text-xs font-bold">
-                    {cartItemsCount}
-                  </span>
-                )}
-              </Button>
-            )}
+          <div className="flex items-center justify-end">
+            <span className={`inline-block px-6 py-3 uppercase text-xs font-bold rounded-full ${currentStage === 'funding'
+              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+              : currentStage === 'launching'
+                ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                : currentStage === 'ongoing'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+              }`}>
+              {currentStage === 'ongoing' ? 'LIVE' : currentStage}
+            </span>
           </div>
         </div>
       </div>
@@ -528,32 +502,24 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
         <div className="p-4 sm:p-6">
           {/* Balance Display */}
           <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* USD Balance */}
-            <div>
+            {/* Investment (Goal) & Status */}
+            <div className="text-left">
+              <div className="text-white/80 text-xs mb-1">Investment</div>
+              <div className="text-2xl sm:text-3xl font-bold">
+                ${totalInvestment.toLocaleString()}
+              </div>
+
+            </div>
+            {/* Balance (Raised) */}
+            <div className="text-right">
               <div className="text-white/80 text-xs mb-1">
-                USD Balance
+                Balance
               </div>
               <div className="text-2xl sm:text-3xl font-bold">
-                {loading || priceLoading ? '...' : (
-                  (franchiseWallet?.usdBalance || 0) > 0 ? 
-                    formatUsdAmount(franchiseWallet?.usdBalance || 0) : 
-                    formatAmount(balance)
-                )}
-              </div>
-              <div className="text-white/70 text-xs mt-1">
-                {priceError ? 'Price unavailable' : `$${(solToUsdPrice || 150.0).toFixed(2)} USD/SOL`}
+                ${totalInvested.toLocaleString()}
               </div>
             </div>
-              {/* SOL Balance */}
-            <div className="text-right">
-              <div className="text-white/80 text-xs mb-1">SOL Balance</div>
-                <div className="text-2xl sm:text-3xl font-bold">
-                {loading ? '...' : formatSol(franchiseWallet?.balance || balance)}
-              </div>
-              <div className="text-white/70 text-xs mt-1">
-                Updated: {new Date().toLocaleTimeString()}
-              </div>
-            </div>
+
           </div>
 
           {/* Stage-specific content */}
@@ -563,7 +529,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             {currentStage === 'funding' && (
               <div className="mb-4">
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-white transition-all duration-300"
                     style={{ width: `${Math.min(fundingProgress, 100)}%` }}
                   ></div>
@@ -572,7 +538,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             )}
 
             {/* Funding Phase - Raised/Goal Info */}
-            {currentStage === 'funding' && (
+            {/* {currentStage === 'funding' && (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="bg-white/10 rounded-lg p-3">
                   <div className="text-white/80 text-xs">Raised</div>
@@ -583,13 +549,13 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
                   <div className="text-white font-semibold">{stageContent.goal}</div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Launching Progress Bar */}
             {currentStage === 'launching' && (
               <div className="mb-4">
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-white transition-all duration-300"
                     style={{ width: '100%' }}
                   ></div>
@@ -601,7 +567,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
             {currentStage === 'ongoing' && (
               <div className="mb-4">
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-white transition-all duration-300"
                     style={{ width: `${Math.min(stageContent.remainingPercentage || 0, 100)}%` }}
                   ></div>
@@ -617,7 +583,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
                   <span>100%</span>
                 </div>
                 <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-white transition-all duration-300"
                     style={{ width: '100%' }}
                   ></div>
@@ -663,10 +629,67 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               <div className="text-center py-4">
                 <div className="text-white/80 text-sm">
                   Franchise operations have ended
+                </div>
               </div>
-            </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Wallet Footer */}
+      <div className="p-3 sm:p-4 bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="font-semibold text-md text-gray-900 dark:text-white">
+                {currentStage === 'ongoing'
+                  ? stageContent.remainingToFill?.toLocaleString() || '0'
+                  : Math.max(0, totalInvestment - totalInvested).toLocaleString()}
+              </h3>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
+                  Remaining
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right side - Buy Tokens button for funding stage and Checkout for ongoing */}
+          <div className="flex items-center gap-2">
+            {stageContent.showBuyShares && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (onBuyTokens) {
+                    onBuyTokens();
+                  } else {
+                    toast.info('Buy tokens functionality will be implemented');
+                  }
+                }}
+              >
+                Buy Franchise
+              </Button>
+            )}
+
+            {/* Checkout button for ongoing stage */}
+            {franchiseStage === 'ongoing' && onCheckout && (
+              <Button
+                onClick={onCheckout}
+                className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 relative"
+                disabled={cartItemsCount === 0}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Checkout
+                {cartItemsCount > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-white text-yellow-700 rounded-full text-xs font-bold">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Button>
+            )}
+          </div>
+
+
         </div>
       </div>
     </div>

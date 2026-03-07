@@ -79,17 +79,28 @@ export function useUserWallet() {
           getUSDCBalance(address)
         ]);
 
+        // Add mocked staging balance
+        let finalUsdcBalance = usdcBalance;
+        try {
+          const mockedStr = localStorage.getItem('mocked_usdc_balance');
+          if (mockedStr) {
+            finalUsdcBalance += parseFloat(mockedStr);
+          }
+        } catch (e) {
+          console.error('Error reading mocked balance', e);
+        }
+
         setWallet({
           publicKey: address,
           balance,
-          usdcBalance,
+          usdcBalance: finalUsdcBalance,
           isLoading: false,
           error: null
         });
 
         localStorage.setItem('userWalletAddress', address);
         localStorage.setItem('userWalletBalance', balance.toString());
-        localStorage.setItem('userWalletUSDCBalance', usdcBalance.toString());
+        localStorage.setItem('userWalletUSDCBalance', finalUsdcBalance.toString());
 
         console.log(`✅ Loaded wallet: ${address} with USDC: ${usdcBalance}`);
       } else {
@@ -125,9 +136,20 @@ export function useUserWallet() {
     localStorage.setItem('userWalletBalance', newBalance.toString());
   }, []);
 
+  const addMockedUSDC = useCallback((amount: number) => {
+    try {
+      const currentMock = parseFloat(localStorage.getItem('mocked_usdc_balance') || '0');
+      localStorage.setItem('mocked_usdc_balance', (currentMock + amount).toString());
+      refreshWallet();
+    } catch (e) {
+      console.error('Error adding mock balance', e);
+    }
+  }, [refreshWallet]);
+
   return {
     wallet,
     refreshWallet,
     updateWalletBalance,
+    addMockedUSDC,
   };
 }

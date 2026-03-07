@@ -21,7 +21,7 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
     <ConvexClientProvider>
       <CrossmintProvider apiKey={crossmintClientId || ''}>
         <CrossmintAuthProvider>
-          <CrossmintWalletProvider>
+          <CrossmintWalletProvider appearance={{ colors: { background: "#000000" } }} createOnLogin={{ chain: 'solana', signer: { type: 'email' } }}>
             <PrivyAuthProvider>
               <NetworkProvider>
                 <ReactQueryProvider>

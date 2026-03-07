@@ -26,7 +26,7 @@ const UserWallet: React.FC<WalletProps> = ({
   const { userProfile } = useAuth();
 
   // Get wallet data from hook
-  const { wallet, refreshWallet } = useUserWallet();
+  const { wallet, refreshWallet, addMockedUSDC } = useUserWallet();
   const { publicKey: walletAddress, usdcBalance, isLoading: walletLoading } = wallet;
 
   const connected = !!walletAddress;
@@ -40,6 +40,9 @@ const UserWallet: React.FC<WalletProps> = ({
   const [transferRecipient, setTransferRecipient] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
   const [isTransferring, setIsTransferring] = useState(false);
+
+  // Deposit Modal State
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
   // Get network state from context
   const { isDevnet } = useNetwork();
@@ -131,13 +134,14 @@ const UserWallet: React.FC<WalletProps> = ({
                     toast.error('Wallet address not found');
                     return;
                   }
-                  const clientId = process.env.NEXT_PUBLIC_CROSSMINT_CLIENT_ID;
-                  if (!clientId) {
-                    toast.error('Crossmint Client ID is not configured');
-                    return;
+                  if (process.env.NEXT_PUBLIC_CROSSMINT_ENVIRONMENT === 'staging') {
+                    if (addMockedUSDC) {
+                      addMockedUSDC(10);
+                      toast.success('Added 10 USDC to your balance (Staging)');
+                    }
+                  } else {
+                    setIsDepositModalOpen(true);
                   }
-                  const onrampUrl = `https://staging.crossmint.com/api/2022-06-09/wallets/${walletAddress}/onramp?clientId=${clientId}`;
-                  window.open(onrampUrl, '_blank');
                 }}
                 className="bg-white text-yellow-900 font-bold p-3 hover:bg-yellow-50 transition flex items-center justify-center gap-2 text-xs rounded"
               >
@@ -244,6 +248,58 @@ const UserWallet: React.FC<WalletProps> = ({
               disabled={isTransferring}
             >
               {isTransferring ? 'Sending...' : 'Send USDC'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Deposit Modal */}
+      <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
+        <DialogContent className="sm:max-w-md bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-800">
+          <DialogHeader>
+            <DialogTitle className="text-stone-900 dark:text-stone-100 flex items-center gap-2">
+              <Plus className="h-5 w-5 text-yellow-600" />
+              Add Balance (USDC)
+            </DialogTitle>
+            <DialogDescription>
+              To fund your wallet, send USDC on the Solana network to your wallet address below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-lg text-center break-all space-y-3">
+              <p className="font-mono text-sm text-stone-800 dark:text-stone-200 select-all">
+                {walletAddress}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyWalletAddress}
+                className="w-full flex items-center gap-2"
+              >
+                <Copy className="h-4 w-4" /> Copy Address
+              </Button>
+            </div>
+
+            <div className="relative flex items-center py-2">
+              <div className="flex-grow border-t border-stone-200 dark:border-stone-700"></div>
+              <span className="flex-shrink-0 mx-4 text-stone-400 text-xs">OR BUY CRYPTO</span>
+              <div className="flex-grow border-t border-stone-200 dark:border-stone-700"></div>
+            </div>
+
+            <Button
+              onClick={() => {
+                const onrampUrl = `https://buy.moonpay.com?currencyCode=usdc_sol&walletAddress=${walletAddress}`;
+                window.open(onrampUrl, '_blank');
+              }}
+              className="w-full bg-[#3D14D1] hover:bg-[#2e0ea2] text-white font-bold flex items-center justify-center gap-2"
+            >
+              Buy with MoonPay
+            </Button>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDepositModalOpen(false)} className="w-full">
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
