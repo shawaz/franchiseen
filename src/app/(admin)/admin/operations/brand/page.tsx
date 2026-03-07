@@ -52,7 +52,7 @@ type Brand = {
 // Brand Logo Component
 function BrandLogo({ brand }: { brand: Brand }) {
   const logoUrl = useConvexImageUrl(brand.logoUrl as Id<"_storage"> | undefined);
-  
+
   return (
     <div className="flex items-center gap-2 min-w-0 flex-1">
       <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -453,14 +453,15 @@ export default function BrandManagement() {
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
+                      const isExtraColumn = ["industryName", "categoryName", "franchiseCount", "locationCount", "productCount"].includes(header.id);
                       return (
-                        <TableHead key={header.id} className="whitespace-nowrap">
+                        <TableHead key={header.id} className={`whitespace-nowrap ${isExtraColumn ? "hidden md:table-cell" : ""}`}>
                           {header.isPlaceholder
                             ? null
                             : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         </TableHead>
                       );
                     })}
@@ -475,14 +476,17 @@ export default function BrandManagement() {
                       data-state={row.getIsSelected() && "selected"}
                       className="hover:bg-muted/50"
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="whitespace-nowrap">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+                      {row.getVisibleCells().map((cell) => {
+                        const isExtraColumn = ["industryName", "categoryName", "franchiseCount", "locationCount", "productCount"].includes(cell.column.id);
+                        return (
+                          <TableCell key={cell.id} className={`whitespace-nowrap ${isExtraColumn ? "hidden md:table-cell" : ""}`}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))
                 ) : (
@@ -499,18 +503,19 @@ export default function BrandManagement() {
             </Table>
           </div>
         </div>
-        
-        <div className="flex items-center">
-          <div className="text-muted-foreground flex-1 text-sm">
+
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-muted-foreground text-sm text-center sm:text-left">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
             {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
-          <div className="space-x-2">
+          <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              className="w-24"
             >
               Previous
             </Button>
@@ -519,6 +524,7 @@ export default function BrandManagement() {
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              className="w-24"
             >
               Next
             </Button>

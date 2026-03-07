@@ -3,15 +3,17 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
 export default defineSchema({
-  // Simple users table for Privy authentication
+  // Users table for authentication (Privy on web, Clerk on mobile)
   users: defineTable({
-    // Privy/Google auth fields
+    // Auth fields
     email: v.optional(v.string()),
     fullName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
 
-    // Privy specific
+    // Auth provider IDs
     privyUserId: v.optional(v.string()),
+    clerkUserId: v.optional(v.string()),
+    crossmintUserId: v.optional(v.string()), // Crossmint wallet integration
 
     // Wallet information
     walletAddress: v.optional(v.string()),
@@ -22,7 +24,17 @@ export default defineSchema({
   })
     .index('by_email', ['email'])
     .index('by_walletAddress', ['walletAddress'])
-    .index('by_privyUserId', ['privyUserId']),
+    .index('by_privyUserId', ['privyUserId'])
+    .index('by_clerkUserId', ['clerkUserId']),
+
+  // User favorites (liked brands)
+  userFavorites: defineTable({
+    userId: v.id('users'),
+    franchiserId: v.id('franchiser'),
+    createdAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_franchiser', ['userId', 'franchiserId']),
 
   franchiser: defineTable({
     ownerUserId: v.id('users'), // User's ID (who owns/manages the brand)
@@ -50,6 +62,14 @@ export default defineSchema({
         v.literal('DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN'),
       ),
     ), // Added setup by field
+    timingPerWeek: v.optional(
+      v.object({
+        days: v.array(v.string()),   // e.g. ["Mon", "Tue", ...] or []
+        startTime: v.string(),       // e.g. "09:00"
+        endTime: v.string(),         // e.g. "18:00"
+        is24Hours: v.boolean(),
+      }),
+    ),
     status: v.union(v.literal('draft'), v.literal('pending'), v.literal('approved'), v.literal('rejected')),
     createdAt: v.number(),
     updatedAt: v.number(),

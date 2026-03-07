@@ -118,6 +118,59 @@ export const updateUserWalletAddress = mutation({
   },
 });
 
+// Get user by Clerk ID (for mobile app)
+// Uses email-based lookup until schema with by_clerkUserId index is deployed
+export const getUserByClerkId = query({
+  args: { clerkUserId: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, { email }) => {
+    if (!email) return null
+    return await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first()
+  },
+})
+
+// Sync Clerk user to database (creates or updates by email)
+// Uses only existing deployed indexes (by_email) until clerkUserId schema is deployed
+export const syncClerkUser = mutation({
+  args: {
+    clerkUserId: v.string(),
+    email: v.optional(v.string()),
+    fullName: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, { email, fullName, avatarUrl }) => {
+    const now = Date.now()
+
+    // Look up by email using the existing by_email index
+    if (email) {
+      const existingByEmail = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .first()
+
+      if (existingByEmail) {
+        await ctx.db.patch(existingByEmail._id, {
+          fullName: fullName || existingByEmail.fullName,
+          avatarUrl: avatarUrl || existingByEmail.avatarUrl,
+          updatedAt: now,
+        })
+        return existingByEmail._id
+      }
+    }
+
+    // Create new user
+    return await ctx.db.insert("users", {
+      email,
+      fullName,
+      avatarUrl,
+      createdAt: now,
+      updatedAt: now,
+    })
+  },
+})
+
 // Get user by wallet address (for existing functionality)
 export const getUserByWalletAddress = query({
   args: { walletAddress: v.string() },

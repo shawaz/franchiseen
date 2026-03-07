@@ -54,15 +54,15 @@ export default function AdminPageTemplate({
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
           {description && (
-            <p className="text-muted-foreground mt-1">{description}</p>
+            <p className="text-muted-foreground mt-1 text-sm sm:base">{description}</p>
           )}
         </div>
         {onAddClick && (
-          <Button onClick={onAddClick}>
+          <Button onClick={onAddClick} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             {addButtonText}
           </Button>
@@ -70,7 +70,7 @@ export default function AdminPageTemplate({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat, index) => (
           <Card key={index}>
             <CardContent className="p-4">
@@ -106,7 +106,7 @@ export default function AdminPageTemplate({
                 </div>
               </div>
               {filters.length > 0 && (
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {filters.map((filter, index) => (
                     <Select
                       key={index}
@@ -130,7 +130,7 @@ export default function AdminPageTemplate({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {children}
         </CardContent>

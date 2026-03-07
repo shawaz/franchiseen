@@ -2,7 +2,23 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Menu, X, Store, Building2, User, Power, Plus, Settings, Sun, Moon, Monitor, Banknote, Receipt } from "lucide-react";
+import {
+  Menu,
+  X,
+  Store,
+  Building2,
+  User,
+  Power,
+  Plus,
+  Settings,
+  Sun,
+  Moon,
+  Monitor,
+  Banknote,
+  Receipt,
+  ChevronRight,
+  ShieldCheck
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/PrivyAuthContext";
 import { ThemeSwitcher } from "../default/theme-switcher";
@@ -14,7 +30,7 @@ import { Id } from '../../../convex/_generated/dataModel';
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
-
+import { motion, AnimatePresence } from "framer-motion";
 
 // Custom network switcher for hamburger menu
 const HamburgerNetworkSwitcher = () => {
@@ -25,9 +41,7 @@ const HamburgerNetworkSwitcher = () => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
+  if (!mounted) return null;
 
   const networks = [
     { value: "mainnet", label: "Money", icon: Banknote },
@@ -35,23 +49,23 @@ const HamburgerNetworkSwitcher = () => {
   ];
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 p-1 bg-stone-100 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
       {networks.map((networkOption) => {
         const IconComponent = networkOption.icon;
+        const isActive = network === networkOption.value;
         return (
           <button
             key={networkOption.value}
             onClick={() => switchNetwork(networkOption.value as 'mainnet' | 'devnet')}
-            className={`p-2 rounded-lg text-sm transition-colors ${
-              network === networkOption.value
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isActive
                 ? networkOption.value === 'mainnet'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-yellow-500 text-yellow-900'
-                : 'bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600'
-            }`}
-            title={networkOption.label}
+                  ? 'bg-green-500 text-white shadow-sm'
+                  : 'bg-yellow-500 text-stone-900 shadow-sm'
+                : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-200'
+              }`}
           >
-            <IconComponent className="w-4 h-4" />
+            <IconComponent className="w-3.5 h-3.5" />
+            {networkOption.label}
           </button>
         );
       })}
@@ -68,30 +82,27 @@ const HamburgerThemeSwitcher = () => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
+  if (!mounted) return null;
 
   const themes = [
-    { value: "light", label: "Light", icon: Sun },
-    { value: "dark", label: "Dark", icon: Moon },
-    { value: "system", label: "System", icon: Monitor }
+    { value: "light", icon: Sun },
+    { value: "dark", icon: Moon },
+    { value: "system", icon: Monitor }
   ];
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 p-1 bg-stone-100 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
       {themes.map((themeOption) => {
         const IconComponent = themeOption.icon;
+        const isActive = theme === themeOption.value;
         return (
           <button
             key={themeOption.value}
             onClick={() => setTheme(themeOption.value)}
-            className={`p-2 rounded-lg text-sm transition-colors ${
-              theme === themeOption.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600'
-            }`}
-            title={themeOption.label}
+            className={`p-2 rounded-lg transition-all ${isActive
+                ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm border border-stone-200/50 dark:border-stone-600'
+                : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-200'
+              }`}
           >
             <IconComponent className="w-4 h-4" />
           </button>
@@ -105,14 +116,14 @@ export function HamburgerMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated, userProfile, signOut, login } = useAuth();
   const router = useRouter();
-  
-  
+
+
   // Get user's franchiser data using user ID from user profile
   const franchisers = useAllFranchisersByUserId(userProfile?._id || '');
-  
+
   // Check if user has franchiseen.com email address
   const isCompanyUser = userProfile?.email?.endsWith('@franchiseen.com') || false;
-  
+
 
   const handleSignOut = async () => {
     try {
@@ -165,46 +176,48 @@ export function HamburgerMenu() {
     ],
   };
 
+  const menuVariants = {
+    closed: { x: "100%", transition: { type: "spring", stiffness: 300, damping: 30 } },
+    open: { x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }
+  };
+
+  const overlayVariants = {
+    closed: { opacity: 0 },
+    open: { opacity: 1 }
+  };
+
   const renderSignedOutMenu = () => (
-    <div className="space-y-6">
-      {/* Authentication Section */}
+    <div className="space-y-8 py-4">
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Get Started</h3>
-        <div className="space-y-3">
-          <Button 
-            onClick={() => {
-              setIsMenuOpen(false);
-              login();
-            }}
-            className="w-full"
-          >
-            Sign In / Sign Up
-          </Button>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 px-1">Get Started</h3>
+        <Button
+          onClick={() => { setIsMenuOpen(false); login(); }}
+          className="w-full h-14 text-lg font-semibold rounded-2xl bg-stone-900 dark:bg-white text-white dark:text-stone-900 hover:scale-[0.98] transition-transform"
+        >
+          Sign In / Sign Up
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 px-1">Settings</h3>
+        <div className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/40 rounded-2xl border border-stone-200/50 dark:border-stone-700/50">
+          <span className="text-sm font-medium text-stone-700 dark:text-stone-300">Appearance</span>
+          <HamburgerThemeSwitcher />
         </div>
       </div>
 
-      {/* Theme Switcher */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h3>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Theme</span>
-          <ThemeSwitcher />
-        </div>
-      </div>
-
-      {/* Footer Links */}
-      <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-8 pt-4">
         {Object.entries(footerLinks).map(([category, links]) => (
-          <div key={category} className="space-y-3">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 capitalize">
+          <div key={category} className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 capitalize px-1">
               {category}
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {links.map((link) => (
                 <li key={link.href}>
-                  <Link 
+                  <Link
                     href={link.href}
-                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-600 transition-colors"
+                    className="text-sm font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {link.label}
@@ -219,231 +232,176 @@ export function HamburgerMenu() {
   );
 
   // Brand Item Component
-  const BrandItem = ({ franchiser, onClose }: { franchiser: { _id: string; name: string; slug: string; logoUrl?: Id<"_storage">; status: string }; onClose: () => void }) => {
+  const BrandItem = ({ franchiser, onClose }: { franchiser: any; onClose: () => void }) => {
     const logoUrl = useConvexImageUrl(franchiser.logoUrl as Id<"_storage"> | undefined);
-    
+
     return (
       <Link
         href={`/${franchiser.slug}/account`}
-        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-stone-800 transition-colors"
+        className="flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-stone-800/50 border border-stone-100 dark:border-stone-700/50 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all active:scale-[0.98]"
         onClick={onClose}
       >
-        <div className="relative h-10 w-10 flex-shrink-0">
+        <div className="relative h-12 w-12 flex-shrink-0 shadow-sm rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800">
           {logoUrl ? (
-            <Image
-              src={logoUrl}
-              alt={franchiser.name}
-              width={40}
-              height={40}
-              className="object-cover rounded-lg"
-              unoptimized
-            />
+            <Image src={logoUrl} alt={franchiser.name} fill className="object-cover" unoptimized />
           ) : (
-            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
-              <Store className="w-5 h-5 text-yellow-600" />
+            <div className="w-full h-full flex items-center justify-center">
+              <Store className="w-6 h-6 text-stone-400" />
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">
+          <h3 className="text-sm font-semibold truncate text-stone-900 dark:text-stone-100">
             {franchiser.name}
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-            {franchiser.status === 'approved' ? 'Franchiser' : 'Pending Approval'}
+          <p className="text-xs text-stone-500 dark:text-stone-500 font-medium">
+            {franchiser.status === 'approved' ? 'Franchiser Account' : 'Pending Approval'}
           </p>
         </div>
+        <ChevronRight className="w-4 h-4 text-stone-300 dark:text-stone-600" />
       </Link>
     );
   };
 
   const renderSignedInMenu = () => (
-    <div className="space-y-6">
-
-      {/* List of Brands Owned */}
-      {franchisers === undefined ? (
+    <div className="space-y-8 py-2">
+      {/* Brands Owned */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 px-1">Your Brands</h3>
         <div className="space-y-3">
-          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-            Loading brands...
-          </div>
+          {franchisers === undefined ? (
+            <div className="p-4 text-sm text-stone-400 animate-pulse">Loading brands...</div>
+          ) : franchisers?.length > 0 ? (
+            franchisers.map((f) => <BrandItem key={f._id} franchiser={f} onClose={() => setIsMenuOpen(false)} />)
+          ) : (
+            <div className="p-8 rounded-2xl border-2 border-dashed border-stone-200 dark:border-stone-800 text-center">
+              <p className="text-sm text-stone-500 font-medium">No brands registered yet</p>
+            </div>
+          )}
         </div>
-      ) : franchisers && franchisers.length > 0 ? (
-        <div className="space-y-3">
-          <div className="space-y-2">
-            {franchisers.map((franchiser) => (
-              <BrandItem 
-                key={franchiser._id} 
-                franchiser={franchiser} 
-                onClose={() => setIsMenuOpen(false)} 
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      </div>
 
-      {/* Register Brand - Always First */}
-      <div className="space-y-3">
-        <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-            <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/20 rounded flex items-center justify-center">
-              <Store className="w-4 h-4 text-yellow-600" />
+      {/* Primary Actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/register" onClick={() => setIsMenuOpen(false)} className="col-span-2">
+          <div className="bg-yellow-400 dark:bg-yellow-500 p-5 rounded-2xl flex items-center gap-4 group active:scale-[0.98] transition-all">
+            <div className="w-12 h-12 bg-white/30 rounded-xl flex items-center justify-center backdrop-blur-md">
+              <Store className="w-6 h-6 text-stone-900" />
             </div>
             <div className="flex-1">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100">Register Your Brand</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Create and manage your franchise</p>
+              <h4 className="font-bold text-stone-900">Register Brand</h4>
+              <p className="text-xs text-stone-900/70 font-medium">Launch your franchise</p>
             </div>
+          </div>
+        </Link>
+        <Link href="/account" onClick={() => setIsMenuOpen(false)}>
+          <div className="bg-stone-100 dark:bg-stone-800/60 p-4 rounded-2xl flex flex-col gap-3 active:scale-[0.98] transition-all border border-stone-200/50 dark:border-stone-700/50">
+            <User className="w-5 h-5 text-stone-600 dark:text-stone-400" />
+            <span className="text-sm font-bold text-stone-900 dark:text-stone-100">Profile</span>
+          </div>
+        </Link>
+        <Link href="/create" onClick={() => setIsMenuOpen(false)}>
+          <div className="bg-stone-100 dark:bg-stone-800/60 p-4 rounded-2xl flex flex-col gap-3 active:scale-[0.98] transition-all border border-stone-200/50 dark:border-stone-700/50">
+            <Plus className="w-5 h-5 text-stone-600 dark:text-stone-400" />
+            <span className="text-sm font-bold text-stone-900 dark:text-stone-100">Create</span>
           </div>
         </Link>
       </div>
 
-      {/* Quick Actions */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Quick Actions</h3>
-        <div className="space-y-2">
-          <Link href="/account" onClick={() => setIsMenuOpen(false)}>
-            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-              <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">
-                <User className="w-4 h-4 text-stone-600 dark:text-stone-400" />
-              </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">My Account</span>
-            </div>
-          </Link>
-          <Link href="/create" onClick={() => setIsMenuOpen(false)}>
-            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-              <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">
-                <Plus className="w-4 h-4 text-stone-600 dark:text-stone-400" />
-              </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">Create Franchise</span>
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      {/* Company Menu - Only for franchiseen.com users */}
       {isCompanyUser && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Company</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 px-1">Internal</h3>
           <Link href="/admin/home/ai" onClick={() => setIsMenuOpen(false)}>
-            <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-              <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-stone-600 dark:text-stone-400" />
-              </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">Company Dashboard</span>
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/20">
+              <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Company Dashboard</span>
             </div>
           </Link>
         </div>
       )}
 
-      {/* Settings */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Settings</h3>
-        <div className="p-3 rounded-lg bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 space-y-3">
+      {/* Settings Panel */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 px-1">Settings</h3>
+        <div className="p-4 rounded-3xl bg-stone-50 dark:bg-stone-800/30 border border-stone-200/50 dark:border-stone-700/50 space-y-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">
-                <Banknote className="w-4 h-4 text-stone-600 dark:text-stone-400" />
-              </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">Network</span>
+              <Banknote className="w-4 h-4 text-stone-400" />
+              <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">Network</span>
             </div>
             <HamburgerNetworkSwitcher />
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-stone-200 dark:bg-stone-700 rounded flex items-center justify-center">
-                <Settings className="w-4 h-4 text-stone-600 dark:text-stone-400" />
-              </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300">Theme</span>
+              <Settings className="w-4 h-4 text-stone-400" />
+              <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">Appearance</span>
             </div>
             <HamburgerThemeSwitcher />
           </div>
         </div>
       </div>
 
-      {/* Footer Links */}
-      {Object.entries(footerLinks).map(([category, links]) => (
-        <div key={category} className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">{category}</h3>
-          <ul className="space-y-2">
-            {links.map((link) => (
-              <li key={link.href}>
-                <Link 
-                  href={link.href} 
-                  className="block text-sm text-stone-600 dark:text-stone-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-
       {/* Sign Out */}
-      <div className="border-t border-stone-200 dark:border-stone-700 pt-4">
-        <button 
-          onClick={handleSignOut}
-          className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-        >
-          <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center">
-            <Power className="w-4 h-4 text-red-600 dark:text-red-400" />
-          </div>
-          <span className="text-sm text-red-600 dark:text-red-400 font-medium">Sign Out</span>
-        </button>
-      </div>
+      <button
+        onClick={handleSignOut}
+        className="w-full flex items-center justify-center gap-3 p-5 rounded-2xl border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+      >
+        <Power className="w-5 h-5" />
+        Sign Out
+      </button>
     </div>
-  );
-
-  const menuContent = (
-    <>
-      {/* Full Screen Menu Overlay */}
-      {isMenuOpen && (
-        <div 
-          className="fixed top-0 left-0 right-0 bottom-0 w-full h-full z-[9999] bg-white dark:bg-stone-900 md:hidden"
-          style={{ 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 9999
-          }}
-        >
-          <div className="w-full h-full flex flex-col">
-            {/* Header */}
-            <div className="flex-shrink-0 bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-700 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Menu
-              </h2>
-              <button
-                onClick={() => setIsMenuOpen(false)}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Menu Content */}
-            <div className="flex-1 px-6 py-6 overflow-y-auto min-h-0">
-              {isAuthenticated ? renderSignedInMenu() : renderSignedOutMenu()}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   );
 
   return (
     <>
       {/* Hamburger Menu Button */}
-      <button 
-        className="p-2 rounded-full md:hidden hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      <button
+        className="p-2.5 rounded-full md:hidden bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 hover:scale-105 active:scale-95 transition-all shadow-sm"
         onClick={() => setIsMenuOpen(true)}
       >
-        <Menu className="h-6 w-6" />
+        <Menu className="h-5 w-5 text-stone-600 dark:text-stone-400" />
       </button>
 
       {/* Portal to render menu at document root */}
-      {typeof document !== 'undefined' && createPortal(menuContent, document.body)}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isMenuOpen && (
+            <div className="fixed inset-0 z-[9999] md:hidden pointer-events-none">
+              <motion.div
+                initial="closed" animate="open" exit="closed" variants={overlayVariants}
+                onClick={() => setIsMenuOpen(false)}
+                className="absolute inset-0 bg-stone-900/40 dark:bg-black/60 backdrop-blur-sm pointer-events-auto"
+              />
+              <motion.div
+                initial="closed" animate="open" exit="closed" variants={menuVariants}
+                className="absolute top-0 right-0 w-[85%] max-w-[400px] h-full bg-white dark:bg-stone-900 shadow-2xl pointer-events-auto flex flex-col"
+              >
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-5 border-b border-stone-100 dark:border-stone-800">
+                  <span className="text-lg font-bold tracking-tight text-stone-900 dark:text-stone-100">Menu</span>
+                  <button
+                    onClick={() => setIsMenuOpen(false)}
+                    className="p-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:rotate-90 transition-all duration-300"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 px-6 py-6 overflow-y-auto scrollbar-hide">
+                  {isAuthenticated ? renderSignedInMenu() : renderSignedOutMenu()}
+
+                  {/* Subtle Footer */}
+                  <div className="mt-12 mb-8 text-center">
+                    <p className="text-[10px] font-bold tracking-widest text-stone-300 dark:text-stone-600 uppercase">
+                      Franchisee &copy; 2026
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

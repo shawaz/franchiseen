@@ -34,7 +34,7 @@ const FranchiseeAvatar: React.FC<{
 // import { useWallet } from "@solana/wallet-adapter-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1479,12 +1479,12 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </DialogTrigger>
         <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[500px] dark:bg-stone-900 p-0 gap-0 flex flex-col max-h-[95vh]">
           {/* Fixed Header */}
-          <DialogHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-200 dark:border-stone-800 flex-shrink-0">
+          <DialogHeader className="px-6 py-6 sm:py-7 border-b border-stone-100 dark:border-stone-800 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <DialogTitle className="text-lg sm:text-xl font-bold">Buy Franchise Tokens</DialogTitle>
-                <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 mt-1">
-                  Each token = 1 share in this franchise
+              <div className="flex-1 text-center">
+                <DialogTitle className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-white">Buy Franchise Tokens</DialogTitle>
+                <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5 font-medium">
+                  Each token represents 1 share in this franchise
                 </p>
               </div>
             </div>
@@ -1493,17 +1493,17 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
             {/* Franchise Details */}
-            <div className="p-3 sm:p-4 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 rounded-xl border border-yellow-200 dark:border-yellow-800/30 mb-4">
-              <div className="flex items-start space-x-3 sm:space-x-4">
+            <div className="p-4 bg-stone-50 dark:bg-stone-800/40 rounded-2xl border border-stone-200 dark:border-stone-700/50 mb-8 shadow-sm">
+              <div className="flex items-center space-x-4">
                 {/* Brand Logo */}
                 <div className="flex-shrink-0">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white dark:bg-stone-700 flex items-center justify-center overflow-hidden border-2 border-white dark:border-stone-600 shadow-md">
+                  <div className="w-16 h-16 rounded-xl bg-white dark:bg-stone-800 flex items-center justify-center overflow-hidden border border-stone-200 dark:border-stone-700 shadow-sm">
                     <Image
                       src={franchise.brandLogo}
                       alt={`${franchise.name} logo`}
                       width={64}
                       height={64}
-                      className="object-contain"
+                      className="object-contain p-2"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.src = '/images/placeholder-logo.svg';
@@ -1514,28 +1514,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-base sm:text-lg text-stone-900 dark:text-white truncate">{franchise.name}</h4>
+                  <h4 className="font-bold text-lg text-stone-900 dark:text-white truncate">{franchise.name}</h4>
 
-                  <div className="mt-1.5 space-y-0.5">
-                    <div className="flex items-center text-xs sm:text-sm text-stone-600 dark:text-stone-400">
-                      <span className="truncate">
-                        {franchise.location.area}, {franchise.location.city}
-                      </span>
-                    </div>
-                    <div className="text-xs text-stone-500 dark:text-stone-500">
-                      {franchise.location.country}
-                    </div>
+                  <div className="mt-1 flex items-center text-sm text-stone-500 dark:text-stone-400">
+                    <span className="truncate">
+                      {franchise.location.area}, {franchise.location.city} • {franchise.location.country}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
             {/* Token Selection */}
-            <div className="space-y-4 mb-4">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="shares" className="text-sm sm:text-base font-medium">Number of Tokens</Label>
-                <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                  <span className="text-base sm:text-lg font-bold text-yellow-900 dark:text-yellow-200">{tokensToBuy}</span>
-                  <span className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-300 ml-1">tokens</span>
+            <div className="space-y-6 mb-8">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="shares" className="text-base font-bold text-stone-900 dark:text-stone-100 uppercase tracking-wider">Number of Tokens</Label>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-black text-stone-900 dark:text-white">{tokensToBuy}</span>
+                  <span className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase">{tokensToBuy === 1 ? 'token' : 'tokens'}</span>
                 </div>
               </div>
 
@@ -1552,24 +1547,24 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
               </div>
 
               {/* Plus/Minus Controls */}
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
-                  size="lg"
-                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800"
                   onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 10))}
                   disabled={tokensToBuy <= 1}
                 >
-                  -10
+                  <span className="text-xs font-bold">-10</span>
                 </Button>
                 <Button
                   variant="outline"
-                  size="lg"
-                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800"
                   onClick={() => setTokensToBuy((prev: number) => Math.max(1, prev - 1))}
                   disabled={tokensToBuy <= 1}
                 >
-                  -1
+                  <span className="text-base font-bold">−</span>
                 </Button>
                 <Input
                   id="shares"
@@ -1578,25 +1573,25 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                   max={maxTokensToBuy}
                   value={tokensToBuy}
                   onChange={(e) => setTokensToBuy(Math.min(maxTokensToBuy, Math.max(1, parseInt(e.target.value) || 1)))}
-                  className="text-center h-12 sm:h-14 text-base sm:text-lg font-semibold flex-[1.5]"
+                  className="text-center h-11 text-lg font-bold bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 rounded-xl flex-1"
                 />
                 <Button
                   variant="outline"
-                  size="lg"
-                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800"
                   onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 1))}
                   disabled={tokensToBuy >= maxTokensToBuy}
                 >
-                  +1
+                  <span className="text-base font-bold">+</span>
                 </Button>
                 <Button
                   variant="outline"
-                  size="lg"
-                  className="flex-1 h-12 sm:h-14 text-lg sm:text-xl font-bold"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800"
                   onClick={() => setTokensToBuy((prev: number) => Math.min(maxTokensToBuy, prev + 10))}
                   disabled={tokensToBuy >= maxTokensToBuy}
                 >
-                  +10
+                  <span className="text-xs font-bold">+10</span>
                 </Button>
               </div>
 
@@ -1607,37 +1602,39 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
             </div>
 
             {/* Price Breakdown */}
-            <div className="space-y-3 mb-4 p-3 sm:p-4 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700">
-              <Label className="text-sm sm:text-base font-semibold">Price Breakdown</Label>
-              <div className="space-y-2.5 text-sm sm:text-base">
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center gap-2 mb-1">
+                <Label className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-widest">Price Breakdown</Label>
+                <div className="h-px flex-1 bg-stone-100 dark:bg-stone-800"></div>
+              </div>
+              <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-600 dark:text-stone-400">{tokensToBuy} tokens × $1.00</span>
-                  <span className="font-semibold">${(tokensToBuy * 1.00).toFixed(2)}</span>
+                  <span className="text-stone-600 dark:text-stone-400 font-medium">{tokensToBuy} {tokensToBuy === 1 ? 'token' : 'tokens'} × $1.00</span>
+                  <span className="font-bold text-stone-900 dark:text-white">${(tokensToBuy * 1.00).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center pb-2.5 border-b border-stone-300 dark:border-stone-600">
-                  <span className="text-stone-600 dark:text-stone-400">Platform fee ({platformFeePercentage}%)</span>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-stone-500 dark:text-stone-500">Platform fee ({platformFeePercentage}%)</span>
                   <span className="font-semibold text-stone-500 dark:text-stone-400">${((tokensToBuy * 1.00 * platformFeePercentage) / 100).toFixed(2)}</span>
                 </div>
               </div>
             </div>
             {/* User Wallet Status */}
             {isWalletLoaded && userWallet.publicKey ? (
-              <div className="p-3 sm:p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 mb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-sm sm:text-base font-medium text-green-700 dark:text-green-400">
-                      Wallet Connected
+              <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/30 border border-stone-200 dark:border-stone-800 mb-8 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-stone-900 dark:text-stone-100 uppercase tracking-tight">
+                      {isAuthenticated ? 'Crossmint Wallet Connected' : 'Wallet Connected'}
                     </span>
+                    <span className="text-[10px] font-mono text-stone-500">{userWallet.publicKey.slice(0, 4)}...{userWallet.publicKey.slice(-4)}</span>
                   </div>
-                  <div className="text-left sm:text-right pl-4 sm:pl-0">
-                    <span className="text-xs sm:text-sm font-mono text-green-600 dark:text-green-400 block">
-                      {userWallet.publicKey.slice(0, 8)}...{userWallet.publicKey.slice(-6)}
-                    </span>
-                    <div className="text-xs sm:text-sm font-semibold text-green-700 dark:text-green-300 mt-0.5">
-                      {userWallet.balance.toFixed(4)} SOL
-                    </div>
-                  </div>
+                </div>
+                <div className="text-right flex flex-col items-end">
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{userWallet.balance.toFixed(4)} SOL</span>
+                  {isAuthenticated && (
+                    <span className="text-[10px] text-stone-400 mt-0.5">Primary Payment Source</span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1663,53 +1660,67 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
 
             {/* Insufficient Balance Warning */}
             {isWalletLoaded && userWallet.publicKey && userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate && (
-              <div className="p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border-2 border-red-200 dark:border-red-800 mb-4">
-                <div className="flex items-start space-x-2">
-                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full mt-1"></div>
-                  <div className="text-xs sm:text-sm text-red-700 dark:text-red-400">
-                    <span className="font-semibold">Insufficient balance.</span>
-                    <div className="mt-1">Need: {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL</div>
-                    <div>Have: {userWallet.balance.toFixed(4)} SOL</div>
+              <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border-2 border-amber-200 dark:border-amber-800 mb-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-xs sm:text-sm text-amber-800 dark:text-amber-400">
+                    <span className="font-bold flex items-center gap-2">
+                      Low SOL Balance in Wallet
+                    </span>
+                    <div className="mt-1 opacity-90">
+                      You need {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL but only have {userWallet.balance.toFixed(4)} SOL.
+                    </div>
+                    {isAuthenticated && (
+                      <div className="mt-2 p-2 bg-amber-100/50 dark:bg-amber-900/40 rounded-lg font-medium text-amber-900 dark:text-amber-300">
+                        Tip: You can use your Crossmint balance or Pay with Card by clicking the "Buy with Cards/Fiat" button below.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
             {/* Total Cost - Highlighted */}
-            <div className="p-4 sm:p-5 bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-xl border-2 border-yellow-300 dark:border-yellow-700 mb-4">
-              <div className="flex justify-between items-center gap-4">
+            <div className="p-6 bg-stone-900 dark:bg-white rounded-2xl mb-4 shadow-xl">
+              <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-medium">Total Cost</p>
-                  <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 mt-1">
-                    ≈ {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4)} SOL
+                  <p className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Total Investment</p>
+                  <p className="text-sm font-medium text-stone-300 dark:text-stone-600 mt-1">
+                    ≈ {((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(6)} SOL
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl sm:text-3xl font-bold text-yellow-900 dark:text-yellow-200">
-                    ${(tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-stone-600 dark:text-stone-400">USD</p>
+                  <div className="flex items-baseline justify-end gap-1">
+                    <span className="text-xs font-bold text-stone-400 dark:text-stone-500">$</span>
+                    <span className="text-3xl font-black text-white dark:text-stone-900">
+                      {(tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)).toFixed(2)}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-bold text-stone-500 dark:text-stone-400 uppercase tracking-tighter">United States Dollars</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Fixed Footer with Actions */}
-          <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 sticky bottom-0">
+          {/* Sticky Footer with Actions */}
+          <DialogFooter className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 sticky bottom-0 z-10">
             {showCrossmintCheckout ? (
-              <div className="w-full flex-col items-center justify-center space-y-4">
+              <div className="w-full flex flex-col gap-4">
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setShowCrossmintCheckout(false)}
-                  className="w-full mb-2"
+                  className="w-full h-11 border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold"
                 >
                   Back to Solana Payment
                 </Button>
-                <div className="w-full min-h-[400px]">
+                <div className="w-full min-h-[400px] bg-stone-50 dark:bg-stone-800/20 rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700">
                   <CrossmintEmbeddedCheckout
                     lineItems={{
-                      collectionLocator: `crossmint:YOUR_COLLECTION_ID`, // Replace with actual crossmint collection ID
+                      collectionLocator: `crossmint:YOUR_COLLECTION_ID`,
                       callData: {
                         totalPrice: ((tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate).toFixed(4),
                         quantity: tokensToBuy
@@ -1724,28 +1735,26 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 </div>
               </div>
             ) : (
-              <div className="flex gap-3 flex-col sm:flex-row">
-                <div className="flex gap-3 w-full sm:w-auto flex-1">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setIsBuyTokensOpen(false)}
-                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-                <div className="flex gap-3 w-full sm:w-auto flex-[2]">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setIsBuyTokensOpen(false)}
+                  className="w-full sm:flex-1 h-12 sm:h-14 text-sm font-bold border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-400"
+                >
+                  Cancel
+                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 sm:flex-[2]">
                   <Button
                     size="lg"
-                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base bg-blue-600 hover:bg-blue-700 font-semibold shadow-lg text-white"
+                    className="flex-1 h-12 sm:h-14 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg ring-offset-2 hover:ring-2 ring-blue-500/50 transition-all border-none"
                     onClick={() => setShowCrossmintCheckout(true)}
                   >
-                    Buy with Fiat/Crypto (Crossmint)
+                    Buy with Cards/Fiat
                   </Button>
                   <Button
                     size="lg"
-                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-600 dark:hover:bg-yellow-700 font-semibold shadow-lg text-white"
+                    className="flex-1 h-12 sm:h-14 text-sm font-bold bg-stone-900 dark:bg-white text-white dark:text-stone-900 rounded-xl shadow-lg ring-offset-2 hover:ring-2 ring-stone-900/50 dark:ring-white/50 transition-all border-none"
                     disabled={isProcessing || maxTokensToBuy <= 0 || !isWalletLoaded || !userWallet.publicKey || userWallet.balance < (tokensToBuy * sharePrice * (1 + platformFeePercentage / 100)) / solToUsdRate}
                     onClick={async () => {
                       if (!isWalletLoaded || !userWallet.publicKey) {
@@ -1963,7 +1972,7 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 </div>
               </div>
             )}
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

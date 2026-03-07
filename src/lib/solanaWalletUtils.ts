@@ -11,6 +11,12 @@ export function createNewWallet(): { keypair: Keypair; publicKey: string; secret
   };
 }
 
+// Token Mints
+export const USDC_MINT = {
+  devnet: '4zMMC9srtvS2X6x5c5C9S7XdcN3V6Y2b356h6m8v4',
+  mainnet: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+};
+
 // Get wallet balance
 export async function getWalletBalance(publicKey: string, network: 'devnet' | 'mainnet-beta' = 'devnet'): Promise<number> {
   try {
@@ -23,6 +29,33 @@ export async function getWalletBalance(publicKey: string, network: 'devnet' | 'm
   }
 }
 
+// Get USDC balance
+export async function getUSDCBalance(publicKey: string, network: 'devnet' | 'mainnet-beta' = 'devnet'): Promise<number> {
+  try {
+    const mint = network === 'devnet' ? USDC_MINT.devnet : USDC_MINT.mainnet;
+    const connection = new Connection(clusterApiUrl(network), 'confirmed');
+
+    const response = await connection.getParsedTokenAccountsByOwner(new PublicKey(publicKey), {
+      mint: new PublicKey(mint),
+    });
+
+    if (response.value.length === 0) {
+      return 0;
+    }
+
+    let totalBalance = 0;
+    for (const account of response.value) {
+      const amount = account.account.data.parsed.info.tokenAmount.uiAmount || 0;
+      totalBalance += amount;
+    }
+
+    return totalBalance;
+  } catch (error) {
+    console.error('Error fetching USDC balance:', error);
+    return 0;
+  }
+}
+
 // Request airdrop for devnet (for testing)
 export async function requestAirdrop(publicKey: string, amount: number = 1): Promise<string | null> {
   try {
@@ -31,7 +64,7 @@ export async function requestAirdrop(publicKey: string, amount: number = 1): Pro
       new PublicKey(publicKey),
       amount * LAMPORTS_PER_SOL
     );
-    
+
     await connection.confirmTransaction(signature, 'confirmed');
     return signature;
   } catch (error) {
@@ -49,7 +82,7 @@ export async function transferSOL(
 ): Promise<string | null> {
   try {
     const connection = new Connection(clusterApiUrl(network), 'confirmed');
-    
+
     const transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: fromKeypair.publicKey,
@@ -57,7 +90,7 @@ export async function transferSOL(
         lamports: amount * LAMPORTS_PER_SOL,
       })
     );
-    
+
     const signature = await connection.sendTransaction(transaction, [fromKeypair]);
     await connection.confirmTransaction(signature, 'confirmed');
     return signature;
@@ -75,11 +108,11 @@ export function storeWallet(publicKey: string, secretKey: Uint8Array, franchiseI
     franchiseId,
     createdAt: Date.now()
   };
-  
+
   const storageKey = `franchise_wallet_${franchiseId}`;
   console.log('Storing wallet with key:', storageKey, 'publicKey:', publicKey);
   localStorage.setItem(storageKey, JSON.stringify(walletData));
-  
+
   // Verify storage
   const stored = localStorage.getItem(storageKey);
   console.log('Wallet storage verified:', !!stored);
@@ -92,12 +125,12 @@ export function getStoredWallet(franchiseId: string): { publicKey: string; secre
     console.log('Retrieving wallet with key:', storageKey);
     const stored = localStorage.getItem(storageKey);
     console.log('Stored data found:', !!stored);
-    
+
     if (!stored) {
       console.log('No stored wallet found for franchiseId:', franchiseId);
       return null;
     }
-    
+
     const walletData = JSON.parse(stored);
     console.log('Retrieved wallet data:', { publicKey: walletData.publicKey, franchiseId: walletData.franchiseId });
     return {
@@ -116,10 +149,10 @@ export function generateDeterministicWallet(franchiseId: string, franchiserId: s
   const seed = `${franchiseId}_${franchiserId}_${Date.now()}`;
   const encoder = new TextEncoder();
   const seedBytes = encoder.encode(seed);
-  
+
   // Use the seed to generate a keypair (this is deterministic)
   const keypair = Keypair.fromSeed(seedBytes.slice(0, 32)); // Take first 32 bytes
-  
+
   return {
     keypair,
     publicKey: keypair.publicKey.toBase58(),

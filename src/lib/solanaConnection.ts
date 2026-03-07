@@ -20,7 +20,7 @@ export class RobustConnection {
     const config = getSolanaRpcConfig(network);
     this.rpcUrls = [config.primary, ...config.fallbacks];
     this.connection = new Connection(this.rpcUrls[0], DEFAULT_CONFIG);
-    
+
     // Log which RPC we're using
     if (typeof window !== 'undefined') {
       console.log(`[Solana] Using RPC: ${this.getCurrentRpcUrl()}`);
@@ -63,18 +63,18 @@ export class RobustConnection {
         // Execute with timeout
         const result = await Promise.race([
           operation(this.connection),
-          new Promise<never>((_, reject) => 
+          new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('RPC timeout')), timeout)
           ),
         ]);
-        
+
         // Success! Reset to primary RPC if we were using a fallback
         if (this.currentIndex !== 0) {
           console.log('[Solana] Operation successful, resetting to primary RPC');
           this.currentIndex = 0;
           this.connection = new Connection(this.rpcUrls[0], DEFAULT_CONFIG);
         }
-        
+
         return result;
       } catch (error) {
         lastError = error as Error;
@@ -92,7 +92,7 @@ export class RobustConnection {
             DEFAULT_CONFIG
           );
           console.log(`[Solana] Switching to fallback RPC: ${this.getCurrentRpcUrl()}`);
-          
+
           // Brief delay before retry
           await new Promise(resolve => setTimeout(resolve, 500));
         }
@@ -107,13 +107,40 @@ export class RobustConnection {
    * Get balance for a public key in SOL
    */
   async getBalance(publicKeyOrString: PublicKey | string): Promise<number> {
-    const publicKey = typeof publicKeyOrString === 'string' 
-      ? new PublicKey(publicKeyOrString) 
+    const publicKey = typeof publicKeyOrString === 'string'
+      ? new PublicKey(publicKeyOrString)
       : publicKeyOrString;
-      
+
     return this.withRetry(async (conn) => {
       const balance = await conn.getBalance(publicKey);
       return balance / LAMPORTS_PER_SOL;
+    });
+  }
+
+  /**
+   * Get balance for a specific token mint
+   */
+  async getTokenBalance(ownerOrString: PublicKey | string, mintOrString: PublicKey | string): Promise<number> {
+    const owner = typeof ownerOrString === 'string' ? new PublicKey(ownerOrString) : ownerOrString;
+    const mint = typeof mintOrString === 'string' ? new PublicKey(mintOrString) : mintOrString;
+
+    return this.withRetry(async (conn) => {
+      const response = await conn.getParsedTokenAccountsByOwner(owner, {
+        mint: mint,
+      });
+
+      if (response.value.length === 0) {
+        return 0;
+      }
+
+      // Sum up balances if multiple accounts exist
+      let totalBalance = 0;
+      for (const account of response.value) {
+        const amount = account.account.data.parsed.info.tokenAmount.uiAmount || 0;
+        totalBalance += amount;
+      }
+
+      return totalBalance;
     });
   }
 
@@ -166,10 +193,10 @@ export class RobustConnection {
    * Get account info
    */
   async getAccountInfo(publicKeyOrString: PublicKey | string) {
-    const publicKey = typeof publicKeyOrString === 'string' 
-      ? new PublicKey(publicKeyOrString) 
+    const publicKey = typeof publicKeyOrString === 'string'
+      ? new PublicKey(publicKeyOrString)
       : publicKeyOrString;
-      
+
     return this.withRetry(async (conn) => {
       return await conn.getAccountInfo(publicKey);
     });

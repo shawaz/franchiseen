@@ -184,6 +184,12 @@ export const createFranchiserWithDetails = mutation({
         v.literal("DESIGN_INTERIOR_BY_FRANCHISEEN"),
         v.literal("DESIGN_BY_BRAND_INTERIOR_BY_FRANCHISEEN")
       )),
+      timingPerWeek: v.optional(v.object({
+        days: v.array(v.string()),
+        startTime: v.string(),
+        endTime: v.string(),
+        is24Hours: v.boolean(),
+      })),
       status: v.union(
         v.literal("draft"),
         v.literal("pending"),

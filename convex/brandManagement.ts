@@ -161,6 +161,10 @@ export const createBrand = mutation({
       v.literal("approved"),
       v.literal("rejected")
     ),
+    // Optional brand details (can be added at registration or later)
+    type: v.optional(v.union(v.literal("FOCO"), v.literal("FOFO"))),
+    royaltyPercentage: v.optional(v.number()),
+    estimatedMonthlyRevenue: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();

@@ -35,6 +35,7 @@ import type * as investments from "../investments.js";
 import type * as leadsManagement from "../leadsManagement.js";
 import type * as masterData from "../masterData.js";
 import type * as migrateWallets from "../migrateWallets.js";
+import type * as mobileQueries from "../mobileQueries.js";
 import type * as newsManagement from "../newsManagement.js";
 import type * as payoutManagement from "../payoutManagement.js";
 import type * as productManagement from "../productManagement.js";
@@ -49,6 +50,7 @@ import type * as tasks from "../tasks.js";
 import type * as teamManagement from "../teamManagement.js";
 import type * as testData from "../testData.js";
 import type * as tokenManagement from "../tokenManagement.js";
+import type * as userFavorites from "../userFavorites.js";
 import type * as userManagement from "../userManagement.js";
 import type * as walletKeypairs from "../walletKeypairs.js";
 
@@ -83,6 +85,7 @@ declare const fullApi: ApiFromModules<{
   leadsManagement: typeof leadsManagement;
   masterData: typeof masterData;
   migrateWallets: typeof migrateWallets;
+  mobileQueries: typeof mobileQueries;
   newsManagement: typeof newsManagement;
   payoutManagement: typeof payoutManagement;
   productManagement: typeof productManagement;
@@ -97,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   teamManagement: typeof teamManagement;
   testData: typeof testData;
   tokenManagement: typeof tokenManagement;
+  userFavorites: typeof userFavorites;
   userManagement: typeof userManagement;
   walletKeypairs: typeof walletKeypairs;
 }>;

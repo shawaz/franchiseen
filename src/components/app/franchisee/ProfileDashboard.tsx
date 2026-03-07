@@ -16,9 +16,9 @@ import {
 } from 'lucide-react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
-import { useSolana } from '@/components/solana/use-solana';
-import { useAuth } from '@/contexts/PrivyAuthContext';
+import { useUserWallet } from '@/hooks/useUserWallet';
 import UserWallet from './UserWallet';
+import PortfolioOverview from './PortfolioOverview';
 import TransactionsTab from './transactions/TransactionsTab';
 import SharesTab from './shares/SharesTab';
 import DailyPayoutsTab from './payouts/DailyPayoutsTab';
@@ -27,42 +27,37 @@ import SettingsTab from './settings/SettingsTab';
 
 export default function ProfileDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'shares' | 'payouts' | 'invoices' | 'settings' | 'contracts' | 'earnings' | 'transactions'>('overview');
-  const { account } = useSolana();
-  const { userProfile } = useAuth();
-
-  // Use the wallet address from user profile (generated wallet) instead of connected wallet
-  const walletAddress = userProfile?.walletAddress;
+  const { wallet } = useUserWallet();
+  const walletAddress = wallet.publicKey;
 
   // Get shares data from Convex
-  const sharesData = useQuery(api.franchiseManagement.getSharesByInvestor, { 
+  const sharesData = useQuery(api.franchiseManagement.getSharesByInvestor, {
     investorId: walletAddress || 'no-wallet'
   });
 
-  const debugData = useQuery(api.testData.debugInvestorData, { 
+  const debugData = useQuery(api.testData.debugInvestorData, {
     investorId: walletAddress || 'no-wallet'
   });
-  const debugShares = useQuery(api.debugShares.debugInvestorShares, { 
+  const debugShares = useQuery(api.debugShares.debugInvestorShares, {
     investorId: walletAddress || 'no-wallet'
   });
 
   // Debug logging
   console.log('ProfileDashboard Debug:', {
     walletAddress,
-    connectedWallet: account?.address,
     sharesData: sharesData,
     sharesCount: sharesData?.length || 0,
-    userProfile: userProfile,
     debugData: debugData,
     debugShares: debugShares
   });
 
   // Group shares by franchise and calculate summary statistics
   const franchiseSharesMap = new Map<string, { totalAmount: number; sharesPurchased: number; status: string }>();
-  
+
   sharesData?.forEach((share) => {
     const franchiseSlug = share.franchise?.franchiseSlug || 'Unknown Franchise';
     const existing = franchiseSharesMap.get(franchiseSlug);
-    
+
     if (existing) {
       existing.totalAmount += share.totalAmount;
       existing.sharesPurchased += share.sharesPurchased;
@@ -95,6 +90,7 @@ export default function ProfileDashboard() {
     return (
       <div className="space-y-6 py-12">
         <UserWallet />
+        <PortfolioOverview />
         <Card className="p-6">
           <div className="text-center">
             <Building2 className="h-12 w-12 text-stone-400 mx-auto mb-4" />
@@ -108,7 +104,8 @@ export default function ProfileDashboard() {
 
   return (
     <div className="space-y-6 py-12">
-        <UserWallet />
+      <UserWallet />
+      <PortfolioOverview />
 
 
       {/* Navigation Tabs */}
@@ -122,11 +119,10 @@ export default function ProfileDashboard() {
                   key={tab.id}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
+                  className={`flex items-center space-x-2 py-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
@@ -137,7 +133,7 @@ export default function ProfileDashboard() {
         </div>
 
         <div className="p-6">
-          
+
           {activeTab === 'overview' && (
             <div className="space-y-6">
 
@@ -152,7 +148,7 @@ export default function ProfileDashboard() {
                     <CreditCard className="h-6 w-6 text-blue-500" />
                   </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -162,7 +158,7 @@ export default function ProfileDashboard() {
                     <Building2 className="h-6 w-6 text-green-500" />
                   </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -172,7 +168,7 @@ export default function ProfileDashboard() {
                     <TrendingUp className="h-6 w-6 text-green-500" />
                   </div>
                 </Card>
-                
+
                 <Card className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -218,8 +214,8 @@ export default function ProfileDashboard() {
                             <p className="text-xs text-gray-500">{data.sharesPurchased} shares</p>
                           </div>
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            {data.status === 'active' ? 'Active' : 
-                             data.status === 'approved' ? 'Approved' : 'Funding'}
+                            {data.status === 'active' ? 'Active' :
+                              data.status === 'approved' ? 'Approved' : 'Funding'}
                           </span>
                         </div>
                       ))
@@ -245,7 +241,7 @@ export default function ProfileDashboard() {
           {activeTab === 'payouts' && <DailyPayoutsTab />}
 
           {activeTab === 'invoices' && <InvoicesTab />}
-          
+
           {activeTab === 'settings' && <SettingsTab />}
 
         </div>
