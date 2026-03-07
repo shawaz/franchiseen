@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getWalletBalance, getUSDCBalance } from '@/lib/solanaWalletUtils';
 import { useAuth } from '@/contexts/PrivyAuthContext';
+import { useWallet } from '@crossmint/client-sdk-react-ui';
 
 interface UserWallet {
   publicKey: string;
@@ -12,6 +13,9 @@ interface UserWallet {
 
 export function useUserWallet() {
   const { userProfile, privyUser } = useAuth();
+  // Use the Crossmint useWallet hook as the primary source
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const crossmintWallet = useWallet() as any;
   const [wallet, setWallet] = useState<UserWallet>({
     publicKey: '',
     balance: 0,
@@ -20,42 +24,56 @@ export function useUserWallet() {
     error: null
   });
 
-  // Load wallet from Convex userProfile
+  // Extract address from wallet sources
+  const getWalletAddress = useCallback((): string | undefined => {
+    // 1. Primary: Crossmint useWallet hook (most reliable)
+    if (crossmintWallet?.address) {
+      console.log('✅ [useUserWallet] Using wallet from useWallet hook:', crossmintWallet.address);
+      return crossmintWallet.address;
+    }
+    // 2. Crossmint wallet from wallet object
+    if (crossmintWallet?.wallet?.address) {
+      console.log('✅ [useUserWallet] Using wallet.address from useWallet hook:', crossmintWallet.wallet.address);
+      return crossmintWallet.wallet.address;
+    }
+    // 3. Convex userProfile (already synced)
+    if (userProfile?.walletAddress) {
+      console.log('✅ [useUserWallet] Using wallet from Convex userProfile:', userProfile.walletAddress);
+      return userProfile.walletAddress;
+    }
+    // 4. Fallback: direct Crossmint user object
+    if (privyUser?.walletAddress) {
+      console.log('✅ [useUserWallet] Using wallet via privyUser.walletAddress:', privyUser.walletAddress);
+      return privyUser.walletAddress;
+    }
+    if (privyUser?.wallets?.[0]?.address) {
+      console.log('✅ [useUserWallet] Using wallet via privyUser.wallets[0]:', privyUser.wallets[0].address);
+      return privyUser.wallets[0].address;
+    }
+    if (privyUser?.address) {
+      console.log('✅ [useUserWallet] Using wallet via privyUser.address:', privyUser.address);
+      return privyUser.address;
+    }
+
+    console.log('🔍 [useUserWallet] No wallet address found in:', {
+      crossmintWalletAddress: crossmintWallet?.address,
+      crossmintWalletObjectAddress: crossmintWallet?.wallet?.address,
+      crossmintWalletStatus: crossmintWallet?.status,
+      userProfileAddress: userProfile?.walletAddress,
+      privyUserAddress: privyUser?.walletAddress,
+      privyUserWallets: privyUser?.wallets,
+    });
+    return undefined;
+  }, [crossmintWallet, userProfile?.walletAddress, privyUser]);
+
+  // Load wallet balances
   const loadWallet = useCallback(async () => {
     setWallet(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      let address: string | undefined;
-
-      // 1. Get from Convex userProfile (already synced)
-      if (userProfile?.walletAddress) {
-        address = userProfile.walletAddress;
-        console.log('✅ [useUserWallet] Using wallet from Convex userProfile:', address);
-      }
-      // 2. Fallback to direct Crossmint user object
-      else if (privyUser?.walletAddress) {
-        address = privyUser.walletAddress;
-        console.log('✅ [useUserWallet] Using wallet via privyUser.walletAddress:', address);
-      }
-      else if (privyUser?.wallets?.[0]?.address) {
-        address = privyUser.wallets[0].address;
-        console.log('✅ [useUserWallet] Using wallet via privyUser.wallets[0]:', address);
-      }
-      else if (privyUser?.address) {
-        address = privyUser.address;
-        console.log('✅ [useUserWallet] Using wallet via privyUser.address:', address);
-      }
-      else {
-        console.log('🔍 [useUserWallet] No wallet address found in:', {
-          userProfileAddress: userProfile?.walletAddress,
-          privyUserAddress: privyUser?.walletAddress,
-          privyUserWallets: privyUser?.wallets,
-          privyUserDirectAddress: privyUser?.address
-        });
-      }
+      const address = getWalletAddress();
 
       if (address) {
-        // Get wallet balance and USDC balance
         const [balance, usdcBalance] = await Promise.all([
           getWalletBalance(address),
           getUSDCBalance(address)
@@ -69,15 +87,12 @@ export function useUserWallet() {
           error: null
         });
 
-        // Store in localStorage for quick access
         localStorage.setItem('userWalletAddress', address);
         localStorage.setItem('userWalletBalance', balance.toString());
         localStorage.setItem('userWalletUSDCBalance', usdcBalance.toString());
 
-        console.log(`✅ Loaded wallet: ${address} with balance: ${balance} SOL, ${usdcBalance} USDC`);
+        console.log(`✅ Loaded wallet: ${address} with USDC: ${usdcBalance}`);
       } else {
-        // No wallet available yet
-        console.log('⚠️ No wallet found in userProfile or Privy wallets');
         setWallet({
           publicKey: '',
           balance: 0,
@@ -94,49 +109,21 @@ export function useUserWallet() {
         error: error instanceof Error ? error.message : 'Failed to load wallet'
       }));
     }
-  }, [userProfile?.walletAddress, privyUser]);
+  }, [getWalletAddress]);
 
-  // Initialize wallet on mount and when user changes
+  // Initialize wallet on mount and when user/wallet changes
   useEffect(() => {
     loadWallet();
   }, [loadWallet]);
 
-  // Refresh wallet 
   const refreshWallet = useCallback(async () => {
     await loadWallet();
   }, [loadWallet]);
 
-  // Update wallet balance after transaction
   const updateWalletBalance = useCallback(async (newBalance: number) => {
-    // First update the local state optimistically
-    setWallet(prev => ({
-      ...prev,
-      balance: newBalance
-    }));
-
-    // Update localStorage balance
+    setWallet(prev => ({ ...prev, balance: newBalance }));
     localStorage.setItem('userWalletBalance', newBalance.toString());
-
-    // Then fetch the real balance from blockchain to ensure accuracy
-    try {
-      if (wallet.publicKey) {
-        const realBalance = await getWalletBalance(wallet.publicKey);
-        console.log(`Updated balance after transaction - Expected: ${newBalance}, Actual from blockchain: ${realBalance}`);
-
-        // Update with real balance if it differs significantly
-        if (Math.abs(realBalance - newBalance) > 0.001) {
-          setWallet(prev => ({
-            ...prev,
-            balance: realBalance
-          }));
-          localStorage.setItem('userWalletBalance', realBalance.toString());
-          console.log(`Corrected balance to match blockchain: ${realBalance} SOL`);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching updated balance:', error);
-    }
-  }, [wallet.publicKey]);
+  }, []);
 
   return {
     wallet,

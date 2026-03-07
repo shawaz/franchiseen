@@ -4,7 +4,7 @@ import { ThemeProvider } from '@/components/default/theme-provider'
 import { ReactQueryProvider } from './react-query-provider'
 import { SolanaProvider } from '@/components/solana/solana-provider'
 import { ConvexClientProvider } from '@/providers/convex-provider'
-import { CrossmintProvider, CrossmintAuthProvider } from '@crossmint/client-sdk-react-ui'
+import { CrossmintProvider, CrossmintAuthProvider, CrossmintWalletProvider } from '@crossmint/client-sdk-react-ui'
 import { PrivyAuthProvider } from '@/contexts/PrivyAuthContext'
 import { NetworkProvider } from '@/contexts/NetworkContext'
 import React from 'react'
@@ -21,15 +21,17 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
     <ConvexClientProvider>
       <CrossmintProvider apiKey={crossmintClientId || ''}>
         <CrossmintAuthProvider>
-          <PrivyAuthProvider>
-            <NetworkProvider>
-              <ReactQueryProvider>
-                <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-                  <SolanaProvider>{children}</SolanaProvider>
-                </ThemeProvider>
-              </ReactQueryProvider>
-            </NetworkProvider>
-          </PrivyAuthProvider>
+          <CrossmintWalletProvider>
+            <PrivyAuthProvider>
+              <NetworkProvider>
+                <ReactQueryProvider>
+                  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+                    <SolanaProvider>{children}</SolanaProvider>
+                  </ThemeProvider>
+                </ReactQueryProvider>
+              </NetworkProvider>
+            </PrivyAuthProvider>
+          </CrossmintWalletProvider>
         </CrossmintAuthProvider>
       </CrossmintProvider>
     </ConvexClientProvider>
