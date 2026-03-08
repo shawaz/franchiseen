@@ -90,7 +90,7 @@ export default function ProfileDashboard() {
     return (
       <div className="space-y-6 py-12">
         <UserWallet />
-        <PortfolioOverview />
+        {/* <PortfolioOverview /> */}
         <Card className="p-6">
           <div className="text-center">
             <Building2 className="h-12 w-12 text-stone-400 mx-auto mb-4" />
@@ -105,7 +105,7 @@ export default function ProfileDashboard() {
   return (
     <div className="space-y-6 py-12">
       <UserWallet />
-      <PortfolioOverview />
+      {/* <PortfolioOverview /> */}
 
 
       {/* Navigation Tabs */}

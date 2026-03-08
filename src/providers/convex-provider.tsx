@@ -5,13 +5,13 @@ import { ReactNode, useEffect, useState } from "react";
 
 /**
  * Hostname → Convex URL mapping:
- *   franchiseen.com          → NEXT_PUBLIC_CONVEX_URL_PRODUCTION
- *   play.franchiseen.com     → NEXT_PUBLIC_CONVEX_URL_STAGING
+ *   app.franchiseen.com      → NEXT_PUBLIC_CONVEX_URL_PRODUCTION
+ *   game.franchiseen.com     → NEXT_PUBLIC_CONVEX_URL_STAGING
  *   localhost / any other    → NEXT_PUBLIC_CONVEX_URL_STAGING  (safe dev default)
  */
 function getConvexUrl(): string {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-  const isProduction = hostname === "franchiseen.com" || hostname === "www.franchiseen.com";
+  const isProduction = hostname === "franchiseen.vercel.app";
 
   const url = isProduction
     ? process.env.NEXT_PUBLIC_CONVEX_URL_PRODUCTION

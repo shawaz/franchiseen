@@ -118,10 +118,10 @@ const UserWallet: React.FC<WalletProps> = ({
                 <div className="text-4xl sm:text-5xl font-bold tracking-tight">
                   {walletLoading ? '...' : `$${usdcBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </div>
-                <div className="text-yellow-200 text-xs mt-2 flex items-center justify-center gap-1">
+                {/* <div className="text-yellow-200 text-xs mt-2 flex items-center justify-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                   Crossmint Wallet (Solana)
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
@@ -132,7 +132,7 @@ const UserWallet: React.FC<WalletProps> = ({
                 onClick={() => {
                   // Detect environment at runtime based on hostname
                   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-                  const isProduction = hostname === 'franchiseen.com' || hostname === 'www.franchiseen.com';
+                  const isProduction = hostname === 'franchiseen.vercel.app';
 
                   if (!isProduction) {
                     // Staging / localhost: add mock USDC without requiring a wallet address

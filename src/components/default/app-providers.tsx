@@ -11,13 +11,13 @@ import React from 'react'
 
 /**
  * Hostname → Crossmint environment mapping:
- *   franchiseen.com       → production keys
- *   play.franchiseen.com  → staging keys
+ *   app.franchiseen.com   → production keys
+ *   game.franchiseen.com  → staging keys
  *   localhost / other     → staging keys  (safe dev default)
  */
 function getCrossmintConfig(): { clientId: string; environment: 'staging' | 'production' } {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-  const isProduction = hostname === 'franchiseen.com' || hostname === 'www.franchiseen.com'
+  const isProduction = hostname === 'franchiseen.vercel.app'
 
   if (isProduction) {
     return {
