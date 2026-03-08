@@ -501,7 +501,7 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
       <div className={`bg-gradient-to-br ${getCardColor()} text-white overflow-hidden`}>
         <div className="p-4 sm:p-6">
           {/* Balance Display */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-2 gap-4">
             {/* Investment (Goal) & Status */}
             <div className="text-left">
               <div className="text-white/80 text-xs mb-1">Investment</div>
@@ -510,13 +510,15 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
               </div>
 
             </div>
-            {/* Balance (Raised) */}
+            {/* Balance (Raised/Current) */}
             <div className="text-right">
               <div className="text-white/80 text-xs mb-1">
                 Balance
               </div>
               <div className="text-2xl sm:text-3xl font-bold">
-                ${totalInvested.toLocaleString()}
+                ${(currentStage === 'ongoing' || currentStage === 'launching' || currentStage === 'closed')
+                  ? (franchiseWallet?.usdBalance || 0).toLocaleString()
+                  : totalInvested.toLocaleString()}
               </div>
             </div>
 
@@ -524,112 +526,36 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
 
           {/* Stage-specific content */}
           <div className="mt-4">
-
-            {/* Progress Bars for All Stages */}
             {currentStage === 'funding' && (
-              <div className="mb-4">
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white transition-all duration-300"
-                    style={{ width: `${Math.min(fundingProgress, 100)}%` }}
-                  ></div>
-                </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300"
+                  style={{ width: `${Math.min(fundingProgress, 100)}%` }}
+                ></div>
               </div>
             )}
-
-            {/* Funding Phase - Raised/Goal Info */}
-            {/* {currentStage === 'funding' && (
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-white/10 rounded-lg p-3">
-                  <div className="text-white/80 text-xs">Raised</div>
-                  <div className="text-white font-semibold">{stageContent.raised}</div>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3 text-right">
-                  <div className="text-white/80 text-xs">Goal</div>
-                  <div className="text-white font-semibold">{stageContent.goal}</div>
-                </div>
-              </div>
-            )} */}
-
-            {/* Launching Progress Bar */}
             {currentStage === 'launching' && (
-              <div className="mb-4">
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white transition-all duration-300"
-                    style={{ width: '100%' }}
-                  ></div>
-                </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300"
+                  style={{ width: '100%' }}
+                ></div>
               </div>
             )}
-
-            {/* Ongoing Progress Bar */}
             {currentStage === 'ongoing' && (
-              <div className="mb-4">
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white transition-all duration-300"
-                    style={{ width: `${Math.min(stageContent.remainingPercentage || 0, 100)}%` }}
-                  ></div>
-                </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300"
+                  style={{ width: `${Math.min(stageContent.remainingPercentage || 0, 100)}%` }}
+                ></div>
               </div>
             )}
-
-            {/* Closed Progress Bar */}
             {currentStage === 'closed' && (
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Project Completion</span>
-                  <span>100%</span>
-                </div>
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white transition-all duration-300"
-                    style={{ width: '100%' }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs mt-1">
-                  <span>Project Completed</span>
-                  <span>Operations Ended</span>
-                </div>
-              </div>
-            )}
-
-            {/* Launching Phase - Start/End Dates */}
-            {currentStage === 'launching' && (
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-white/10 rounded-lg p-3">
-                  <div className="text-white/80 text-xs">Start Date</div>
-                  <div className="text-white font-semibold">{stageContent.startDate}</div>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3 text-right">
-                  <div className="text-white/80 text-xs">End Date</div>
-                  <div className="text-white font-semibold">{stageContent.endDate}</div>
-                </div>
-              </div>
-            )}
-
-            {/* Ongoing Phase - Budget Info */}
-            {currentStage === 'ongoing' && (
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-white/10 rounded-lg p-3">
-                  <div className="text-white/80 text-xs">Total Budget (Token Supply)</div>
-                  <div className="text-white font-semibold">${stageContent.tokenSupply}</div>
-                </div>
-                <div className="bg-white/10 rounded-lg p-3 text-right">
-                  <div className="text-white/80 text-xs">Remaining</div>
-                  <div className="text-white font-semibold">${stageContent.remainingToFill}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Closed Phase */}
-            {currentStage === 'closed' && (
-              <div className="text-center py-4">
-                <div className="text-white/80 text-sm">
-                  Franchise operations have ended
-                </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white transition-all duration-300"
+                  style={{ width: '100%' }}
+                ></div>
               </div>
             )}
           </div>
@@ -640,18 +566,18 @@ const FranchiseWallet: React.FC<FranchiseWalletProps> = ({
       <div className="p-3 sm:p-4 bg-white dark:bg-stone-800/50 border border-gray-200 dark:border-stone-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div>
-              <h3 className="font-semibold text-md text-gray-900 dark:text-white">
-                {currentStage === 'ongoing'
-                  ? stageContent.remainingToFill?.toLocaleString() || '0'
-                  : Math.max(0, totalInvestment - totalInvested).toLocaleString()}
-              </h3>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
-                  Remaining
-                </p>
+            {currentStage === 'funding' && (
+              <div>
+                <h3 className="font-semibold text-md text-gray-900 dark:text-white">
+                  {Math.max(0, totalInvestment - totalInvested).toLocaleString()}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-mono text-gray-600 dark:text-gray-300">
+                    Remaining
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right side - Buy Tokens button for funding stage and Checkout for ongoing */}

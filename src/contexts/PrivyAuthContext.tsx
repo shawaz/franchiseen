@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth as useCrossmintAuth } from '@crossmint/client-sdk-react-ui';
+import { useAuth as useCrossmintAuth, useWallet } from '@crossmint/client-sdk-react-ui';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
@@ -30,6 +30,8 @@ const PrivyAuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
   const { login, logout, user, status } = useCrossmintAuth() as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const crossmintWallet = useWallet() as any;
 
   const authenticated = status === "logged-in";
   const ready = status !== "in-progress" && status !== "loading";
@@ -55,31 +57,58 @@ export function PrivyAuthProvider({ children }: { children: React.ReactNode }) {
       const email = crossmintUser?.email;
       const fullName = email ? email.split('@')[0] : "User";
 
-      let avatarUrl: string | undefined;
-      let walletAddress = crossmintUser?.walletAddress || crossmintUser?.wallets?.[0]?.address;
+      // Try to get wallet address from all possible sources at sync time
+      const walletAddress =
+        crossmintWallet?.address ||
+        crossmintWallet?.wallet?.address ||
+        crossmintUser?.walletAddress ||
+        crossmintUser?.wallets?.[0]?.address;
 
-      console.log('Syncing user to Convex with crossmint ID:', crossmintUser.id);
+      console.log('[PrivyAuthContext] Syncing user to Convex:', crossmintUser.id, '| wallet:', walletAddress || 'none yet');
 
       await syncUser({
         privyUserId: crossmintUser.id,
         email: email || undefined,
         fullName: fullName || undefined,
-        avatarUrl: avatarUrl || undefined,
+        avatarUrl: undefined,
         walletAddress: walletAddress || undefined,
       });
     } catch (error) {
-      console.error('Error syncing user to Convex:', error);
+      console.error('[PrivyAuthContext] Error syncing user to Convex:', error);
     }
   };
 
-  // Sync user data whenever user changes
+  // Sync user data whenever user logs in
   useEffect(() => {
     if (user && authenticated && isClient) {
-      console.log('User authenticated, syncing to Convex:', user);
+      console.log('[PrivyAuthContext] User authenticated, syncing to Convex:', user.id);
       syncUserToConvex(user);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, authenticated, isClient]);
+
+  // ── Wallet address late-sync ──────────────────────────────────────────────
+  // Crossmint creates the wallet async after login (may take a few seconds).
+  // When the address appears, sync it to Convex if it isn't stored yet.
+  useEffect(() => {
+    const walletAddr = crossmintWallet?.address || crossmintWallet?.wallet?.address;
+
+    if (
+      walletAddr &&
+      authenticated &&
+      isClient &&
+      user?.id &&
+      userProfile !== undefined && // query has resolved
+      !userProfile?.walletAddress  // not yet stored in Convex
+    ) {
+      console.log('[PrivyAuthContext] Wallet address available (late sync):', walletAddr);
+      syncUser({
+        privyUserId: user.id,
+        walletAddress: walletAddr,
+      }).catch((err: unknown) => console.error('[PrivyAuthContext] Error syncing wallet address:', err));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crossmintWallet?.address, crossmintWallet?.wallet?.address, authenticated, isClient, userProfile?.walletAddress, user?.id]);
 
   const handleLogin = () => {
     if (login) login();

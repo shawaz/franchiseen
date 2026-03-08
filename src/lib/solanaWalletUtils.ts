@@ -19,6 +19,7 @@ export const USDC_MINT = {
 
 // Get wallet balance
 export async function getWalletBalance(publicKey: string, network: 'devnet' | 'mainnet-beta' = 'devnet'): Promise<number> {
+  if (!publicKey) return 0;
   try {
     const connection = new Connection(clusterApiUrl(network), 'confirmed');
     const balance = await connection.getBalance(new PublicKey(publicKey));
@@ -31,6 +32,7 @@ export async function getWalletBalance(publicKey: string, network: 'devnet' | 'm
 
 // Get USDC balance
 export async function getUSDCBalance(publicKey: string, network: 'devnet' | 'mainnet-beta' = 'devnet'): Promise<number> {
+  if (!publicKey) return 0;
   try {
     const mint = network === 'devnet' ? USDC_MINT.devnet : USDC_MINT.mainnet;
     const connection = new Connection(clusterApiUrl(network), 'confirmed');

@@ -130,16 +130,22 @@ const UserWallet: React.FC<WalletProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
-                  if (!walletAddress) {
-                    toast.error('Wallet address not found');
-                    return;
-                  }
-                  if (process.env.NEXT_PUBLIC_CROSSMINT_ENVIRONMENT === 'staging') {
+                  // Detect environment at runtime based on hostname
+                  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+                  const isProduction = hostname === 'franchiseen.com' || hostname === 'www.franchiseen.com';
+
+                  if (!isProduction) {
+                    // Staging / localhost: add mock USDC without requiring a wallet address
                     if (addMockedUSDC) {
                       addMockedUSDC(10);
                       toast.success('Added 10 USDC to your balance (Staging)');
                     }
                   } else {
+                    // Production: open deposit modal (requires real wallet)
+                    if (!walletAddress) {
+                      toast.error('Wallet address not found. Please wait a moment and refresh.');
+                      return;
+                    }
                     setIsDepositModalOpen(true);
                   }
                 }}

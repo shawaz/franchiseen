@@ -23,8 +23,8 @@ import { api } from "../../../../convex/_generated/api";
 // Dynamically import the MapComponent with SSR disabled
 const MapComponent = dynamic(
   () => import('./MapComponent'),
-  { 
-    ssr: false, 
+  {
+    ssr: false,
     loading: () => (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
@@ -95,7 +95,7 @@ const FranchiserLogo: React.FC<{
   size?: 'sm' | 'md' | 'lg';
 }> = ({ business, size = 'md' }) => {
   const logoUrl = useConvexImageUrl(business.logoUrl as Id<"_storage"> | undefined);
-  
+
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-12 h-12',
@@ -121,35 +121,34 @@ const FranchiserLogo: React.FC<{
 };
 
 // Franchiser Card Component
-  const FranchiserCard: React.FC<{
-    business: Business;
-    isSelected: boolean;
-    onSelect: () => void;
-  }> = ({ business, isSelected, onSelect }) => {
-    return (
-      <div
-        className={`p-3 sm:p-4 border cursor-pointer transition-colors ${
-          isSelected
-            ? 'border-stone-500 bg-stone-50 dark:border-stone-700 dark:bg-stone-700'
-            : 'hover:border-stone-300 dark:hover:border-stone-600'
+const FranchiserCard: React.FC<{
+  business: Business;
+  isSelected: boolean;
+  onSelect: () => void;
+}> = ({ business, isSelected, onSelect }) => {
+  return (
+    <div
+      className={`p-3 sm:p-4 border cursor-pointer transition-colors ${isSelected
+          ? 'border-stone-500 bg-stone-50 dark:border-stone-700 dark:bg-stone-700'
+          : 'hover:border-stone-300 dark:hover:border-stone-600'
         }`}
-        onClick={onSelect}
-      >
-        {/* Mobile: Stack vertically, Desktop: Horizontal */}
-        <div className="flex items-center">
-          {/* Logo section */}
-          <div className="flex items-center mb-0 mr-4">
-            <FranchiserLogo business={business} size="md" />
-          </div>
-          
-          {/* Content section */}
-          <div className="flex sm:items-center gap-2 sm:justify-between w-full">
-            <div className="flex-1">
-              <h4 className="font-medium text-sm sm:text-base">{business.name}</h4>
-              <p className="text-xs sm:text-sm text-stone-600 mt-1">
-                {business.industry} • {business.category}
-              </p>
-              {/* {business.website && (
+      onClick={onSelect}
+    >
+      {/* Mobile: Stack vertically, Desktop: Horizontal */}
+      <div className="flex items-center">
+        {/* Logo section */}
+        <div className="flex items-center mb-0 mr-4">
+          <FranchiserLogo business={business} size="md" />
+        </div>
+
+        {/* Content section */}
+        <div className="flex sm:items-center gap-2 sm:justify-between w-full">
+          <div className="flex-1">
+            <h4 className="font-medium text-sm sm:text-base">{business.name}</h4>
+            <p className="text-xs sm:text-sm text-stone-600 mt-1">
+              {business.industry} • {business.category}
+            </p>
+            {/* {business.website && (
                 <a
                   href={business.website}
                   target="_blank"
@@ -160,22 +159,22 @@ const FranchiserLogo: React.FC<{
                   Visit Website
                 </a>
               )} */}
-            </div>
-            
-            {/* Investment info - responsive layout */}
-            <div className="flex flex-col sm:flex-col sm:text-right mt-2 sm:mt-0">
-              <p className="text-xs sm:text-sm font-medium">
-                Min Budget: ${(business.location.franchiseFee + (business.location.setupCost * business.location.minArea) + (business.location.workingCapital * business.location.minArea)).toLocaleString()}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">
-                Min Area: {business.location.minArea} sq ft
-              </p>
-            </div>
+          </div>
+
+          {/* Investment info - responsive layout */}
+          <div className="flex flex-col sm:flex-col sm:text-right mt-2 sm:mt-0">
+            <p className="text-xs sm:text-sm font-medium">
+              Min Budget: ${(business.location.franchiseFee + (business.location.setupCost * business.location.minArea) + (business.location.workingCapital * business.location.minArea)).toLocaleString()}
+            </p>
+            <p className="text-xs text-stone-500 mt-1">
+              Min Area: {business.location.minArea} sq ft
+            </p>
           </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
 const dummyUser = {
   _id: 'user123',
@@ -262,14 +261,14 @@ const FranchiseCreateInner: React.FC = () => {
   // Handle input changes and fetch predictions
   const handleInputChange = (value: string) => {
     setMapSearchQuery(value);
-    
+
     if (value.length > 2) {
       // Check if Google Maps services are available
       if (!autocompleteService.current) {
         console.log('Autocomplete service not ready yet');
         return;
       }
-      
+
       autocompleteService.current.getPlacePredictions(
         {
           input: value,
@@ -296,15 +295,15 @@ const FranchiseCreateInner: React.FC = () => {
       console.log('Places service not ready yet');
       return;
     }
-    
+
     setMapSearchQuery(description);
     setShowSuggestions(false);
-    
+
     const request = {
       placeId,
       fields: ['geometry', 'name', 'formatted_address']
     };
-    
+
     placesService.current.getDetails(request, (place, status) => {
       if (status === 'OK' && place?.geometry?.location) {
         const location = {
@@ -312,13 +311,13 @@ const FranchiseCreateInner: React.FC = () => {
           lng: place.geometry.location.lng(),
           address: place.formatted_address || description
         };
-        
+
         setSelectedLocation(location);
         setMapCenter(location);
       }
     });
   };
-  
+
   // Handle click outside to close suggestions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -326,28 +325,28 @@ const FranchiseCreateInner: React.FC = () => {
         setShowSuggestions(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-  
+
   // Extract unique industries from franchisers
   const industries = ['Select Industry', ...Array.from(new Set(franchisers
     .map(f => f.industry)
     .filter((name): name is string => !!name)
   ))];
-  
+
   // Extract unique categories from franchisers
   const categories = ['Select Category', ...Array.from(new Set(franchisers
     .map(f => f.category)
     .filter((name): name is string => !!name)
   ))];
-  
+
   console.log("Available industries:", industries);
   console.log("Available categories:", categories);
-  
+
   // Dummy function to simulate loading
   const simulateLoading = (ms: number = 1000) => {
     setLoading(true);
@@ -356,7 +355,7 @@ const FranchiseCreateInner: React.FC = () => {
       resolve(true);
     }, ms));
   };
-  
+
 
 
   const [formData, setFormData] = useState<FormData>({
@@ -393,7 +392,7 @@ const FranchiseCreateInner: React.FC = () => {
   useEffect(() => {
     if (formData.selectedBusiness) {
       const business = formData.selectedBusiness;
-      
+
       setFormData(prev => ({
         ...prev,
         locationDetails: {
@@ -408,13 +407,13 @@ const FranchiseCreateInner: React.FC = () => {
   // Calculate investment based on carpet area
   const calculateInvestmentByArea = useCallback(() => {
     if (!formData.selectedBusiness) return { franchiseFee: 0, setupCost: 0, workingCapital: 0, totalInvestment: 0 };
-    
+
     const selectedArea = parseFloat(formData.locationDetails.sqft) || 0;
     const minArea = formData.selectedBusiness.location.minArea;
     const baseFranchiseFee = formData.selectedBusiness.location.franchiseFee;
     const baseSetupCost = formData.selectedBusiness.location.setupCost;
     const baseWorkingCapital = formData.selectedBusiness.location.workingCapital;
-    
+
     // Debug logging to see what values we're getting from the database
     console.log('Database values from franchiserLocation:', {
       selectedArea,
@@ -424,17 +423,17 @@ const FranchiseCreateInner: React.FC = () => {
       baseWorkingCapital,
       locationData: formData.selectedBusiness.location
     });
-    
+
     // The base values are already per-sqft rates, not total costs
     const setupCostPerSqft = baseSetupCost; // Already per sqft
     const workingCapitalPerSqft = baseWorkingCapital; // Already per sqft
-    
+
     // Franchise fee is fixed, setup cost and working capital scale with area
     const franchiseFee = baseFranchiseFee; // Fixed
     const setupCost = Math.round(setupCostPerSqft * selectedArea);
     const workingCapital = Math.round(workingCapitalPerSqft * selectedArea);
     const totalInvestment = franchiseFee + setupCost + workingCapital;
-    
+
     return {
       franchiseFee,
       setupCost,
@@ -450,7 +449,7 @@ const FranchiseCreateInner: React.FC = () => {
       const totalShares = Math.floor(calculatedInvestment.totalInvestment) || 1000;
       const sharePrice = totalShares > 0 ? calculatedInvestment.totalInvestment / totalShares : 1.0;
       const defaultSelectedShares = Math.ceil(totalShares * 0.02); // Set default to 2% of total shares
-      
+
       setFormData(prev => ({
         ...prev,
         investment: {
@@ -466,7 +465,7 @@ const FranchiseCreateInner: React.FC = () => {
 
   const filteredBusinesses = franchisers.filter(business => {
     const matchesSearch = business.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         business.description.toLowerCase().includes(searchQuery.toLowerCase());
+      business.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesIndustry = selectedIndustry === 'Select Industry' || business.industry === selectedIndustry;
     const matchesCategory = selectedCategory === 'Select Category' || business.category === selectedCategory;
     return matchesSearch && matchesIndustry && matchesCategory;
@@ -483,12 +482,12 @@ const FranchiseCreateInner: React.FC = () => {
         ...prev.locationDetails,
         [field]: value
       };
-      
+
       // Recalculate total shares when sqft or costPerArea changes
       if (field === 'sqft' || field === 'costPerArea') {
         const area = field === 'sqft' ? parseFloat(value as string) || 0 : parseFloat(prev.locationDetails.sqft) || 0;
         const cost = field === 'costPerArea' ? parseFloat(value as string) || 0 : parseFloat(prev.locationDetails.costPerArea) || 0;
-        
+
         return {
           ...prev,
           locationDetails: updatedDetails,
@@ -498,7 +497,7 @@ const FranchiseCreateInner: React.FC = () => {
           }
         };
       }
-      
+
       return {
         ...prev,
         locationDetails: updatedDetails
@@ -516,12 +515,12 @@ const FranchiseCreateInner: React.FC = () => {
       case 3:
         const { doorNumber, sqft, isOwned, landlordNumber, landlordEmail, userNumber, userEmail, franchiseSlug, buildingName } = formData.locationDetails;
         const basicFields = doorNumber && sqft && franchiseSlug && buildingName && formData.locationDetails.costPerArea;
-        
+
         // Check if carpet area meets minimum requirement
         const carpetArea = parseFloat(sqft) || 0;
         const minArea = formData.selectedBusiness?.location.minArea || 0;
         const areaValid = carpetArea >= minArea;
-        
+
         if (isOwned) {
           return !!basicFields && !!userNumber && !!userEmail && areaValid;
         } else {
@@ -539,7 +538,7 @@ const FranchiseCreateInner: React.FC = () => {
       toast.error('Please select a location on the map');
       return;
     }
-    
+
     if (currentStep < 4) {
       await simulateLoading(500);
       setCurrentStep(prev => prev + 1);
@@ -555,7 +554,7 @@ const FranchiseCreateInner: React.FC = () => {
 
   const selectBusiness = async (business: Business) => {
     await simulateLoading(300);
-    
+
     // Debug logging to see what business data we're selecting
     console.log('Selecting business:', {
       businessName: business.name,
@@ -565,7 +564,7 @@ const FranchiseCreateInner: React.FC = () => {
       workingCapital: business.location.workingCapital,
       franchiseFee: business.location.franchiseFee
     });
-    
+
     setFormData(prev => ({
       ...prev,
       selectedBusiness: business,
@@ -585,12 +584,12 @@ const FranchiseCreateInner: React.FC = () => {
     }
 
     setMapCenter({ lat: location.lat, lng: location.lng });
-    setSelectedLocation({ 
-      lat: location.lat, 
+    setSelectedLocation({
+      lat: location.lat,
       lng: location.lng,
-      address: location.address 
+      address: location.address
     });
-    
+
     // Extract country and city from the address
     const extractedInfo = extractLocationInfo(location.address);
     const normalizedInfo = {
@@ -598,7 +597,7 @@ const FranchiseCreateInner: React.FC = () => {
       city: extractedInfo.city ? normalizeCityName(extractedInfo.city) : undefined
     };
     setLocationInfo(normalizedInfo);
-    
+
     setFormData(prev => ({
       ...prev,
       location: {
@@ -616,18 +615,18 @@ const FranchiseCreateInner: React.FC = () => {
     }
 
     setGettingLocation(true);
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const newCenter = { lat: latitude, lng: longitude };
-        
+
         // Define interface for geocoding result
         interface GeocodingResult {
           formatted_address: string;
           // Add other properties you need from the geocoding result
         }
-        
+
         // Update form data with the current location
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: newCenter }, (results: GeocodingResult[] | null, status: string) => {
@@ -657,46 +656,45 @@ const FranchiseCreateInner: React.FC = () => {
   return (
     <div className="min-h-screen bg-stone-100 dark:bg-stone-900">
       <Card className="w-full max-w-4xl mx-auto my-6 sm:my-12 py-0 sm:py-6 min-h-screen sm:min-h-0 rounded-none sm:rounded-lg">
-        <CardContent className="p-4 sm:p-6 w-full">
-        <div className="flex justify-between items-center mb-6 gap-4">
-          <h2 className="text-xl sm:text-2xl font-bold">Create Franchise</h2>
-          <div className="flex items-center justify-end gap-2 sm:gap-4">
-            {[
-              { step: 1 },
-              { step: 2 },
-              { step: 3 },
-              { step: 4 }
-            ].map(({ step }) => (
-              <div key={step} className="flex flex-col items-center">
-                <div 
-                  className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-sm sm:text-base ${
-                    currentStep >= step 
-                      ? 'bg-yellow-600 dark:bg-yellow-700 text-white' 
-                      : 'bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
-                  }`}
-                >
-                  {step}
+        <CardContent className="p-4 sm:p-6 pb-24 sm:pb-6 w-full">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <h2 className="text-xl sm:text-2xl font-bold">Create Franchise</h2>
+            <div className="flex items-center gap-2 sm:gap-4">
+              {[
+                { step: 1 },
+                { step: 2 },
+                { step: 3 },
+                { step: 4 }
+              ].map(({ step }) => (
+                <div key={step} className="flex flex-col items-center">
+                  <div
+                    className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-sm sm:text-base ${currentStep >= step
+                        ? 'bg-yellow-600 dark:bg-yellow-700 text-white'
+                        : 'bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-400'
+                      }`}
+                  >
+                    {step}
+                  </div>
+                  {/* <span className="text-xs mt-1 text-stone-600 dark:text-stone-400 hidden sm:block">{title}</span> */}
                 </div>
-                {/* <span className="text-xs mt-1 text-stone-600 dark:text-stone-400 hidden sm:block">{title}</span> */}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Progress Steps */}
-        <div className="mb-4">
-          <div className="h-1 bg-stone-200 dark:bg-stone-800 mt-4">
-            <div 
-              className="h-full bg-yellow-600 dark:bg-yellow-700 transition-all duration-300"
-              style={{ width: `${(currentStep / 4) * 100}%` }}
-            />
+          {/* Progress Steps */}
+          <div className="mb-4">
+            <div className="h-1 bg-stone-200 dark:bg-stone-800 mt-4">
+              <div
+                className="h-full bg-yellow-600 dark:bg-yellow-700 transition-all duration-300"
+                style={{ width: `${(currentStep / 4) * 100}%` }}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Step Content */}
-        <div className="mb-6 min-h-[300px] sm:min-h-[400px]">
-          {currentStep === 1 && (
-            <div>
+          {/* Step Content */}
+          <div className="mb-6 min-h-[300px] sm:min-h-[400px]">
+            {currentStep === 1 && (
+              <div>
 
                 <div className="flex gap-2">
                   <div className="relative flex-1" ref={inputRef}>
@@ -708,7 +706,7 @@ const FranchiseCreateInner: React.FC = () => {
                       onChange={(e) => handleInputChange(e.target.value)}
                       onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                       onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-                    className="w-full pl-10 pr-10 py-2 border focus:ring-2 focus:ring-stone-500 focus:border-transparent"
+                      className="w-full pl-10 pr-10 py-2 border focus:ring-2 focus:ring-stone-500 focus:border-transparent"
                     />
                     {mapSearchQuery && (
                       <button
@@ -732,7 +730,7 @@ const FranchiseCreateInner: React.FC = () => {
                               className="px-4 py-2 text-sm text-stone-700 hover:bg-stone-100 cursor-pointer"
                               onClick={() => handleSelectSuggestion(suggestion.place_id, suggestion.description)}
                             >
-                              {suggestion.structured_formatting.main_text} 
+                              {suggestion.structured_formatting.main_text}
                               <span className="text-stone-500">
                                 {suggestion.structured_formatting.secondary_text}
                               </span>
@@ -758,531 +756,556 @@ const FranchiseCreateInner: React.FC = () => {
                   </Button>
                 </div>
 
-              <div className="w-full h-[500px] sm:h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden rounded-none sm:rounded-lg">
-                <GoogleMapsLoader
-                  loadingFallback={
-                    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-800 dark:to-stone-900">
-                      <div className="relative">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-stone-200 border-t-yellow-500"></div>
-                        <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border-4 border-yellow-500 opacity-20"></div>
-                      </div>
-                      <span className="mt-4 text-sm text-stone-600 dark:text-stone-400 font-medium">Loading interactive map...</span>
-                      <span className="mt-1 text-xs text-stone-500 dark:text-stone-500">This may take a few seconds</span>
-                    </div>
-                  }
-                  errorFallback={(error) => (
-                    <div className="flex flex-col items-center justify-center h-full p-6 bg-red-50 dark:bg-red-900/20">
-                      <div className="text-red-500 text-center">
-                        <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
+                <div className="w-full h-[300px] sm:h-[500px] bg-stone-100 dark:bg-stone-800 mt-4 overflow-hidden rounded-none sm:rounded-lg">
+                  <GoogleMapsLoader
+                    loadingFallback={
+                      <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-800 dark:to-stone-900">
+                        <div className="relative">
+                          <div className="animate-spin rounded-full h-12 w-12 border-4 border-stone-200 border-t-yellow-500"></div>
+                          <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border-4 border-yellow-500 opacity-20"></div>
                         </div>
-                        <p className="font-medium">Failed to load Google Maps</p>
-                        <p className="text-sm mt-1 text-red-400">{error.message}</p>
-                        <p className="text-xs mt-2 text-red-300">Please check your internet connection and try again.</p>
+                        <span className="mt-4 text-sm text-stone-600 dark:text-stone-400 font-medium">Loading interactive map...</span>
+                        <span className="mt-1 text-xs text-stone-500 dark:text-stone-500">This may take a few seconds</span>
                       </div>
-                    </div>
-                  )}
-                >
-                  <MapComponent
-                    onLocationSelect={handleLocationSelect}
-                    initialCenter={mapCenter}
-                    selectedLocation={selectedLocation}
-                  />
-                </GoogleMapsLoader>
-              </div>
-          
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div>
-              <div className="mb-4 mt-4">
-                <div className="flex flex-col space-y-2">
-                  {/* Mobile: Stack vertically, Desktop: Horizontal */}
-                  <div className="flex items-stretch space-y-2 sm:space-y-0 sm:space-x-2 gap-2">
-                    <div className="relative hidden sm:block w-full flex-1 items-center">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
-                      <Input
-                        placeholder="Search businesses..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border focus-visible:ring-2 focus-visible:ring-yellow-500"
-                      />
-                    </div>
-                    <div>
-                      <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Industry" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {industries.map((industry) => (
-                            <SelectItem key={industry} value={industry}>
-                              {industry}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4 max-h-[350px] sm:max-h-[450px] overflow-y-auto pr-2 -mr-2">
-                {franchisersLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-                    <p className="text-stone-600 dark:text-stone-400">Loading franchisers...</p>
-                  </div>
-                ) : filteredBusinesses.length > 0 ? (
-                  filteredBusinesses.map((business) => (
-                    <FranchiserCard 
-                      key={business._id}
-                      business={business}
-                      isSelected={formData.selectedBusiness?._id === business._id}
-                      onSelect={() => selectBusiness(business)}
+                    }
+                    errorFallback={(error) => (
+                      <div className="flex flex-col items-center justify-center h-full p-6 bg-red-50 dark:bg-red-900/20">
+                        <div className="text-red-500 text-center">
+                          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                          </div>
+                          <p className="font-medium">Failed to load Google Maps</p>
+                          <p className="text-sm mt-1 text-red-400">{error.message}</p>
+                          <p className="text-xs mt-2 text-red-300">Please check your internet connection and try again.</p>
+                        </div>
+                      </div>
+                    )}
+                  >
+                    <MapComponent
+                      onLocationSelect={handleLocationSelect}
+                      initialCenter={mapCenter}
+                      selectedLocation={selectedLocation}
                     />
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Building className="h-12 w-12 text-stone-400 mx-auto mb-4" />
-                    <p className="text-stone-600 dark:text-stone-400">
-                      {searchQuery || selectedIndustry !== 'All' 
-                        ? 'No franchisers found matching your search criteria' 
-                        : 'No franchisers available in this location yet'
-                      }
-                    </p>
-                    <p className="text-sm text-stone-500 dark:text-stone-500 mt-2">
-                      Try adjusting your search or selecting a different location
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                  </GoogleMapsLoader>
+                </div>
 
-          {currentStep === 3 && (
-            <div>
-              <div className="space-y-4">
-              <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-stone-700">Property Ownership</span>
-                    <div className="flex items-center">
-                      <span className={`text-sm mr-2 ${
-                        formData.locationDetails.isOwned ? 'text-stone-700' : 'text-stone-400'
-                      }`}>
-                        Owned
-                      </span>
-                      <Switch
-                        checked={!formData.locationDetails.isOwned}
-                        onCheckedChange={(checked) => updateLocationDetails('isOwned', !checked)}
-                        className={`${
-                          !formData.locationDetails.isOwned ? 'bg-yellow-600' : 'bg-stone-200'
-                        } relative inline-flex h-6 w-11 items-center `}
-                      >
-                        <span className="sr-only">Toggle property ownership</span>
-                        <span
-                          className={`${
-                            !formData.locationDetails.isOwned ? 'translate-x-6' : 'translate-x-1'
-                          } inline-block h-4 w-4 transform  bg-white transition`}
-                        />
-                      </Switch>
-                      <span className={`text-sm ml-2 ${
-                        !formData.locationDetails.isOwned ? 'text-yellow-600' : 'text-stone-400'
-                      }`}>
-                        Rented
-                      </span>
-                    </div>
-                  </div>
-                  {!formData.locationDetails.isOwned && (
-                    <div className="mt-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                      <div >
-                        <label className="block text-sm font-medium text-stone-700 mb-1">
-                          Landlord Phone Number
-                        </label>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div>
+                <div className="mb-4 mt-4">
+                  <div className="flex flex-col space-y-2">
+                    {/* Mobile: Stack vertically, Desktop: Horizontal */}
+                    <div className="flex items-stretch space-y-2 sm:space-y-0 sm:space-x-2 gap-2">
+                      <div className="relative hidden sm:block w-full flex-1 items-center">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone-500" />
                         <Input
-                          value={formData.locationDetails.landlordNumber}
-                          onChange={(e) => updateLocationDetails('landlordNumber', e.target.value)}
-                          className="w-full p-2 border "
-                          placeholder="+1 (555) 123-4567"
+                          placeholder="Search businesses..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border focus-visible:ring-2 focus-visible:ring-yellow-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">
-                          Landlord Email
-                        </label>
-                        <Input
-                          type="email"
-                          value={formData.locationDetails.landlordEmail}
-                          onChange={(e) => updateLocationDetails('landlordEmail', e.target.value)}
-                          className="w-full p-2 border "
-                          placeholder="landlord@example.com"
-                        />
+                        <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Industry" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {industries.map((industry) => (
+                              <SelectItem key={industry} value={industry}>
+                                {industry}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
+                      <div>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4 max-h-[350px] sm:max-h-[450px] overflow-y-auto pr-2 -mr-2">
+                  {franchisersLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+                      <p className="text-stone-600 dark:text-stone-400">Loading franchisers...</p>
+                    </div>
+                  ) : filteredBusinesses.length > 0 ? (
+                    filteredBusinesses.map((business) => (
+                      <FranchiserCard
+                        key={business._id}
+                        business={business}
+                        isSelected={formData.selectedBusiness?._id === business._id}
+                        onSelect={() => selectBusiness(business)}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Building className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+                      <p className="text-stone-600 dark:text-stone-400">
+                        {searchQuery || selectedIndustry !== 'All'
+                          ? 'No franchisers found matching your search criteria'
+                          : 'No franchisers available in this location yet'
+                        }
+                      </p>
+                      <p className="text-sm text-stone-500 dark:text-stone-500 mt-2">
+                        Try adjusting your search or selecting a different location
+                      </p>
                     </div>
                   )}
                 </div>
+              </div>
+            )}
 
-                <div className="grid grid-cols-4 gap-4">
-                <div className="col-span-1">
-                    <label className="block text-sm font-medium text-stone-700 mb-1">
-                      Area (sq ft)
-                    </label>
-                    <Input
-                      type="number"
-                      value={formData.locationDetails.sqft}
-                      onChange={(e) => updateLocationDetails('sqft', e.target.value)}
-                      className="w-full p-2 border "
-                      placeholder="e.g., 1000"
-                      min={formData.selectedBusiness?.location.minArea || 0}
-                    />
-                    {formData.selectedBusiness && (
-                      <div className="mt-1 text-xs">
-                        <div className="text-stone-500">
-                          Min: {formData.selectedBusiness.location.minArea} sq ft
-                          {parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
-                            <span className="text-green-600 ml-2">
-                              (+{((parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea - 1) * 100).toFixed(0)}% larger)
-                            </span>
-                          )}
-                        </div>
-                        {parseFloat(formData.locationDetails.sqft) < formData.selectedBusiness.location.minArea && (
-                          <div className="text-red-600 mt-1">
-                            Area must be at least {formData.selectedBusiness.location.minArea} sq ft
+            {currentStep === 3 && (
+              <div>
+                <div className="space-y-4">
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-stone-700">Property Ownership</span>
+                      <div className="flex items-center">
+                        <span className={`text-sm mr-2 ${formData.locationDetails.isOwned ? 'text-stone-700' : 'text-stone-400'
+                          }`}>
+                          Owned
+                        </span>
+                        <Switch
+                          checked={!formData.locationDetails.isOwned}
+                          onCheckedChange={(checked) => updateLocationDetails('isOwned', !checked)}
+                          className={`${!formData.locationDetails.isOwned ? 'bg-yellow-600' : 'bg-stone-200'
+                            } relative inline-flex h-6 w-11 items-center `}
+                        >
+                          <span className="sr-only">Toggle property ownership</span>
+                          <span
+                            className={`${!formData.locationDetails.isOwned ? 'translate-x-6' : 'translate-x-1'
+                              } inline-block h-4 w-4 transform  bg-white transition`}
+                          />
+                        </Switch>
+                        <span className={`text-sm ml-2 ${!formData.locationDetails.isOwned ? 'text-yellow-600' : 'text-stone-400'
+                          }`}>
+                          Rented
+                        </span>
+                      </div>
+                    </div>
+                    {!formData.locationDetails.isOwned && (
+                      <div className="mt-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div >
+                            <label className="block text-sm font-medium text-stone-700 mb-1">
+                              Landlord Phone Number
+                            </label>
+                            <Input
+                              value={formData.locationDetails.landlordNumber}
+                              onChange={(e) => updateLocationDetails('landlordNumber', e.target.value)}
+                              className="w-full p-2 border "
+                              placeholder="+1 (555) 123-4567"
+                            />
                           </div>
-                        )}
+                          <div>
+                            <label className="block text-sm font-medium text-stone-700 mb-1">
+                              Landlord Email
+                            </label>
+                            <Input
+                              type="email"
+                              value={formData.locationDetails.landlordEmail}
+                              onChange={(e) => updateLocationDetails('landlordEmail', e.target.value)}
+                              className="w-full p-2 border "
+                              placeholder="landlord@example.com"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {formData.locationDetails.isOwned && (
+                      <div className="mt-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-stone-700 mb-1">
+                              Your Phone Number
+                            </label>
+                            <Input
+                              value={formData.locationDetails.userNumber}
+                              onChange={(e) => updateLocationDetails('userNumber', e.target.value)}
+                              className="w-full p-2 border"
+                              placeholder="+1 (555) 123-4567"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-stone-700 mb-1">
+                              Your Email
+                            </label>
+                            <Input
+                              type="email"
+                              value={formData.locationDetails.userEmail}
+                              onChange={(e) => updateLocationDetails('userEmail', e.target.value)}
+                              className="w-full p-2 border"
+                              placeholder="you@example.com"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
-                  <div className="col-span-1">
-                    <label className="block text-sm font-medium text-stone-700 mb-1">
-                      Door Number
-                    </label>
-                    <Input
-                      value={formData.locationDetails.doorNumber}
-                      onChange={(e) => updateLocationDetails('doorNumber', e.target.value)}
-                      className="w-full p-2 border "
-                      placeholder="e.g., 101"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
-                    Building Name
-                  </label>
-                  <Input
-                    value={formData.locationDetails.buildingName}
-                    onChange={(e) => updateLocationDetails('buildingName', e.target.value)}
-                    className="w-full p-2 border "
-                    placeholder="Building name"
-                  />
-                </div>
-              
-                  
-                </div>
 
-                {/* Investment Breakdown - Based on selected franchiser */}
-                <div className="mt-6">
-                  <div className="bg-yellow-50 dark:bg-stone-800 p-4 border border-stone-200 dark:border-stone-700">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-stone-600 dark:text-stone-400">Carpet Area</span>
-                        <span className="text-sm font-medium">
-                          {formData.locationDetails.sqft || '0'} sq ft 
-                          {formData.selectedBusiness && parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
-                            <span className="text-green-600 ml-1">
-                              ({(parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea).toFixed(2)}x min area)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <div className="border-t border-yellow-100 dark:border-stone-600 pt-2">
-                        <div className="flex justify-between font-medium">
-                          <span className="text-stone-600 dark:text-stone-400">Total Investment Required</span>
-                          <span className="text-yellow-700 dark:text-yellow-400">
-                            ${formData.investment.totalInvestment.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-stone-600 dark:text-stone-400">• Franchise Fee (One Time)</span>
-                          <span>${formData.investment.franchiseFee.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-stone-600 dark:text-stone-400">
-                            • Setup Cost (${formData.selectedBusiness?.location.setupCost || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
-                          </span>
-                          <span>${formData.investment.setupCost.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-stone-600 dark:text-stone-400">
-                            • Working Capital (${formData.selectedBusiness?.location.workingCapital || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
-                          </span>
-                          <span>${formData.investment.workingCapital.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="pt-2 mt-3 border-t border-yellow-100 dark:border-stone-600">
-                        <div className="flex justify-between font-medium">
-                          <span className="text-stone-600 dark:text-stone-400">Total Investment Required</span>
-                          <span className="text-yellow-700 dark:text-yellow-400">
-                            ${formData.investment.totalInvestment.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-               
-              </div>
-            </div>
-          )}
-
-          {currentStep === 4 && (
-            <div>
-              <div className="space-y-6">
-                {/* Selected Franchiser Information */}
-                {formData.selectedBusiness && (
-                  <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
-                    <div className="flex items-center mb-3">
-                      <div className="mr-3">
-                        <FranchiserLogo business={formData.selectedBusiness} size="md" />
-                      </div>
-                <div>
-                        <h4 className="font-semibold text-stone-900 dark:text-stone-100">
-                          {formData.selectedBusiness.name}
-                        </h4>
-                        <p className="text-sm text-stone-600 dark:text-stone-400">
-                          {formData.selectedBusiness.industry} • {formData.selectedBusiness.category}
-                        </p>
-                      </div>
-                    </div>
-                    {/* Property Information */}
-                    <div className="mt-4 border-t pt-4">
-                  <h4 className="font-medium mb-2">Property Information</h4>
-                      <div className="grid grid-cols-4 gap-4 text-sm">
-                    <div>
-                          <p className="text-stone-500">Carpet Area</p>
-                          <p className="font-medium">{formData.locationDetails.sqft} sq ft</p>
-                    </div>
-                    <div>
-                          <p className="text-stone-500">Door Number</p>
-                          <p className="font-medium">{formData.locationDetails.doorNumber}</p>
-                    </div>
-                        
-                        <div className="col-span-2">
-                          <p className="text-stone-500">Building</p>
-                          <p className="font-medium">{formData.locationDetails.buildingName}</p>
-                    </div>
-                        <div className="col-span-4">
-                          <p className="text-stone-500">Location</p>
-                          <p className="font-medium">{selectedLocation?.address || 'Not selected'}</p>
-                    </div>
-                  </div>
-                </div>
-                    {/* Investment Breakdown */}
-                    <div className="mt-4 border-t pt-4">
-                      <h4 className="font-medium mb-2">Investment Breakdown</h4>
-
-                       <div className="space-y-2 text-sm">
-                         <div className="flex justify-between">
-                           <span className="text-stone-600 dark:text-stone-400">Franchise Fee (One Time)</span>
-                           <span className="font-medium">${formData.investment.franchiseFee.toLocaleString()}</span>
-                         </div>
-                         <div className="flex justify-between">
-                           <span className="text-stone-600 dark:text-stone-400">
-                             Setup Cost (${formData.selectedBusiness?.location.setupCost || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
-                           </span>
-                           <span className="font-medium">${formData.investment.setupCost.toLocaleString()}</span>
-                         </div>
-                         <div className="flex justify-between">
-                           <span className="text-stone-600 dark:text-stone-400">
-                             Working Capital (${formData.selectedBusiness?.location.workingCapital || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
-                           </span>
-                           <span className="font-medium">${formData.investment.workingCapital.toLocaleString()}</span>
-                         </div>
-                        <div className="py-4 mt-6 border-t border-yellow-200 dark:border-yellow-700">
-                          <div className="flex justify-between font-semibold text-lg">
-                            <span className="text-stone-900 dark:text-stone-100">Total Investment Required</span>
-                            <span className="text-yellow-600 dark:text-yellow-400">${formData.investment.totalInvestment.toLocaleString()}</span>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-1">
+                      <label className="block text-sm font-medium text-stone-700 mb-1">
+                        Area (sq ft)
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.locationDetails.sqft}
+                        onChange={(e) => updateLocationDetails('sqft', e.target.value)}
+                        className="w-full p-2 border "
+                        placeholder="e.g., 1000"
+                        min={formData.selectedBusiness?.location.minArea || 0}
+                      />
+                      {formData.selectedBusiness && (
+                        <div className="mt-1 text-xs">
+                          <div className="text-stone-500">
+                            Min: {formData.selectedBusiness.location.minArea} sq ft
+                            {parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                              <span className="text-green-600 ml-2">
+                                (+{((parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea - 1) * 100).toFixed(0)}% larger)
+                              </span>
+                            )}
                           </div>
-                          {formData.selectedBusiness && parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
-                            <div className="text-xs text-stone-500 mt-1">
-                              Setup cost & working capital scaled by {(parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea).toFixed(2)}x due to larger area
+                          {parseFloat(formData.locationDetails.sqft) < formData.selectedBusiness.location.minArea && (
+                            <div className="text-red-600 mt-1">
+                              Area must be at least {formData.selectedBusiness.location.minArea} sq ft
                             </div>
                           )}
                         </div>
+                      )}
+                    </div>
+                    <div className="col-span-1">
+                      <label className="block text-sm font-medium text-stone-700 mb-1">
+                        Door Number
+                      </label>
+                      <Input
+                        value={formData.locationDetails.doorNumber}
+                        onChange={(e) => updateLocationDetails('doorNumber', e.target.value)}
+                        className="w-full p-2 border "
+                        placeholder="e.g., 101"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-stone-700 mb-1">
+                        Building Name
+                      </label>
+                      <Input
+                        value={formData.locationDetails.buildingName}
+                        onChange={(e) => updateLocationDetails('buildingName', e.target.value)}
+                        className="w-full p-2 border "
+                        placeholder="Building name"
+                      />
+                    </div>
+
+
+                  </div>
+
+                  {/* Investment Breakdown - Based on selected franchiser */}
+                  <div className="mt-6">
+                    <div className="bg-yellow-50 dark:bg-stone-800 p-4 border border-stone-200 dark:border-stone-700">
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-stone-600 dark:text-stone-400">Carpet Area</span>
+                          <span className="text-sm font-medium">
+                            {formData.locationDetails.sqft || '0'} sq ft
+                            {formData.selectedBusiness && parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                              <span className="text-green-600 ml-1">
+                                ({(parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea).toFixed(2)}x min area)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="border-t border-yellow-100 dark:border-stone-600 pt-2">
+                          <div className="flex justify-between font-medium">
+                            <span className="text-stone-600 dark:text-stone-400">Total Investment Required</span>
+                            <span className="text-yellow-700 dark:text-yellow-400">
+                              ${formData.investment.totalInvestment.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-stone-600 dark:text-stone-400">• Franchise Fee (One Time)</span>
+                            <span>${formData.investment.franchiseFee.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-600 dark:text-stone-400">
+                              • Setup Cost (${formData.selectedBusiness?.location.setupCost || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
+                            </span>
+                            <span>${formData.investment.setupCost.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-600 dark:text-stone-400">
+                              • Working Capital (${formData.selectedBusiness?.location.workingCapital || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
+                            </span>
+                            <span>${formData.investment.workingCapital.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 mt-3 border-t border-yellow-100 dark:border-stone-600">
+                          <div className="flex justify-between font-medium">
+                            <span className="text-stone-600 dark:text-stone-400">Total Investment Required</span>
+                            <span className="text-yellow-700 dark:text-yellow-400">
+                              ${formData.investment.totalInvestment.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                )}
 
+
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between sm:pt-4 sm:border-t gap-4">
-          <div>
-            {currentStep > 1 && (
-              <Button
-                onClick={prevStep}
-                variant="outline"
-                className="w-full sm:w-auto mr-0 sm:mr-2"
-                disabled={loading}
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
+            {currentStep === 4 && (
+              <div>
+                <div className="space-y-6">
+                  {/* Selected Franchiser Information */}
+                  {formData.selectedBusiness && (
+                    <div className="bg-stone-50 dark:bg-stone-800 p-4 border">
+                      <div className="flex items-center mb-3">
+                        <div className="mr-3">
+                          <FranchiserLogo business={formData.selectedBusiness} size="md" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-stone-900 dark:text-stone-100">
+                            {formData.selectedBusiness.name}
+                          </h4>
+                          <p className="text-sm text-stone-600 dark:text-stone-400">
+                            {formData.selectedBusiness.industry} • {formData.selectedBusiness.category}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Property Information */}
+                      <div className="mt-4 border-t pt-4">
+                        <h4 className="font-medium mb-2">Property Information</h4>
+                        <div className="grid grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-stone-500">Carpet Area</p>
+                            <p className="font-medium">{formData.locationDetails.sqft} sq ft</p>
+                          </div>
+                          <div>
+                            <p className="text-stone-500">Door Number</p>
+                            <p className="font-medium">{formData.locationDetails.doorNumber}</p>
+                          </div>
+
+                          <div className="col-span-2">
+                            <p className="text-stone-500">Building</p>
+                            <p className="font-medium">{formData.locationDetails.buildingName}</p>
+                          </div>
+                          <div className="col-span-4">
+                            <p className="text-stone-500">Location</p>
+                            <p className="font-medium">{selectedLocation?.address || 'Not selected'}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Investment Breakdown */}
+                      <div className="mt-4 border-t pt-4">
+                        <h4 className="font-medium mb-2">Investment Breakdown</h4>
+
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-stone-600 dark:text-stone-400">Franchise Fee (One Time)</span>
+                            <span className="font-medium">${formData.investment.franchiseFee.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-600 dark:text-stone-400">
+                              Setup Cost (${formData.selectedBusiness?.location.setupCost || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
+                            </span>
+                            <span className="font-medium">${formData.investment.setupCost.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-600 dark:text-stone-400">
+                              Working Capital (${formData.selectedBusiness?.location.workingCapital || 0} per sqft × {formData.locationDetails.sqft || '0'} sqft)
+                            </span>
+                            <span className="font-medium">${formData.investment.workingCapital.toLocaleString()}</span>
+                          </div>
+                          <div className="py-4 mt-6 border-t border-yellow-200 dark:border-yellow-700">
+                            <div className="flex justify-between font-semibold text-lg">
+                              <span className="text-stone-900 dark:text-stone-100">Total Investment Required</span>
+                              <span className="text-yellow-600 dark:text-yellow-400">${formData.investment.totalInvestment.toLocaleString()}</span>
+                            </div>
+                            {formData.selectedBusiness && parseFloat(formData.locationDetails.sqft) > formData.selectedBusiness.location.minArea && (
+                              <div className="text-xs text-stone-500 mt-1">
+                                Setup cost & working capital scaled by {(parseFloat(formData.locationDetails.sqft) / formData.selectedBusiness.location.minArea).toFixed(2)}x due to larger area
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
             )}
           </div>
-          <div className="w-full sm:w-auto">
-            {currentStep < 4 ? (
-              <Button
-                onClick={nextStep}
-                disabled={!canProceed() || loading}
-                className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700"
-              >
-                {loading ? 'Loading...' : 'Continue'} <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            ) : (
-              <Button
-                onClick={async () => {
-                  if (!formData.selectedBusiness || !selectedLocation) {
-                    toast.error('Please complete all required fields');
-                    return;
-                  }
 
-                  setLoading(true);
-                  
-                  try {
-                    // Generate franchise slug
-                    const franchiseSlug = await generateFranchiseSlug({
-                      franchiserSlug: formData.selectedBusiness.slug
-                    });
+          {/* Navigation Buttons */}
+          <div className="flex justify-between sm:pt-4 sm:border-t gap-4">
+            <div>
+              {currentStep > 1 && (
+                <Button
+                  onClick={prevStep}
+                  variant="outline"
+                  className="w-full sm:w-auto mr-0 sm:mr-2"
+                  disabled={loading}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+              )}
+            </div>
+            <div className="w-full sm:w-auto">
+              {currentStep < 4 ? (
+                <Button
+                  onClick={nextStep}
+                  disabled={!canProceed() || loading}
+                  className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {loading ? 'Loading...' : 'Continue'} <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={async () => {
+                    if (!formData.selectedBusiness || !selectedLocation) {
+                      toast.error('Please complete all required fields');
+                      return;
+                    }
 
-                    // Create franchise record (pending approval)
-                    const franchiseId = await createFranchise({
-                      franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
-                      franchiseeId: 'demo-user', // Demo user ID since no wallet connection
-                      locationId: formData.selectedBusiness.location._id as Id<"franchiserLocations">,
-                      franchiseSlug,
-                      businessName: `${formData.selectedBusiness.name} - ${formData.locationDetails.buildingName}`,
-                      address: selectedLocation.address,
-                      location: {
-                        area: '',
-                        city: 'Dubai', // Default city
-                        state: 'Dubai', // Default state
-                        country: 'UAE', // Default country
-                        pincode: '',
+                    setLoading(true);
+
+                    try {
+                      // Generate franchise slug
+                      const franchiseSlug = await generateFranchiseSlug({
+                        franchiserSlug: formData.selectedBusiness.slug
+                      });
+
+                      // Create franchise record (pending approval)
+                      const franchiseId = await createFranchise({
+                        franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
+                        franchiseeId: 'demo-user', // Demo user ID since no wallet connection
+                        locationId: formData.selectedBusiness.location._id as Id<"franchiserLocations">,
+                        franchiseSlug,
+                        businessName: `${formData.selectedBusiness.name} - ${formData.locationDetails.buildingName}`,
+                        address: selectedLocation.address,
+                        location: {
+                          area: '',
+                          city: 'Dubai', // Default city
+                          state: 'Dubai', // Default state
+                          country: 'UAE', // Default country
+                          pincode: '',
+                          coordinates: {
+                            lat: selectedLocation.lat,
+                            lng: selectedLocation.lng,
+                          },
+                        },
+                        buildingName: formData.locationDetails.buildingName,
+                        doorNumber: formData.locationDetails.doorNumber,
+                        sqft: parseInt(formData.locationDetails.sqft),
+                        isOwned: formData.locationDetails.isOwned,
+                        landlordContact: formData.locationDetails.isOwned ? undefined : {
+                          name: 'Landlord',
+                          phone: formData.locationDetails.landlordNumber,
+                          email: formData.locationDetails.landlordEmail,
+                        },
+                        franchiseeContact: {
+                          name: 'Franchisee',
+                          phone: formData.locationDetails.userNumber,
+                          email: formData.locationDetails.userEmail,
+                        },
+                        investment: {
+                          totalInvestment: formData.investment.totalInvestment,
+                          totalInvested: 0,
+                          sharesIssued: formData.investment.totalShares,
+                          sharesPurchased: 0,
+                          sharePrice: formData.investment.sharePrice,
+                          franchiseFee: formData.investment.franchiseFee,
+                          setupCost: formData.investment.setupCost,
+                          workingCapital: formData.investment.workingCapital,
+                          minimumInvestment: Math.ceil(formData.investment.totalShares * 0.02 * formData.investment.sharePrice),
+                        },
+                      });
+
+                      // Keep franchise as pending for approval
+                      // Status will be set to 'approved' and stage to 'funding' when approved in BrandDashboard
+
+                      // Create property record for admin management
+                      const propertyId = await createProperty({
+                        address: selectedLocation.address,
                         coordinates: {
                           lat: selectedLocation.lat,
                           lng: selectedLocation.lng,
                         },
-                      },
-                      buildingName: formData.locationDetails.buildingName,
-                      doorNumber: formData.locationDetails.doorNumber,
-                      sqft: parseInt(formData.locationDetails.sqft),
-                      isOwned: formData.locationDetails.isOwned,
-                      landlordContact: formData.locationDetails.isOwned ? undefined : {
-                        name: 'Landlord',
-                        phone: formData.locationDetails.landlordNumber,
-                        email: formData.locationDetails.landlordEmail,
-                      },
-                      franchiseeContact: {
-                        name: 'Franchisee',
-                        phone: formData.locationDetails.userNumber,
-                        email: formData.locationDetails.userEmail,
-                      },
-                      investment: {
-                        totalInvestment: formData.investment.totalInvestment,
-                        totalInvested: 0,
-                        sharesIssued: formData.investment.totalShares,
-                        sharesPurchased: 0,
-                        sharePrice: formData.investment.sharePrice,
-                        franchiseFee: formData.investment.franchiseFee,
-                        setupCost: formData.investment.setupCost,
-                        workingCapital: formData.investment.workingCapital,
-                        minimumInvestment: Math.ceil(formData.investment.totalShares * 0.02 * formData.investment.sharePrice),
-                      },
-                    });
+                        buildingName: formData.locationDetails.buildingName,
+                        doorNumber: formData.locationDetails.doorNumber,
+                        sqft: parseInt(formData.locationDetails.sqft),
+                        costPerSqft: parseFloat(formData.locationDetails.costPerArea) || 0,
+                        propertyType: 'commercial',
+                        amenities: [],
+                        images: [],
+                        landlordContact: formData.locationDetails.isOwned ? {
+                          name: formData.locationDetails.userNumber,
+                          phone: formData.locationDetails.userNumber,
+                          email: formData.locationDetails.userEmail,
+                        } : {
+                          name: 'Landlord',
+                          phone: formData.locationDetails.landlordNumber,
+                          email: formData.locationDetails.landlordEmail,
+                        },
+                        priority: 'medium',
+                      });
 
-                    // Keep franchise as pending for approval
-                    // Status will be set to 'approved' and stage to 'funding' when approved in BrandDashboard
+                      // Update property stage to "requested" since franchise needs approval
+                      await updatePropertyStage({
+                        propertyId,
+                        stage: 'requested',
+                        franchiseId: franchiseId as Id<"franchises">,
+                        franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
+                        notes: 'Property requested for franchise approval',
+                        updatedBy: 'system-pending-approval',
+                      });
 
-                    // Create property record for admin management
-                    const propertyId = await createProperty({
-                      address: selectedLocation.address,
-                      coordinates: {
-                        lat: selectedLocation.lat,
-                        lng: selectedLocation.lng,
-                      },
-                      buildingName: formData.locationDetails.buildingName,
-                      doorNumber: formData.locationDetails.doorNumber,
-                      sqft: parseInt(formData.locationDetails.sqft),
-                      costPerSqft: parseFloat(formData.locationDetails.costPerArea) || 0,
-                      propertyType: 'commercial',
-                      amenities: [],
-                      images: [],
-                      landlordContact: formData.locationDetails.isOwned ? {
-                        name: formData.locationDetails.userNumber,
-                        phone: formData.locationDetails.userNumber,
-                        email: formData.locationDetails.userEmail,
-                      } : {
-                        name: 'Landlord',
-                        phone: formData.locationDetails.landlordNumber,
-                        email: formData.locationDetails.landlordEmail,
-                      },
-                      priority: 'medium',
-                    });
+                      toast.success('Franchise application submitted successfully! It will be reviewed by the brand team.');
+                      // Navigate to franchise account page
+                      router.push(`/${formData.selectedBusiness.slug}/${franchiseSlug}`);
 
-                    // Update property stage to "requested" since franchise needs approval
-                    await updatePropertyStage({
-                      propertyId,
-                      stage: 'requested',
-                      franchiseId: franchiseId as Id<"franchises">,
-                      franchiserId: formData.selectedBusiness._id as Id<"franchiser">,
-                      notes: 'Property requested for franchise approval',
-                      updatedBy: 'system-pending-approval',
-                    });
-
-                    toast.success('Franchise application submitted successfully! It will be reviewed by the brand team.');
-                    // Navigate to franchise account page
-                    router.push(`/${formData.selectedBusiness.slug}/${franchiseSlug}`);
-                    
-                  } catch (error) {
-                    console.error('Error creating franchise:', error);
-                    toast.error('Failed to create franchise. Please try again.');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={!canProceed() || loading}
-                className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
-              >
-                {loading ? 'Creating...' : 'Create Franchise'}
-              </Button>
-            )}
+                    } catch (error) {
+                      console.error('Error creating franchise:', error);
+                      toast.error('Failed to create franchise. Please try again.');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={!canProceed() || loading}
+                  className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                >
+                  {loading ? 'Creating...' : 'Create Franchise'}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
         </CardContent>
       </Card>
     </div>

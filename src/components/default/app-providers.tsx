@@ -9,17 +9,41 @@ import { PrivyAuthProvider } from '@/contexts/PrivyAuthContext'
 import { NetworkProvider } from '@/contexts/NetworkContext'
 import React from 'react'
 
+/**
+ * Hostname → Crossmint environment mapping:
+ *   franchiseen.com       → production keys
+ *   play.franchiseen.com  → staging keys
+ *   localhost / other     → staging keys  (safe dev default)
+ */
+function getCrossmintConfig(): { clientId: string; environment: 'staging' | 'production' } {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+  const isProduction = hostname === 'franchiseen.com' || hostname === 'www.franchiseen.com'
+
+  if (isProduction) {
+    return {
+      clientId: process.env.NEXT_PUBLIC_CROSSMINT_CLIENT_ID_PRODUCTION || '',
+      environment: 'production',
+    }
+  }
+
+  return {
+    clientId: process.env.NEXT_PUBLIC_CROSSMINT_CLIENT_ID_STAGING || '',
+    environment: 'staging',
+  }
+}
+
 export function AppProviders({ children }: Readonly<{ children: React.ReactNode }>) {
-  const crossmintClientId = process.env.NEXT_PUBLIC_CROSSMINT_CLIENT_ID;
-  const crossmintEnv = process.env.NEXT_PUBLIC_CROSSMINT_ENVIRONMENT as 'staging' | 'production' | undefined;
+  const { clientId: crossmintClientId, environment: crossmintEnv } = getCrossmintConfig()
 
   if (!crossmintClientId) {
-    console.error('NEXT_PUBLIC_CROSSMINT_CLIENT_ID is not set');
+    console.error(
+      '[Crossmint] Missing client ID — check NEXT_PUBLIC_CROSSMINT_CLIENT_ID_STAGING / _PRODUCTION in your env'
+    )
   }
 
   return (
     <ConvexClientProvider>
-      <CrossmintProvider apiKey={crossmintClientId || ''}>
+      <CrossmintProvider apiKey={crossmintClientId}>
         <CrossmintAuthProvider>
           <CrossmintWalletProvider appearance={{ colors: { background: "#000000" } }} createOnLogin={{ chain: 'solana', signer: { type: 'email' } }}>
             <PrivyAuthProvider>
