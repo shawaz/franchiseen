@@ -38,7 +38,8 @@ export default defineSchema({
 
   franchiser: defineTable({
     ownerUserId: v.id('users'), // User's ID (who owns/manages the brand)
-    brandWalletAddress: v.string(), // Brand's wallet (for operations)
+    brandWalletAddress: v.optional(v.string()), // Legacy Solana address (kept optional for migration)
+    stripeConnectId: v.optional(v.string()), // Stripe Connect account ID for payouts
     logoUrl: v.optional(v.id('_storage')),
     name: v.string(),
     slug: v.string(),
@@ -75,7 +76,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index('by_ownerUser', ['ownerUserId'])
-    .index('by_brandWallet', ['brandWalletAddress']),
+    .index('by_brandWallet', ['brandWalletAddress'])
+    .index('by_stripeConnect', ['stripeConnectId']),
 
   franchiserLocations: defineTable({
     franchiserId: v.id('franchiser'),
@@ -279,11 +281,12 @@ export default defineSchema({
 
   franchiseShares: defineTable({
     franchiseId: v.id('franchises'),
-    investorId: v.string(), // Investor's wallet address
+    investorId: v.string(), // Investor's user ID or wallet address
     sharesPurchased: v.number(),
     sharePrice: v.number(),
     totalAmount: v.number(),
-    transactionHash: v.optional(v.string()),
+    stripePaymentIntentId: v.optional(v.string()), // Stripe payment intent ID
+    transactionHash: v.optional(v.string()), // Legacy Solana hash (kept for migration)
     status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('failed'), v.literal('refunded')),
     purchasedAt: v.number(),
     refundedAt: v.optional(v.number()),
@@ -294,82 +297,15 @@ export default defineSchema({
     .index('by_investor', ['investorId'])
     .index('by_status', ['status']),
 
-  // SPL Token Management for Franchise Shares
-  franchiseTokens: defineTable({
-    franchiseId: v.id('franchises'),
-    tokenMint: v.string(), // SPL token mint address
-    tokenName: v.string(), // e.g., "Nike Dubai Shares"
-    tokenSymbol: v.string(), // e.g., "NIKE-DXB"
-    tokenDecimals: v.number(), // Usually 6 for shares
-    totalSupply: v.number(), // Total tokens minted
-    circulatingSupply: v.number(), // Tokens in circulation
-    sharePrice: v.number(), // Price per token in USD
-    status: v.union(
-      v.literal('created'),
-      v.literal('active'),
-      v.literal('paused'),
-      v.literal('completed'),
-      v.literal('cancelled'),
-    ),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index('by_franchise', ['franchiseId'])
-    .index('by_token_mint', ['tokenMint'])
-    .index('by_status', ['status']),
-
-  // Token Holdings for Investors
-  tokenHoldings: defineTable({
-    franchiseId: v.id('franchises'),
-    tokenMint: v.string(), // SPL token mint address
-    investorId: v.string(), // Investor's wallet address
-    balance: v.number(), // Current token balance
-    totalPurchased: v.number(), // Total tokens ever purchased
-    totalSold: v.number(), // Total tokens ever sold
-    averagePurchasePrice: v.number(), // Average price paid per token
-    lastTransactionAt: v.number(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index('by_franchise', ['franchiseId'])
-    .index('by_investor', ['investorId'])
-    .index('by_token_mint', ['tokenMint'])
-    .index('by_franchise_investor', ['franchiseId', 'investorId']),
-
-  // Token Transactions (mint, burn, transfer)
-  tokenTransactions: defineTable({
-    franchiseId: v.id('franchises'),
-    tokenMint: v.string(),
-    fromInvestorId: v.optional(v.string()), // null for minting
-    toInvestorId: v.optional(v.string()), // null for burning
-    amount: v.number(),
-    transactionType: v.union(
-      v.literal('mint'), // New tokens created
-      v.literal('burn'), // Tokens destroyed (refunds)
-      v.literal('transfer'), // Tokens moved between wallets
-      v.literal('purchase'), // Tokens purchased with fiat/crypto
-      v.literal('sale'), // Tokens sold
-    ),
-    pricePerToken: v.optional(v.number()), // Price at time of transaction
-    totalValue: v.optional(v.number()), // amount × pricePerToken
-    solanaTransactionHash: v.optional(v.string()),
-    status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('failed')),
-    createdAt: v.number(),
-  })
-    .index('by_franchise', ['franchiseId'])
-    .index('by_token_mint', ['tokenMint'])
-    .index('by_investor', ['toInvestorId'])
-    .index('by_type', ['transactionType'])
-    .index('by_status', ['status']),
-
-  // Franchise Wallets - Each franchise gets its own Solana wallet
+  // Franchise Wallets - Each franchise gets its own wallet (now Stripe-based)
   franchiseWallets: defineTable({
     franchiseId: v.id('franchises'),
-    walletAddress: v.string(), // Solana wallet address (public key)
-    walletSecretKey: v.optional(v.string()), // Encrypted secret key for signing transactions
+    walletAddress: v.optional(v.string()), // Legacy Solana address (kept optional for migration)
+    stripeAccountId: v.optional(v.string()), // Stripe Connect account ID
     walletName: v.string(), // e.g., "Nike Dubai Franchise Wallet"
-    balance: v.number(), // Current SOL balance
-    usdBalance: v.number(), // USD equivalent
+    balance: v.number(), // Current balance in INR paise
+    usdBalance: v.optional(v.number()), // Legacy USD balance (kept optional)
+    inrBalance: v.optional(v.number()), // INR balance in paise
     totalIncome: v.number(), // Total income received
     totalExpenses: v.number(), // Total expenses paid
     totalPayouts: v.number(), // Total payouts to investors
@@ -384,6 +320,7 @@ export default defineSchema({
   })
     .index('by_franchise', ['franchiseId'])
     .index('by_wallet_address', ['walletAddress'])
+    .index('by_stripe_account', ['stripeAccountId'])
     .index('by_status', ['status']),
 
   // Franchise Wallet Transactions
@@ -400,13 +337,15 @@ export default defineSchema({
       v.literal('funding'), // Initial funding
       v.literal('refund'), // Refund to investor
     ),
-    amount: v.number(), // Amount in SOL
-    usdAmount: v.number(), // USD equivalent at time of transaction
+    amount: v.number(), // Amount in INR paise
+    usdAmount: v.optional(v.number()), // Legacy USD amount (kept optional)
+    inrAmount: v.optional(v.number()), // INR amount in paise
     description: v.string(),
     category: v.optional(v.string()), // e.g., "rent", "utilities", "inventory"
-    solanaTransactionHash: v.string(), // Solana transaction hash for explorer
-    fromAddress: v.optional(v.string()), // Source wallet address
-    toAddress: v.optional(v.string()), // Destination wallet address
+    solanaTransactionHash: v.optional(v.string()), // Legacy Solana hash (kept optional)
+    stripePaymentIntentId: v.optional(v.string()), // Stripe payment intent ID
+    fromAddress: v.optional(v.string()), // Source wallet/account
+    toAddress: v.optional(v.string()), // Destination wallet/account
     status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('failed')),
     metadata: v.optional(
       v.object({
@@ -421,7 +360,8 @@ export default defineSchema({
     .index('by_franchise', ['franchiseId'])
     .index('by_type', ['transactionType'])
     .index('by_status', ['status'])
-    .index('by_solana_hash', ['solanaTransactionHash']),
+    .index('by_solana_hash', ['solanaTransactionHash'])
+    .index('by_stripe_payment_intent', ['stripePaymentIntentId']),
 
   invoices: defineTable({
     franchiseId: v.id('franchises'),
@@ -447,7 +387,8 @@ export default defineSchema({
     ),
     dueDate: v.number(),
     paidAt: v.optional(v.number()),
-    transactionHash: v.optional(v.string()),
+    transactionHash: v.optional(v.string()), // Legacy Solana hash
+    stripePaymentIntentId: v.optional(v.string()), // Stripe payment intent ID
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -458,7 +399,7 @@ export default defineSchema({
 
   // Admin Users Management
   adminUsers: defineTable({
-    walletAddress: v.string(),
+    walletAddress: v.optional(v.string()), // Legacy Solana address (kept optional)
     email: v.string(),
     name: v.string(),
     avatar: v.optional(v.id('_storage')),
@@ -869,7 +810,8 @@ export default defineSchema({
     amount: v.number(),
     description: v.string(),
     status: v.union(v.literal('pending'), v.literal('completed'), v.literal('failed'), v.literal('cancelled')),
-    transactionHash: v.optional(v.string()),
+    transactionHash: v.optional(v.string()), // Legacy Solana hash
+    stripePaymentIntentId: v.optional(v.string()), // Stripe payment intent ID
     createdAt: v.number(),
   })
     .index('by_franchiser', ['franchiserId'])
@@ -891,7 +833,8 @@ export default defineSchema({
     franchiseId: v.optional(v.id('franchises')),
     franchiserId: v.optional(v.id('franchiser')),
     status: v.union(v.literal('pending'), v.literal('completed'), v.literal('failed')),
-    transactionHash: v.optional(v.string()),
+    transactionHash: v.optional(v.string()), // Legacy Solana hash
+    stripePaymentIntentId: v.optional(v.string()), // Stripe payment intent ID
     createdAt: v.number(),
   })
     .index('by_type', ['type'])
@@ -909,7 +852,6 @@ export default defineSchema({
         v.literal('contacting_property'),
         v.literal('checking_location'),
         v.literal('signing_agreement'),
-        v.literal('creating_pda'),
         v.literal('collecting_investments'),
         v.literal('transferring_fees'),
         v.literal('setting_up'),

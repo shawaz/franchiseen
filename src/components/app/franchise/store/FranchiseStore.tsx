@@ -1479,13 +1479,10 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
         </DialogTrigger>
         <DialogContent className="max-sm:h-screen max-sm:max-h-screen max-sm:w-screen max-sm:max-w-full max-sm:m-0 max-sm:rounded-none sm:max-w-[500px] dark:bg-stone-900 p-0 gap-0 flex flex-col overflow-hidden max-h-[95vh]">
           {/* Fixed Header */}
-          <DialogHeader className="px-6 py-6 sm:py-7 border-b border-stone-100 dark:border-stone-800 flex-shrink-0">
+          <DialogHeader className="px-6 py-3 sm:py-7 border-b border-stone-100 dark:border-stone-800 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex-1 text-center">
-                <DialogTitle className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-white">Buy Franchise Tokens</DialogTitle>
-                <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5 font-medium">
-                  Each token represents 1 share in this franchise
-                </p>
+              <div className="flex-1">
+                <DialogTitle className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-white">Buy Franchise</DialogTitle>
               </div>
             </div>
           </DialogHeader>
@@ -1735,23 +1732,23 @@ function FranchiseStoreInner({ franchiseId }: FranchiseStoreProps = {}) {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <div className="flex flex-row gap-3 w-full justify-between">
                 <Button
                   variant="outline"
                   size="lg"
                   onClick={() => setIsBuyTokensOpen(false)}
-                  className="w-full sm:flex-1 h-12 sm:h-14 text-sm font-bold border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-400"
+                  className="h-12 sm:h-14 text-sm font-bold border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-400"
                 >
                   Cancel
                 </Button>
                 <div className="flex flex-col sm:flex-row gap-3 sm:flex-[2]">
-                  <Button
+                  {/* <Button
                     size="lg"
                     className="w-full sm:flex-1 h-12 sm:h-14 text-sm font-bold border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-400"
                     onClick={() => setShowCrossmintCheckout(true)}
                   >
                     Buy with Cards/Fiat
-                  </Button>
+                  </Button> */}
                   <Button
                     size="lg"
                     className="w-full sm:flex-1 h-12 sm:h-14 text-sm font-bold border-stone-900 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-400"

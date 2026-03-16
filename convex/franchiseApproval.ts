@@ -1,26 +1,5 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
-
-// Generate a mock Solana address for development (valid base58 format)
-function generateMockSolanaAddress(): string {
-  // Use a very conservative approach - create addresses that look like real Solana addresses
-  // Start with a known good pattern and add deterministic suffix
-  const timestamp = Date.now().toString();
-  const safeChars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  
-  // Use a simpler, more predictable pattern
-  let address = '';
-  const seed = parseInt(timestamp.slice(-6)); // Use last 6 digits
-  
-  // Generate address using a more conservative pattern
-  for (let i = 0; i < 44; i++) {
-    const charIndex = (seed + i * 3) % safeChars.length;
-    address += safeChars[charIndex];
-  }
-  
-  return address;
-}
 
 // Get pending franchises for approval
 export const getPendingFranchises = query({
@@ -55,13 +34,13 @@ export const getPendingFranchises = query({
   },
 });
 
-// Approve franchise and create token only (wallet created when funding is complete)
+// Approve franchise and create wallet (Stripe-based)
 export const approveFranchiseAndCreateToken = mutation({
   args: {
     franchiseId: v.id("franchises"),
     approvedBy: v.string(), // Admin or brand user who approved
   },
-  handler: async (ctx, { franchiseId, approvedBy }) => {
+  handler: async (ctx, { franchiseId }) => {
     const now = Date.now();
 
     // Get franchise details
@@ -88,52 +67,17 @@ export const approveFranchiseAndCreateToken = mutation({
       updatedAt: now,
     });
 
-    // Create SPL token for the franchise
-    let tokenCreated = false;
-    try {
-      const tokenName = `${franchise.businessName} Tokens`;
-      // Create a shorter, more readable token symbol (e.g., NIKE09, MCD15)
-      const franchiseParts = franchise.franchiseSlug.split('-');
-      const brandPart = franchiseParts[0] || 'FRANCHISE';
-      const locationPart = franchiseParts[1] || '01';
-      const tokenSymbol = `${brandPart.toUpperCase()}${locationPart.toUpperCase().slice(0, 2)}`;
-      
-      // Create the franchise token record directly
-      const tokenMint = `mock_token_${franchiseId}_${now}`;
-      await ctx.db.insert("franchiseTokens", {
-        franchiseId: franchiseId,
-        tokenMint: tokenMint,
-        tokenName: tokenName,
-        tokenSymbol: tokenSymbol,
-        tokenDecimals: 6, // Standard for shares
-        totalSupply: investment.sharesIssued,
-        circulatingSupply: 0, // Start with 0, mint as needed
-        sharePrice: 1.00, // Fixed at $1.00 per token
-        status: "created",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      tokenCreated = true;
-      console.log(`Token created successfully for franchise ${franchise.franchiseSlug}`);
-    } catch (error) {
-      console.error("Failed to create franchise token:", error);
-      // Continue with approval even if token creation fails
-    }
-
-    // CREATE FRANCHISE WALLET IMMEDIATELY ON APPROVAL
+    // CREATE FRANCHISE WALLET IMMEDIATELY ON APPROVAL (Stripe-based)
     let walletCreated = false;
     let franchiseWalletId = null;
     try {
-      console.log(`💼 Creating franchise wallet for ${franchise.franchiseSlug}...`);
-      
-      // Create franchise wallet with $0 balance (will accumulate as funding comes in)
+      // Create franchise wallet with 0 balance (will accumulate as funding comes in)
       franchiseWalletId = await ctx.db.insert("franchiseWallets", {
         franchiseId: franchiseId,
-        walletAddress: generateMockSolanaAddress(),
+        walletAddress: `stripe-${franchiseId}`,
         walletName: `${franchise.franchiseSlug} Wallet`,
-        balance: 0, // Start at $0
-        usdBalance: 0, // Start at $0
+        balance: 0,
+        inrBalance: 0,
         totalIncome: 0,
         totalExpenses: 0,
         totalPayouts: 0,
@@ -148,8 +92,6 @@ export const approveFranchiseAndCreateToken = mutation({
       });
 
       walletCreated = true;
-      console.log(`✅ Franchise wallet created successfully:`, franchiseWalletId);
-      console.log(`💰 Initial balance: $0 (will accumulate as funding comes in)`);
     } catch (error) {
       console.error("Failed to create franchise wallet:", error);
       // Continue with approval even if wallet creation fails
@@ -170,9 +112,8 @@ export const approveFranchiseAndCreateToken = mutation({
 
     return {
       success: true,
-      message: `Franchise approved successfully! Token created: ${tokenCreated}, Wallet created: ${walletCreated}`,
+      message: `Franchise approved successfully! Wallet created: ${walletCreated}`,
       franchiseId,
-      tokenCreated,
       walletCreated,
       franchiseWalletId,
     };
@@ -186,7 +127,7 @@ export const rejectFranchise = mutation({
     rejectedBy: v.string(),
     reason: v.optional(v.string()),
   },
-  handler: async (ctx, { franchiseId, rejectedBy, reason }) => {
+  handler: async (ctx, { franchiseId }) => {
     const now = Date.now();
 
     const franchise = await ctx.db.get(franchiseId);

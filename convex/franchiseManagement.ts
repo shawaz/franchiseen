@@ -125,7 +125,6 @@ export const updateFranchiseStage = mutation({
       v.literal("contacting_property"),
       v.literal("checking_location"),
       v.literal("signing_agreement"),
-      v.literal("creating_pda"),
       v.literal("collecting_investments"),
       v.literal("transferring_fees"),
       v.literal("setting_up"),
@@ -1014,14 +1013,13 @@ export const createFundingPDA = mutation({
     
     console.log(`🔑 Generated real PDA wallet for funding escrow: ${pdaKeypair.publicKey}`);
     
-    // Create a funding PDA entry (acts as escrow)
+    // Create a funding escrow wallet entry
     const walletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
-      walletAddress: pdaKeypair.publicKey, // Real Solana public key for PDA
-      walletSecretKey: encryptSecretKey(pdaKeypair.secretKey), // Store encrypted secret key
+      walletAddress: `stripe-pda-${args.franchiseId}`,
       walletName: `${franchise.franchiseSlug} Funding PDA`,
       balance: 0, // Starts with 0, accumulates as investments come in
-      usdBalance: 0,
+      inrBalance: 0,
       totalIncome: 0,
       totalExpenses: 0,
       totalPayouts: 0,
@@ -1046,7 +1044,7 @@ export const createFundingPDA = mutation({
       franchiseId: args.franchiseId,
       franchiserId: franchise.franchiserId,
       currentStage: "funding",
-      subStage: "creating_pda",
+      subStage: "collecting_investments",
       progress: 10,
       stageStartDate: Date.now(),
       notes: "Funding PDA created as escrow",
@@ -1230,14 +1228,13 @@ export const transitionToLaunchingStage = mutation({
     
     console.log(`🔑 Generated real Solana wallet: ${walletKeypair.publicKey}`);
     
-    // Create the actual franchise wallet with only working capital
+    // Create the actual franchise wallet with working capital (Stripe-based)
     const franchiseWalletId = await ctx.db.insert("franchiseWallets", {
       franchiseId: args.franchiseId,
-      walletAddress: walletKeypair.publicKey, // Real Solana public key
-      walletSecretKey: encryptSecretKey(walletKeypair.secretKey), // Store encrypted secret key
+      walletAddress: `stripe-${args.franchiseId}`,
       walletName: `${franchise.franchiseSlug} Wallet`,
-      balance: workingCapital / 200, // Convert USD to SOL (assuming $200 per SOL)
-      usdBalance: workingCapital,
+      balance: workingCapital * 100, // Store in paise (INR cents)
+      inrBalance: workingCapital * 100,
       totalIncome: 0,
       totalExpenses: 0,
       totalPayouts: 0,
@@ -1262,10 +1259,9 @@ export const transitionToLaunchingStage = mutation({
       franchiseWalletId: franchiseWalletId,
       franchiseId: args.franchiseId,
       transactionType: "funding",
-      amount: workingCapital / 200, // Convert USD to SOL (assuming $200 per SOL)
-      usdAmount: workingCapital,
-      description: `Working capital transferred to franchise wallet: $${workingCapital.toLocaleString()}`,
-      solanaTransactionHash: `pending_working_capital_${args.franchiseId}_${Date.now()}`,
+      amount: workingCapital * 100, // Store in paise (INR)
+      inrAmount: workingCapital * 100,
+      description: `Working capital transferred to franchise wallet: ₹${workingCapital.toLocaleString()}`,
       status: "confirmed",
       createdAt: Date.now(),
     });
@@ -1286,17 +1282,7 @@ export const transitionToLaunchingStage = mutation({
 
     console.log(`💵 Creating brand wallet transaction for franchise fee: $${franchiseFee.toLocaleString()}`);
     
-    // Schedule on-chain transfer for franchise fee (if keys available)
-    if (fundingPDA?.walletSecretKey && franchiser.brandWalletAddress) {
-      console.log(`📅 Scheduling on-chain transfer for franchise fee...`);
-      ctx.scheduler.runAfter(0, api.solanaTransactions.executeSolanaTransfer, {
-        fromPublicKey: fundingPDA.walletAddress,
-        fromSecretKey: fundingPDA.walletSecretKey,
-        toPublicKey: franchiser.brandWalletAddress,
-        amountSOL: franchiseFee / 150,
-        description: `Franchise fee from ${franchise.franchiseSlug}`,
-      });
-    }
+    // Note: Stripe payment transfer handled via webhook/Stripe Connect
     
     // Transfer franchise fee to brand wallet (database record)
     const franchiseFeeTransactionId = await ctx.db.insert("brandWalletTransactions", {
@@ -1314,17 +1300,7 @@ export const transitionToLaunchingStage = mutation({
     
     console.log(`💵 Creating brand wallet transaction for setup cost: $${setupCost.toLocaleString()}`);
 
-    // Schedule on-chain transfer for setup cost (if keys available)
-    if (fundingPDA?.walletSecretKey && franchiser.brandWalletAddress) {
-      console.log(`📅 Scheduling on-chain transfer for setup cost...`);
-      ctx.scheduler.runAfter(1000, api.solanaTransactions.executeSolanaTransfer, {
-        fromPublicKey: fundingPDA.walletAddress,
-        fromSecretKey: fundingPDA.walletSecretKey,
-        toPublicKey: franchiser.brandWalletAddress,
-        amountSOL: setupCost / 150,
-        description: `Setup cost from ${franchise.franchiseSlug}`,
-      });
-    }
+    // Note: Stripe payment transfer handled via webhook/Stripe Connect
 
     // Transfer setup cost to brand wallet (database record)
     const setupCostTransactionId = await ctx.db.insert("brandWalletTransactions", {
