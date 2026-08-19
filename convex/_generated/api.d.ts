@@ -44,6 +44,7 @@ import type * as seedData from "../seedData.js";
 import type * as seedNews from "../seedNews.js";
 import type * as seedProductionQuick from "../seedProductionQuick.js";
 import type * as seedProducts from "../seedProducts.js";
+import type * as seedSampleFranchises from "../seedSampleFranchises.js";
 import type * as solanaTransactions from "../solanaTransactions.js";
 import type * as stockManagement from "../stockManagement.js";
 import type * as stripePayments from "../stripePayments.js";
@@ -95,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   seedNews: typeof seedNews;
   seedProductionQuick: typeof seedProductionQuick;
   seedProducts: typeof seedProducts;
+  seedSampleFranchises: typeof seedSampleFranchises;
   solanaTransactions: typeof solanaTransactions;
   stockManagement: typeof stockManagement;
   stripePayments: typeof stripePayments;
