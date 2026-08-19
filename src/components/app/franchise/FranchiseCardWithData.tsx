@@ -2,7 +2,6 @@
 
 import { useFranchiseFundraisingData } from "@/hooks/useFranchises";
 import { useConvexImageUrl } from "@/hooks/useConvexImageUrl";
-import { useCategoryById, useIndustryById } from "@/hooks/useMasterData";
 import { useFranchiseWallet } from "@/hooks/useFranchiseWallet";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -46,10 +45,6 @@ const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise
   // Get proper image URLs using Convex hooks
   const logoUrl = useConvexImageUrl(franchise.franchiser?.logoUrl as Id<"_storage"> | undefined);
   const coverImageUrl = useConvexImageUrl(franchise.franchiser?.interiorImages?.[0] as Id<"_storage"> | undefined);
-  
-  // Get category and industry names by ID
-  const categoryData = useCategoryById(franchise.franchiser?.category as Id<"categories"> | undefined);
-  const industryData = useIndustryById(franchise.franchiser?.industry as Id<"industries"> | undefined);
 
 
   // Calculate stage-specific data
@@ -114,9 +109,9 @@ const FranchiseCardWithData: React.FC<FranchiseCardWithDataProps> = ({ franchise
       logo={logoUrl || "/logo/logo-4.svg"}
       title={franchiseWithData.tokenName || franchise.franchiser?.name || franchiseWithData.title}
       industry={franchise.franchiser?.industry || franchiseWithData.industry || "Unknown Industry"}
-      industryName={industryData?.name || franchise.franchiser?.industry || franchiseWithData.industry || "Unknown Industry"}
+      industryName={franchise.franchiser?.industry || franchiseWithData.industry || "Unknown Industry"}
       category={franchise.franchiser?.category || franchiseWithData.category || "Unknown Category"}
-      categoryName={categoryData?.name || franchise.franchiser?.category || franchiseWithData.category || "Unknown Category"}
+      categoryName={franchise.franchiser?.category || franchiseWithData.category || "Unknown Category"}
       price={franchiseToken?.sharePrice || 1.00}
       image={coverImageUrl || "/images/placeholder-franchise.jpg"}
       size={franchiseWithData.squareFeet}
