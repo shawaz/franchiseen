@@ -11,7 +11,14 @@ import { ReactNode, useEffect, useState } from 'react'
 function getConvexUrl(): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
 
-  const productionHostnames = ['franchiseen.com', 'app.franchiseen.com', 'www.franchiseen.com']
+  const productionHostnames = [
+    'franchiseen.com',
+    'app.franchiseen.com',
+    'www.franchiseen.com',
+    'franchiseen.vercel.app',
+    'franchiseen-shawaz-sharifs-projects.vercel.app',
+    'franchiseen-git-main-shawaz-sharifs-projects.vercel.app',
+  ]
   const isProduction = productionHostnames.includes(hostname)
 
   const url = isProduction ? process.env.NEXT_PUBLIC_CONVEX_URL_PRODUCTION : process.env.NEXT_PUBLIC_CONVEX_URL_STAGING
