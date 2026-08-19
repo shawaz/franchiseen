@@ -88,10 +88,12 @@ export const processFranchisePayout = mutation({
     if (!franchiseWallet) {
       throw new Error("Franchise wallet not found");
     }
-    
+
+    const franchiseWalletBalance = franchiseWallet.usdBalance ?? 0;
+
     console.log(`💰 Processing payout for ${franchise.franchiseSlug}`);
     console.log(`📊 Revenue: $${args.revenue.toLocaleString()}`);
-    console.log(`💼 Current wallet balance: $${franchiseWallet.usdBalance.toLocaleString()}`);
+    console.log(`💼 Current wallet balance: $${franchiseWalletBalance.toLocaleString()}`);
     console.log(`🎯 Working capital target: $${investment.workingCapital.toLocaleString()}`);
     
     // Calculate fees
@@ -108,7 +110,7 @@ export const processFranchisePayout = mutation({
     
     // Calculate distribution based on reserve balance
     const distribution = calculatePayoutDistribution(
-      franchiseWallet.usdBalance,
+      franchiseWalletBalance,
       investment.workingCapital,
       netRevenue
     );
@@ -145,8 +147,8 @@ export const processFranchisePayout = mutation({
       netRevenue,
       toTokenHolders: distribution.toTokenHolders,
       toReserve: distribution.toReserve,
-      reserveBalanceBefore: franchiseWallet.usdBalance,
-      reserveBalanceAfter: franchiseWallet.usdBalance + distribution.toReserve,
+      reserveBalanceBefore: franchiseWalletBalance,
+      reserveBalanceAfter: franchiseWalletBalance + distribution.toReserve,
       reservePercentage: distribution.reservePercentage,
       distributionRule: distribution.distributionRule,
       totalShares,
@@ -187,7 +189,7 @@ export const processFranchisePayout = mutation({
     console.log(`✅ Platform fee recorded: $${platformFeeAmount.toLocaleString()}`);
     
     // Update franchise wallet balance (add to reserve)
-    const newWalletBalance = franchiseWallet.usdBalance + distribution.toReserve;
+    const newWalletBalance = franchiseWalletBalance + distribution.toReserve;
     await ctx.db.patch(franchiseWallet._id, {
       usdBalance: newWalletBalance,
       balance: newWalletBalance / 200, // Convert to SOL
@@ -196,7 +198,7 @@ export const processFranchisePayout = mutation({
       updatedAt: now,
     });
     
-    console.log(`✅ Franchise wallet updated: $${franchiseWallet.usdBalance.toLocaleString()} → $${newWalletBalance.toLocaleString()}`);
+    console.log(`✅ Franchise wallet updated: $${franchiseWalletBalance.toLocaleString()} → $${newWalletBalance.toLocaleString()}`);
     
     // Distribute to token holders
     const payoutPerShare = distribution.toTokenHolders / totalShares;

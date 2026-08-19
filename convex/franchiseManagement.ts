@@ -820,7 +820,7 @@ export const purchaseSharesBySlug = mutation({
       .first();
 
     if (franchiseWallet) {
-      const newBalance = franchiseWallet.usdBalance + args.totalAmount;
+      const newBalance = (franchiseWallet.usdBalance ?? 0) + args.totalAmount;
       await ctx.db.patch(franchiseWallet._id, {
         usdBalance: newBalance,
         balance: newBalance / 200, // Convert to SOL
@@ -937,14 +937,14 @@ export const purchaseSharesBySlug = mutation({
         console.log(`✅ Setup cost transferred to brand: $${setupCost.toLocaleString()}`);
 
         // Deduct franchise fee and setup cost from franchise wallet (they go to brand)
-        const newFranchiseBalance = franchiseWallet.usdBalance - franchiseFee - setupCost;
+        const newFranchiseBalance = (franchiseWallet.usdBalance ?? 0) - franchiseFee - setupCost;
         await ctx.db.patch(franchiseWallet._id, {
           usdBalance: newFranchiseBalance,
           balance: newFranchiseBalance / 200,
           updatedAt: now,
         });
-        
-        console.log(`💵 Franchise wallet adjusted: $${franchiseWallet.usdBalance.toLocaleString()} → $${newFranchiseBalance.toLocaleString()}`);
+
+        console.log(`💵 Franchise wallet adjusted: $${(franchiseWallet.usdBalance ?? 0).toLocaleString()} → $${newFranchiseBalance.toLocaleString()}`);
         console.log(`💰 Working capital remaining in franchise wallet: $${newFranchiseBalance.toLocaleString()}`);
         
         // Create setup entry

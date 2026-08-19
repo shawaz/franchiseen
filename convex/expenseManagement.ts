@@ -57,7 +57,7 @@ export const createExpense = mutation({
 
         // Update wallet balance
         await ctx.db.patch(wallet._id, {
-          usdBalance: wallet.usdBalance - args.amount,
+          usdBalance: (wallet.usdBalance ?? 0) - args.amount,
           totalExpenses: (wallet.totalExpenses || 0) + args.amount,
           updatedAt: now,
         });
