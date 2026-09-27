@@ -147,11 +147,11 @@ export default function CustodyDocsPage() {
           ]}
         />
         <P>
-          The operating entity is named in the footer of this site and in the{' '}
+          The entity you are contracting with is the one named in the{' '}
           <Link href="/company/legal/terms" className="text-yellow-700 dark:text-yellow-500 underline">
             Terms of Service
           </Link>
-          .
+          , which is the governing document.
         </P>
       </Section>
 
