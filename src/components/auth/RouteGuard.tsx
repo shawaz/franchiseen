@@ -1,58 +1,58 @@
-"use client";
+'use client'
 
-import { useAuth } from '@/contexts/PrivyAuthContext';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useAuth } from '@/contexts/PrivyAuthContext'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 interface RouteGuardProps {
-  children: React.ReactNode;
+  children: React.ReactNode
+}
+
+const PROTECTED_SEGMENTS = ['account', 'admin', 'create', 'register', 'notify']
+
+/** Route prefixes readable without signing in. */
+const PUBLIC_PREFIXES = ['/company', '/docs']
+
+/**
+ * Decides whether a path is readable by a signed-out visitor.
+ * Kept as a pure function so both the redirect effect and the loading
+ * fallback below make the identical decision.
+ */
+function isPublicPath(pathname: string): boolean {
+  if (pathname === '/') return true
+
+  const containsProtectedSegment = PROTECTED_SEGMENTS.some((segment) => pathname.includes(`/${segment}`))
+  if (containsProtectedSegment) return false
+
+  if (PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return true
+  }
+
+  // Brand/franchise listings: /[brandSlug]/[franchiseSlug] and deeper.
+  return /^\/[^/]+\/[^/]+(\/[^/]+)*$/.test(pathname)
 }
 
 export function RouteGuard({ children }: RouteGuardProps) {
-  const { isAuthenticated } = useAuth();
-  const pathname = usePathname();
-  const router = useRouter();
+  const { isAuthenticated } = useAuth()
+  const pathname = usePathname()
+  const router = useRouter()
+
+  const allowed = isAuthenticated || isPublicPath(pathname)
 
   useEffect(() => {
-
-    // Check if current path is a brand/franchise route (pattern: /[brandSlug]/[franchiseSlug] or /[brandSlug]/[franchiseSlug]/[subroute])
-    // Exclude protected route segments like account, admin, create, register, notify
-    const protectedSegments = ['account', 'admin', 'create', 'register', 'notify'];
-    const isBrandFranchiseRoute = pathname.match(/^\/[^\/]+\/[^\/]+(\/[^\/]+)*$/) && 
-      !protectedSegments.some(segment => pathname.includes(`/${segment}`));
-    
-    // Check if current path is under company routes
-    const isCompanyRoute = pathname.startsWith('/company');
-
-    // Check if route contains any protected segments
-    const containsProtectedSegment = protectedSegments.some(segment => pathname.includes(`/${segment}`));
-
-    // If user is not authenticated
-    if (!isAuthenticated) {
-      // Allow access to home page, company routes (except those with protected segments), and brand/franchise routes
-      if (pathname === '/' || (isCompanyRoute && !containsProtectedSegment) || isBrandFranchiseRoute) {
-        return; // Allow access
-      } else {
-        // Redirect to home page for all other routes
-        router.push('/');
-      }
+    if (!allowed) {
+      router.push('/')
     }
-  }, [isAuthenticated, pathname, router]);
+  }, [allowed, router])
 
-  // Show loading state while checking authentication
-  const protectedSegments = ['account', 'admin', 'create', 'register', 'notify'];
-  const isBrandFranchiseRoute = pathname.match(/^\/[^\/]+\/[^\/]+(\/[^\/]+)*$/) && 
-    !protectedSegments.some(segment => pathname.includes(`/${segment}`));
-  const containsProtectedSegment = protectedSegments.some(segment => pathname.includes(`/${segment}`));
-  const isCompanyRoute = pathname.startsWith('/company');
-    
-  if (!isAuthenticated && pathname !== '/' && !(isCompanyRoute && !containsProtectedSegment) && !isBrandFranchiseRoute) {
+  // Show loading state while redirecting away from a protected route
+  if (!allowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
       </div>
-    );
+    )
   }
 
-  return <>{children}</>;
+  return <>{children}</>
 }

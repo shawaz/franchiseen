@@ -48,6 +48,7 @@ export default function Footer() {
             <Link href="/company/about" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">About</Link>
             <Link href="/company/careers" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Jobs</Link>
             <Link href="/company/news" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">News</Link>
+            <Link href="/docs" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Docs</Link>
           </div>
         </div>
       </div>
