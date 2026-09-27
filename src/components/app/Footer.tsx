@@ -48,12 +48,13 @@ export default function Footer() {
             <Link href="/company/about" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">About</Link>
             <Link href="/company/careers" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Jobs</Link>
             <Link href="/company/news" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">News</Link>
+            <Link href="/docs" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Docs</Link>
           </div>
         </div>
       </div>
       <div className="border-t border-stone-200 dark:border-stone-600/50 w-full  py-4 text-center text-stone-500 dark:text-stone-400 flex flex-col md:flex-row items-center justify-center max-w-7xl mx-auto px-4 sm:px-6 gap-2">
         <div className="flex justify-between items-center w-full">
-          <div className="text-sm">House Of Guzarishh FZE LLC</div>
+          <div className="text-sm">Codelude Software Private Limited</div>
           <div className="flex gap-8 font-semibold text-sm">
             <Link href="/company/legal/terms" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Terms of Service</Link>
             <Link href="/company/legal/privacy" className="text-stone-600 dark:text-stone-300 dark:hover:text-yellow-600 hover:text-yellow-600">Privacy Policy</Link>
